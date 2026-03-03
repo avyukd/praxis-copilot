@@ -5,34 +5,17 @@ from __future__ import annotations
 import logging
 import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from typing import Any
 
 import requests
 
+from src.cli.models import TickerRegistryEntry
+
+from .models import SerpResponse, SerpResult
+
 logger = logging.getLogger(__name__)
 
 SERPAPI_ENDPOINT = "https://serpapi.com/search"
-
-
-@dataclass
-class SerpResult:
-    """A single search result from a SERP query."""
-
-    headline: str
-    url: str
-    snippet: str
-    source: str
-    published: str | None = None
-
-
-@dataclass
-class SerpResponse:
-    """Response from a SERP query for a single ticker."""
-
-    ticker: str
-    query: str
-    results: list[SerpResult] = field(default_factory=list)
 
 
 class SerpProvider(ABC):
@@ -100,24 +83,23 @@ def get_provider(provider_name: str, api_key: str) -> SerpProvider:
     return cls(api_key=api_key)
 
 
-def build_queries(ticker: str, ticker_config: dict[str, Any]) -> list[str]:
+def build_queries(ticker: str, ticker_config: TickerRegistryEntry) -> list[str]:
     """Build search queries for a ticker from its registry config.
 
     Uses news_queries from ticker registry if available,
     otherwise falls back to '"{company_name}" OR "{ticker}"'.
     """
-    custom_queries = ticker_config.get("news_queries")
-    if custom_queries:
-        return custom_queries
+    if ticker_config.news_queries:
+        return ticker_config.news_queries
 
-    company_name = ticker_config.get("name", ticker)
+    company_name = ticker_config.name or ticker
     return [f'"{company_name}" OR "{ticker}"']
 
 
 def sweep_ticker(
     provider: SerpProvider,
     ticker: str,
-    ticker_config: dict[str, Any],
+    ticker_config: TickerRegistryEntry,
     num_results: int = 10,
 ) -> SerpResponse:
     """Run SERP sweep for a single ticker. Merges results from all queries."""

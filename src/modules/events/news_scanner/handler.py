@@ -7,7 +7,6 @@ Two-layer architecture:
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -16,7 +15,10 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
+from src.cli.models import TickerRegistry, TickerRegistryEntry
+
 from . import dedup, serp, triage
+from .models import NewsScannerConfig
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -25,16 +27,6 @@ BUCKET = "praxis-copilot"
 CONFIG_KEY = "config/news.yaml"
 REGISTRY_KEY = "config/ticker_registry.yaml"
 
-# Default config values
-DEFAULTS = {
-    "enabled": True,
-    "serp_api": "serpapi",
-    "serp_api_key_param": "/praxis/serpapi_key",
-    "results_per_ticker": 10,
-    "lookback_hours": 24,
-    "market_hours_only": True,
-}
-
 
 def _load_yaml_from_s3(s3_client: boto3.client, key: str) -> dict[str, Any]:
     """Load and parse a YAML file from S3."""
@@ -42,7 +34,7 @@ def _load_yaml_from_s3(s3_client: boto3.client, key: str) -> dict[str, Any]:
     return yaml.safe_load(obj["Body"].read().decode()) or {}
 
 
-def _load_config(s3_client: boto3.client) -> dict[str, Any]:
+def _load_config(s3_client: boto3.client) -> NewsScannerConfig:
     """Load news scanner config from S3, with defaults."""
     try:
         config = _load_yaml_from_s3(s3_client, CONFIG_KEY)
@@ -56,14 +48,14 @@ def _load_config(s3_client: boto3.client) -> dict[str, Any]:
     except (yaml.YAMLError, ValueError) as e:
         logger.warning("Failed to parse %s (%s), using defaults", CONFIG_KEY, e)
         config = {}
-    merged = {**DEFAULTS, **config}
-    return merged
+    return NewsScannerConfig(**config)
 
 
-def _load_ticker_registry(s3_client: boto3.client) -> dict[str, dict[str, Any]]:
+def _load_ticker_registry(s3_client: boto3.client) -> dict[str, TickerRegistryEntry]:
     """Load ticker registry from S3. Returns dict of ticker -> config."""
-    registry = _load_yaml_from_s3(s3_client, REGISTRY_KEY)
-    return registry.get("tickers", {})
+    raw = _load_yaml_from_s3(s3_client, REGISTRY_KEY)
+    registry = TickerRegistry.model_validate(raw)
+    return registry.tickers
 
 
 def _get_serp_api_key(ssm_client: boto3.client, param_name: str) -> str:
@@ -107,12 +99,12 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     # Load config
     config = _load_config(s3)
-    if not config["enabled"]:
+    if not config.enabled:
         logger.info("News scanner disabled via config")
         return {"status": "disabled"}
 
     # Check market hours
-    if config["market_hours_only"] and not _is_market_hours(now):
+    if config.market_hours_only and not _is_market_hours(now):
         logger.info("Outside market hours, skipping sweep")
         return {"status": "skipped", "reason": "outside_market_hours"}
 
@@ -124,13 +116,13 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     # Get SERP API key from SSM
     try:
-        api_key = _get_serp_api_key(ssm, config["serp_api_key_param"])
+        api_key = _get_serp_api_key(ssm, config.serp_api_key_param)
     except ClientError as e:
         logger.error("Failed to retrieve SERP API key from SSM: %s", e)
         return {"status": "error", "reason": "ssm_key_retrieval_failed"}
 
     # Initialize SERP provider
-    provider = serp.get_provider(config["serp_api"], api_key)
+    provider = serp.get_provider(config.serp_api, api_key)
 
     # --- Layer 1: SERP Sweep ---
     logger.info("Starting SERP sweep for %d tickers", len(tickers))
@@ -139,7 +131,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     for ticker, ticker_config in tickers.items():
         try:
             resp = serp.sweep_ticker(
-                provider, ticker, ticker_config, num_results=config["results_per_ticker"]
+                provider, ticker, ticker_config, num_results=config.results_per_ticker
             )
             responses[ticker] = resp
         except Exception:

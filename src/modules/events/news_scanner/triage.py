@@ -6,7 +6,6 @@ Produces a triaged digest identifying material news.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -15,7 +14,7 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
-from .serp import SerpResponse
+from .models import Monitor, SerpResponse, TriageDigest
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +79,9 @@ def _load_thesis_summary(s3_client: boto3.client, ticker: str) -> str | None:
         return None
 
 
-def _load_monitors(s3_client: boto3.client, ticker: str) -> list[dict[str, Any]]:
+def _load_monitors(s3_client: boto3.client, ticker: str) -> list[Monitor]:
     """Load active monitor definitions that listen to this ticker."""
-    monitors: list[dict[str, Any]] = []
+    monitors: list[Monitor] = []
     try:
         # List all monitor config files (paginated)
         paginator = s3_client.get_paginator("list_objects_v2")
@@ -99,11 +98,11 @@ def _load_monitors(s3_client: boto3.client, ticker: str) -> list[dict[str, Any]]
                 listen_list = monitor.get("listen", [])
                 for listen_item in listen_list:
                     if isinstance(listen_item, str) and listen_item.startswith(f"{ticker}:"):
-                        monitors.append({
-                            "id": monitor.get("id", key.split("/")[-1].replace(".yaml", "")),
-                            "description": monitor.get("description", ""),
-                            "listen": listen_list,
-                        })
+                        monitors.append(Monitor(
+                            id=monitor.get("id", key.split("/")[-1].replace(".yaml", "")),
+                            description=monitor.get("description", ""),
+                            listen=listen_list,
+                        ))
                         break
     except ClientError as e:
         logger.error("S3 error loading monitors for %s: %s", ticker, e)
@@ -115,7 +114,7 @@ def _load_monitors(s3_client: boto3.client, ticker: str) -> list[dict[str, Any]]
 def _build_user_prompt(
     changed_responses: dict[str, SerpResponse],
     thesis_summaries: dict[str, str | None],
-    monitors: dict[str, list[dict[str, Any]]],
+    monitors: dict[str, list[Monitor]],
 ) -> str:
     """Build the user prompt with all context for the triage agent."""
     sections: list[str] = []
@@ -147,7 +146,7 @@ def _build_user_prompt(
         if ticker_monitors:
             section += "### Active Monitors\n"
             for m in ticker_monitors:
-                section += f"- **{m['id']}**: {m['description']}\n"
+                section += f"- **{m.id}**: {m.description}\n"
             section += "\n"
 
         sections.append(section)
@@ -158,7 +157,7 @@ def _build_user_prompt(
 def run_triage(
     s3_client: boto3.client,
     changed_responses: dict[str, SerpResponse],
-) -> dict[str, Any]:
+) -> TriageDigest:
     """Run Sonnet triage on changed headlines.
 
     Args:
@@ -166,14 +165,14 @@ def run_triage(
         changed_responses: dict of ticker -> SerpResponse for tickers with changed content
 
     Returns:
-        Parsed triage digest as a dict
+        Parsed triage digest
     """
     if not changed_responses:
-        return {"material": [], "nothing_material": []}
+        return TriageDigest()
 
     # Gather context
     thesis_summaries: dict[str, str | None] = {}
-    monitors: dict[str, list[dict[str, Any]]] = {}
+    monitors: dict[str, list[Monitor]] = {}
 
     for ticker in changed_responses:
         thesis_summaries[ticker] = _load_thesis_summary(s3_client, ticker)
@@ -198,11 +197,17 @@ def run_triage(
         )
     except anthropic.APIError as e:
         logger.error("Anthropic API call failed: %s", e)
-        return {"material": [], "nothing_material": list(changed_responses.keys()), "_error": str(e)}
+        return TriageDigest(
+            nothing_material=list(changed_responses.keys()),
+            _error=str(e),
+        )
 
     if not response.content or not hasattr(response.content[0], "text"):
         logger.error("Anthropic API returned empty content")
-        return {"material": [], "nothing_material": list(changed_responses.keys()), "_error": "empty_response"}
+        return TriageDigest(
+            nothing_material=list(changed_responses.keys()),
+            _error="empty_response",
+        )
 
     raw_text = response.content[0].text
 
@@ -218,19 +223,21 @@ def run_triage(
         text = "\n".join(lines)
 
     try:
-        digest = yaml.safe_load(text)
-        if not isinstance(digest, dict):
-            digest = {"material": [], "nothing_material": [], "_raw": raw_text}
+        parsed = yaml.safe_load(text)
+        if not isinstance(parsed, dict):
+            return TriageDigest(_raw=raw_text)
+        return TriageDigest.model_validate(parsed)
     except yaml.YAMLError:
         logger.error("Failed to parse triage YAML response")
-        digest = {"material": [], "nothing_material": [], "_raw": raw_text, "_parse_error": True}
-
-    return digest
+        return TriageDigest(_raw=raw_text, _parse_error=True)
+    except Exception:
+        logger.warning("Failed to validate triage digest, returning raw")
+        return TriageDigest(_raw=raw_text)
 
 
 def store_digest(
     s3_client: boto3.client,
-    digest: dict[str, Any],
+    digest: TriageDigest,
     date_str: str,
     hour: int,
 ) -> str:
@@ -239,7 +246,7 @@ def store_digest(
     payload = {
         "date": date_str,
         "hour": hour,
-        **digest,
+        **digest.model_dump(exclude_none=True, by_alias=True),
     }
     s3_client.put_object(
         Bucket=BUCKET,

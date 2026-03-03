@@ -5,12 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from dataclasses import asdict
 
 import boto3
 from botocore.exceptions import ClientError
 
-from .serp import SerpResponse
+from .models import SerpResponse
 
 logger = logging.getLogger(__name__)
 
