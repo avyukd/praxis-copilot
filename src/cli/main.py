@@ -123,11 +123,30 @@ def universe_add(ticker: str):
     uploaded = upload_directory(s3, config_dir, "config")
     click.echo(f"Synced {len(uploaded)} config file(s) to S3.")
 
-    # Stub: invoke data ingestion Lambda
+    # Invoke data ingestion Lambda
     click.echo()
-    click.echo(f"[STUB] Would invoke data ingestion Lambda for {ticker} (CIK: {info['cik']})")
-    click.echo(f"  This will pull SEC filings, fundamentals, and transcripts to:")
-    click.echo(f"  s3://{BUCKET}/data/research/{ticker}/data/")
+    click.echo(f"Invoking data ingestion for {ticker} (CIK: {info['cik']})...")
+    click.echo(f"  Target: s3://{BUCKET}/data/research/{ticker}/data/")
+    try:
+        import boto3 as _boto3
+        lambda_client = _boto3.client("lambda")
+        import json as _json
+        payload = _json.dumps({"ticker": ticker, "cik": info["cik"]})
+        resp = lambda_client.invoke(
+            FunctionName="praxis-data-ingestion",
+            InvocationType="Event",  # async — don't wait
+            Payload=payload,
+        )
+        status_code = resp.get("StatusCode", 0)
+        if status_code in (200, 202):
+            click.echo(f"  Data ingestion Lambda invoked (async). Check S3 for results.")
+        else:
+            click.echo(f"  Lambda returned status {status_code}. Check CloudWatch logs.")
+    except Exception as e:
+        click.echo(f"  Could not invoke Lambda: {e}")
+        click.echo(f"  You can run ingestion locally with:")
+        click.echo(f'    python -c "from src.modules.analyze.ingestion.handler import lambda_handler; '
+                   f"lambda_handler({{'ticker': '{ticker}', 'cik': '{info['cik']}'}})\"")
 
 
 @universe.command("remove")
