@@ -4,6 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
+import boto3
 import click
 import yaml
 
@@ -118,11 +119,28 @@ def universe_add(ticker: str):
     uploaded = upload_directory(s3, config_dir, "config")
     click.echo(f"Synced {len(uploaded)} config file(s) to S3.")
 
-    # Stub: invoke data ingestion Lambda
+    # Invoke data ingestion Lambda
     click.echo()
-    click.echo(f"[STUB] Would invoke data ingestion Lambda for {ticker} (CIK: {info.cik})")
-    click.echo(f"  This will pull SEC filings, fundamentals, and transcripts to:")
-    click.echo(f"  s3://{BUCKET}/data/research/{ticker}/data/")
+    click.echo(f"Invoking data ingestion for {ticker} (CIK: {info.cik})...")
+    try:
+        lambda_client = boto3.client("lambda")
+        payload = json.dumps({"ticker": ticker, "cik": info.cik})
+        response = lambda_client.invoke(
+            FunctionName="praxis-data-ingestion",
+            InvocationType="Event",  # async — don't wait
+            Payload=payload,
+        )
+        status = response.get("StatusCode", 0)
+        if status in (200, 202):
+            click.echo(f"  Data ingestion triggered (async). Data will appear at:")
+            click.echo(f"  s3://{BUCKET}/data/research/{ticker}/data/")
+        else:
+            click.echo(f"  Lambda invocation returned status {status}")
+    except Exception as e:
+        click.echo(f"  Could not invoke ingestion Lambda: {e}")
+        click.echo(f"  You can run ingestion locally with:")
+        click.echo(f'    python -c "from modules.data_ingestion.handler import handler; '
+                   f"handler({{'ticker': '{ticker}', 'cik': '{info.cik}'}})\"")
 
 
 @universe.command("remove")
