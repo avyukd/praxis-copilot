@@ -1,0 +1,9 @@
+# Universe configuration
+# Tickers actively tracked with full pipeline (research, manage, etc.)
+# Add tickers via `praxis universe add TICKER`
+tickers: []
+
+# Market cap thresholds for auto-filtering
+thresholds:
+  us: 2000000000
+  ca: 500000000

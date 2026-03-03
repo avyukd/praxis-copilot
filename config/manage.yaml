@@ -1,0 +1,11 @@
+# Manage stage configuration
+# Price/volume thresholds, per-ticker overrides
+
+defaults:
+  price_move_pct: 5.0
+  volume_anomaly_multiplier: 3.0
+
+# Per-ticker overrides
+# overrides:
+#   NVDA:
+#     price_move_pct: 3.0

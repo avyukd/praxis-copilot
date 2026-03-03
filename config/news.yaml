@@ -1,0 +1,6 @@
+# News scanner configuration
+# API selection, sweep config
+
+sweep_interval_hours: 1
+api: serp  # serp or google
+max_results_per_query: 10

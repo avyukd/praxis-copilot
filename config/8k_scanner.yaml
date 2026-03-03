@@ -1,0 +1,8 @@
+scheduling_window: "cron(* 11-14 ? * MON-FRI *)"
+market_cap_us: 2000000000
+market_cap_ca: 500000000
+item_filters: both  # long / short / both
+magnitude_threshold: 0.5
+llm_model: ""  # configurable, falls back to env LLM_MODEL
+token_budget: 0  # configurable
+sns_topic_arn: ""  # configurable, falls back to env SNS_TOPIC_ARN
