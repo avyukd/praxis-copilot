@@ -111,52 +111,48 @@ def _parse_trigger(key: str) -> dict[str, Any] | None:
     parts = key.split("/")
 
     # data/raw/8k/{cik}/{accession}/analysis.json
-    if "8k" in parts and key.endswith("/analysis.json"):
+    if key.startswith("data/raw/8k/") and key.endswith("/analysis.json"):
         try:
-            idx = parts.index("8k")
             return {
                 "source": "8k-scanner",
                 "data_type": "filings",
-                "cik": parts[idx + 1],
-                "accession": parts[idx + 2],
+                "cik": parts[3],
+                "accession": parts[4],
             }
         except IndexError:
             return None
 
     # data/raw/ca-pr/{ticker}/{release_id}/analysis.json
-    if "ca-pr" in parts and key.endswith("/analysis.json"):
+    if key.startswith("data/raw/ca-pr/") and key.endswith("/analysis.json"):
         try:
-            idx = parts.index("ca-pr")
             return {
                 "source": "ca-pr-scanner",
                 "data_type": "press_releases",
-                "ticker_direct": parts[idx + 1],
-                "release_id": parts[idx + 2],
+                "ticker_direct": parts[3],
+                "release_id": parts[4],
             }
         except IndexError:
             return None
 
     # data/raw/us-pr/{ticker}/{release_id}/analysis.json
-    if "us-pr" in parts and key.endswith("/analysis.json"):
+    if key.startswith("data/raw/us-pr/") and key.endswith("/analysis.json"):
         try:
-            idx = parts.index("us-pr")
             return {
                 "source": "us-pr-scanner",
                 "data_type": "press_releases",
-                "ticker_direct": parts[idx + 1],
-                "release_id": parts[idx + 2],
+                "ticker_direct": parts[3],
+                "release_id": parts[4],
             }
         except IndexError:
             return None
 
     # data/news/{date}/digest/{hour}.yaml
-    if "digest" in parts and key.endswith(".yaml"):
+    if key.startswith("data/news/") and "/digest/" in key and key.endswith(".yaml"):
         try:
-            idx = parts.index("news")
             return {
                 "source": "news-scanner",
                 "data_type": "news",
-                "date": parts[idx + 1],
+                "date": parts[2],
             }
         except IndexError:
             return None
