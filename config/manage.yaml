@@ -3,7 +3,7 @@
 
 defaults:
   price_move_pct: 5.0
-  volume_anomaly_multiplier: 3.0
+  volume_anomaly_multiplier: 3.0  # multiplier over 20-day ADTV
 
 # Per-ticker overrides
 # overrides:
