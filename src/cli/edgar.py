@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 
 import requests
 
+from cli.models import TickerInfo
+
 # SEC requires a User-Agent header with contact info
 HEADERS = {
     "User-Agent": "PraxisCopilot/0.1 (research-tool)",
@@ -19,10 +21,10 @@ COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 COMPANY_TICKERS_EXCHANGE_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
 
 
-def resolve_ticker(ticker: str) -> dict | None:
+def resolve_ticker(ticker: str) -> TickerInfo | None:
     """Resolve a ticker symbol to CIK, company name, and exchange.
 
-    Returns dict with keys: cik, name, exchange, or None if not found.
+    Returns TickerInfo or None if not found.
     """
     ticker_upper = ticker.upper()
 
@@ -38,11 +40,11 @@ def resolve_ticker(ticker: str) -> dict | None:
                 name = entry.get("title", "")
                 # This endpoint doesn't include exchange, try to get it
                 exchange = _lookup_exchange(ticker_upper, cik)
-                return {
-                    "cik": cik,
-                    "name": name,
-                    "exchange": exchange or "UNKNOWN",
-                }
+                return TickerInfo(
+                    cik=cik,
+                    name=name,
+                    exchange=exchange or "UNKNOWN",
+                )
     except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
         # Fall through to EFTS search
         pass
@@ -64,11 +66,11 @@ def resolve_ticker(ticker: str) -> dict | None:
             source = hits[0].get("_source", {})
             cik = str(source.get("entity_id", "")).zfill(10)
             name = source.get("entity_name", "")
-            return {
-                "cik": cik,
-                "name": name,
-                "exchange": "UNKNOWN",
-            }
+            return TickerInfo(
+                cik=cik,
+                name=name,
+                exchange="UNKNOWN",
+            )
     except (requests.RequestException, json.JSONDecodeError, KeyError):
         pass
 
