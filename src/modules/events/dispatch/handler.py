@@ -21,6 +21,15 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
+from src.cli.models import TickerRegistry
+from src.modules.events.dispatch.models import (
+    DispatchResult,
+    EventRecord,
+    MonitorDefinition,
+    ParsedTrigger,
+    S3Event,
+)
+
 logger = logging.getLogger(__name__)
 
 S3_BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
@@ -49,14 +58,13 @@ def lambda_handler(event: dict, context=None) -> dict:
     """Route S3 PUT events to subscribed monitors."""
     logging.basicConfig(level=logging.INFO)
 
-    records = event.get("Records", [])
+    s3_event = S3Event.model_validate(event)
     dispatched = 0
     skipped = 0
 
-    for record in records:
-        s3_info = record.get("s3", {})
-        bucket = s3_info.get("bucket", {}).get("name", S3_BUCKET)
-        key = s3_info.get("object", {}).get("key", "")
+    for record in s3_event.Records:
+        bucket = record.s3.bucket.name or S3_BUCKET
+        key = record.s3.object.key
 
         parsed = _parse_trigger(key)
         if parsed is None:
@@ -64,8 +72,6 @@ def lambda_handler(event: dict, context=None) -> dict:
             skipped += 1
             continue
 
-        source = parsed["source"]
-        data_type = parsed["data_type"]
         tickers = _resolve_tickers(bucket, key, parsed)
 
         if not tickers:
@@ -78,20 +84,21 @@ def lambda_handler(event: dict, context=None) -> dict:
 
         # Match monitors
         for ticker in tickers:
-            matching_monitors = _match_monitors(ticker, data_type, monitors)
+            matching_monitors = _match_monitors(ticker, parsed.data_type, monitors)
             if not matching_monitors:
-                logger.debug(f"No monitors matched for {ticker}:{data_type}")
+                logger.debug(f"No monitors matched for {ticker}:{parsed.data_type}")
                 continue
 
             event_id = f"evt-{uuid.uuid4().hex[:12]}"
-            event_record = _build_event_record(
+            event_record = EventRecord(
                 event_id=event_id,
-                source=source,
+                timestamp=datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                source=parsed.source,
                 ticker=ticker,
-                cik=parsed.get("cik"),
-                data_type=data_type,
+                cik=parsed.cik,
+                data_type=parsed.data_type,
                 s3_path=key,
-                monitors_triggered=[m["id"] for m in matching_monitors],
+                monitors_triggered=[m.id for m in matching_monitors],
             )
 
             # Emit event record
@@ -103,72 +110,72 @@ def lambda_handler(event: dict, context=None) -> dict:
                 dispatched += 1
 
     logger.info(f"Dispatch complete: {dispatched} monitor invocations, {skipped} skipped")
-    return {"dispatched": dispatched, "skipped": skipped}
+    return DispatchResult(dispatched=dispatched, skipped=skipped).model_dump()
 
 
-def _parse_trigger(key: str) -> dict[str, Any] | None:
+def _parse_trigger(key: str) -> ParsedTrigger | None:
     """Parse an S3 key to determine source, data type, and identifiers."""
     parts = key.split("/")
 
     # data/raw/8k/{cik}/{accession}/analysis.json
     if key.startswith("data/raw/8k/") and key.endswith("/analysis.json"):
         try:
-            return {
-                "source": "8k-scanner",
-                "data_type": "filings",
-                "cik": parts[3],
-                "accession": parts[4],
-            }
+            return ParsedTrigger(
+                source="8k-scanner",
+                data_type="filings",
+                cik=parts[3],
+                accession=parts[4],
+            )
         except IndexError:
             return None
 
     # data/raw/ca-pr/{ticker}/{release_id}/analysis.json
     if key.startswith("data/raw/ca-pr/") and key.endswith("/analysis.json"):
         try:
-            return {
-                "source": "ca-pr-scanner",
-                "data_type": "press_releases",
-                "ticker_direct": parts[3],
-                "release_id": parts[4],
-            }
+            return ParsedTrigger(
+                source="ca-pr-scanner",
+                data_type="press_releases",
+                ticker_direct=parts[3],
+                release_id=parts[4],
+            )
         except IndexError:
             return None
 
     # data/raw/us-pr/{ticker}/{release_id}/analysis.json
     if key.startswith("data/raw/us-pr/") and key.endswith("/analysis.json"):
         try:
-            return {
-                "source": "us-pr-scanner",
-                "data_type": "press_releases",
-                "ticker_direct": parts[3],
-                "release_id": parts[4],
-            }
+            return ParsedTrigger(
+                source="us-pr-scanner",
+                data_type="press_releases",
+                ticker_direct=parts[3],
+                release_id=parts[4],
+            )
         except IndexError:
             return None
 
     # data/news/{date}/digest/{hour}.yaml
     if key.startswith("data/news/") and "/digest/" in key and key.endswith(".yaml"):
         try:
-            return {
-                "source": "news-scanner",
-                "data_type": "news",
-                "date": parts[2],
-            }
+            return ParsedTrigger(
+                source="news-scanner",
+                data_type="news",
+                date=parts[2],
+            )
         except IndexError:
             return None
 
     return None
 
 
-def _resolve_tickers(bucket: str, key: str, parsed: dict) -> list[str]:
+def _resolve_tickers(bucket: str, key: str, parsed: ParsedTrigger) -> list[str]:
     """Resolve tickers from the event source."""
     # PR scanners have ticker directly in the path
-    if "ticker_direct" in parsed:
-        return [parsed["ticker_direct"]]
+    if parsed.ticker_direct:
+        return [parsed.ticker_direct]
 
     # 8k-scanner: resolve CIK -> ticker via registry
-    if parsed.get("cik"):
-        ticker = _resolve_cik_to_ticker(bucket, parsed["cik"])
+    if parsed.cik:
+        ticker = _resolve_cik_to_ticker(bucket, parsed.cik)
         if ticker:
             return [ticker]
         # Fall back to reading the analysis.json itself
@@ -191,7 +198,7 @@ def _resolve_tickers(bucket: str, key: str, parsed: dict) -> list[str]:
         return []
 
     # News scanner: parse digest for material tickers
-    if parsed["source"] == "news-scanner":
+    if parsed.source == "news-scanner":
         try:
             resp = _get_s3_client().get_object(Bucket=bucket, Key=key)
             content = resp["Body"].read().decode("utf-8")
@@ -215,25 +222,26 @@ def _resolve_cik_to_ticker(bucket: str, cik: str) -> str | None:
             Bucket=bucket, Key=f"{S3_CONFIG_PREFIX}/ticker_registry.yaml"
         )
         content = resp["Body"].read().decode("utf-8")
-        registry = yaml.safe_load(content) or {}
+        raw = yaml.safe_load(content) or {}
     except Exception:
         logger.warning("Failed to read ticker registry from S3")
         return None
 
-    tickers = registry.get("tickers", {})
+    registry = TickerRegistry.model_validate(raw)
+
     # Normalize CIK for comparison (strip leading zeros)
     cik_normalized = cik.lstrip("0")
-    for ticker_symbol, info in tickers.items():
-        registry_cik = (info.get("cik") or "").lstrip("0")
+    for ticker_symbol, entry in registry.tickers.items():
+        registry_cik = (entry.cik or "").lstrip("0")
         if registry_cik == cik_normalized:
             return ticker_symbol
 
     return None
 
 
-def _load_monitor_registry(bucket: str) -> list[dict]:
+def _load_monitor_registry(bucket: str) -> list[MonitorDefinition]:
     """Load all monitor definitions from S3 config/monitors/."""
-    monitors = []
+    monitors: list[MonitorDefinition] = []
     prefix = f"{S3_CONFIG_PREFIX}/monitors/"
     try:
         paginator = _get_s3_client().get_paginator("list_objects_v2")
@@ -245,12 +253,15 @@ def _load_monitor_registry(bucket: str) -> list[dict]:
                 try:
                     resp = _get_s3_client().get_object(Bucket=bucket, Key=key)
                     content = resp["Body"].read().decode("utf-8")
-                    monitor = yaml.safe_load(content)
-                    if monitor and isinstance(monitor, dict):
+                    raw = yaml.safe_load(content)
+                    if raw and isinstance(raw, dict):
                         # Use filename stem as monitor ID if not specified
-                        if "id" not in monitor:
-                            monitor["id"] = key.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-                        monitors.append(monitor)
+                        if "id" not in raw:
+                            raw["id"] = key.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+                        # Normalize listen to list
+                        if isinstance(raw.get("listen"), str):
+                            raw["listen"] = [raw["listen"]]
+                        monitors.append(MonitorDefinition.model_validate(raw))
                 except Exception:
                     logger.warning(f"Failed to parse monitor: {key}")
     except Exception:
@@ -259,17 +270,15 @@ def _load_monitor_registry(bucket: str) -> list[dict]:
     return monitors
 
 
-def _match_monitors(ticker: str, data_type: str, monitors: list[dict]) -> list[dict]:
+def _match_monitors(
+    ticker: str, data_type: str, monitors: list[MonitorDefinition]
+) -> list[MonitorDefinition]:
     """Match monitors whose listen fields include {ticker}:{data_type}."""
     matched = []
     listen_key = f"{ticker}:{data_type}"
 
     for monitor in monitors:
-        listen_fields = monitor.get("listen", [])
-        if isinstance(listen_fields, str):
-            listen_fields = [listen_fields]
-
-        for listen in listen_fields:
+        for listen in monitor.listen:
             if listen == listen_key:
                 matched.append(monitor)
                 break
@@ -281,37 +290,15 @@ def _match_monitors(ticker: str, data_type: str, monitors: list[dict]) -> list[d
     return matched
 
 
-def _build_event_record(
-    event_id: str,
-    source: str,
-    ticker: str,
-    cik: str | None,
-    data_type: str,
-    s3_path: str,
-    monitors_triggered: list[str],
-) -> dict:
-    return {
-        "event_id": event_id,
-        "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-        "source": source,
-        "ticker": ticker,
-        "cik": cik,
-        "data_type": data_type,
-        "s3_path": s3_path,
-        "monitors_triggered": monitors_triggered,
-    }
-
-
-def _emit_event_record(bucket: str, event_record: dict) -> None:
+def _emit_event_record(bucket: str, event_record: EventRecord) -> None:
     """Write event record to data/events/{date}/{event_id}.json."""
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    event_id = event_record["event_id"]
-    key = f"{S3_DATA_PREFIX}/events/{date_str}/{event_id}.json"
+    key = f"{S3_DATA_PREFIX}/events/{date_str}/{event_record.event_id}.json"
     try:
         _get_s3_client().put_object(
             Bucket=bucket,
             Key=key,
-            Body=json.dumps(event_record, indent=2),
+            Body=event_record.model_dump_json(indent=2),
             ContentType="application/json",
         )
         logger.info(f"Event record emitted: {key}")
@@ -319,27 +306,26 @@ def _emit_event_record(bucket: str, event_record: dict) -> None:
         logger.exception(f"Failed to emit event record: {key}")
 
 
-def _invoke_monitor_collector(monitor: dict, event_record: dict) -> None:
+def _invoke_monitor_collector(monitor: MonitorDefinition, event_record: EventRecord) -> None:
     """Invoke a monitor's collector Lambda asynchronously."""
-    collector_fn = monitor.get("collector_lambda")
-    if not collector_fn:
-        logger.debug(f"Monitor {monitor.get('id')} has no collector_lambda, skipping invoke")
+    if not monitor.collector_lambda:
+        logger.debug(f"Monitor {monitor.id} has no collector_lambda, skipping invoke")
         return
 
     payload = {
-        "event": event_record,
-        "monitor_id": monitor.get("id"),
+        "event": event_record.model_dump(),
+        "monitor_id": monitor.id,
     }
 
     try:
         _get_lambda_client().invoke(
-            FunctionName=collector_fn,
+            FunctionName=monitor.collector_lambda,
             InvocationType="Event",  # async
             Payload=json.dumps(payload),
         )
-        logger.info(f"Invoked collector {collector_fn} for monitor {monitor.get('id')}")
+        logger.info(f"Invoked collector {monitor.collector_lambda} for monitor {monitor.id}")
     except Exception:
-        logger.exception(f"Failed to invoke collector for monitor {monitor.get('id')}")
+        logger.exception(f"Failed to invoke collector for monitor {monitor.id}")
 
 
 def _read_json(bucket: str, key: str) -> dict:
