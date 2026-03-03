@@ -229,54 +229,7 @@ def analyze(ticker: str):
     click.echo(f"  1. cd {workspace}")
     click.echo(f"  2. Start a Claude Code session with the research pipeline prompt")
     click.echo(f"  3. Artifacts will be produced in {workspace}/")
-    click.echo(f"  4. After analysis, run: praxis sync {ticker}")
-
-
-# ---------------------------------------------------------------------------
-# praxis sync TICKER
-# ---------------------------------------------------------------------------
-
-@cli.command("sync")
-@click.argument("ticker")
-def sync(ticker: str):
-    """Sync local research artifacts for TICKER to S3 and clean up workspace."""
-    ticker = ticker.upper()
-
-    # Look for workspace staging directory
-    repo_root = find_repo_root()
-    local_dir = repo_root / "workspace" / ticker
-    if not local_dir.exists():
-        click.echo(f"No workspace found at {local_dir}")
-        click.echo(f"Run 'praxis analyze {ticker}' first to set up the workspace.")
-        return
-
-    # Collect all artifacts
-    found = []
-    for path in local_dir.rglob("*"):
-        if path.is_file():
-            found.append(path.relative_to(local_dir))
-
-    if not found:
-        click.echo(f"No artifacts found in {local_dir}/")
-        return
-
-    click.echo(f"Found artifacts in {local_dir}/:")
-    for name in sorted(str(f) for f in found):
-        click.echo(f"  {name}")
-
-    s3_prefix = f"data/research/{ticker}"
-    click.echo(f"\nUploading to s3://{BUCKET}/{s3_prefix}/ ...")
-
-    s3 = get_s3_client()
-    uploaded = upload_directory(s3, local_dir, s3_prefix)
-    click.echo(f"Synced {len(uploaded)} file(s):")
-    for key in uploaded:
-        click.echo(f"  {key}")
-
-    # Clean up workspace
-    import shutil
-    shutil.rmtree(local_dir)
-    click.echo(f"\nCleaned up workspace at {local_dir}")
+    click.echo(f"  4. After analysis, run: praxis research sync {ticker}")
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +435,47 @@ def research_pull(ticker: str):
         click.echo(f"  {relative}")
 
     click.echo(f"\nPulled {len(artifact_keys)} file(s) to {workspace}/")
-    click.echo(f"After re-analysis, run: praxis sync {ticker}")
+    click.echo(f"After re-analysis, run: praxis research sync {ticker}")
+
+
+@research.command("sync")
+@click.argument("ticker")
+def research_sync(ticker: str):
+    """Sync local research artifacts for TICKER to S3 and clean up workspace."""
+    ticker = ticker.upper()
+
+    repo_root = find_repo_root()
+    local_dir = repo_root / "workspace" / ticker
+    if not local_dir.exists():
+        click.echo(f"No workspace found at {local_dir}")
+        click.echo(f"Run 'praxis analyze {ticker}' first to set up the workspace.")
+        return
+
+    found = []
+    for path in local_dir.rglob("*"):
+        if path.is_file():
+            found.append(path.relative_to(local_dir))
+
+    if not found:
+        click.echo(f"No artifacts found in {local_dir}/")
+        return
+
+    click.echo(f"Found artifacts in {local_dir}/:")
+    for name in sorted(str(f) for f in found):
+        click.echo(f"  {name}")
+
+    s3_prefix = f"data/research/{ticker}"
+    click.echo(f"\nUploading to s3://{BUCKET}/{s3_prefix}/ ...")
+
+    s3 = get_s3_client()
+    uploaded = upload_directory(s3, local_dir, s3_prefix)
+    click.echo(f"Synced {len(uploaded)} file(s):")
+    for key in uploaded:
+        click.echo(f"  {key}")
+
+    import shutil
+    shutil.rmtree(local_dir)
+    click.echo(f"\nCleaned up workspace at {local_dir}")
 
 
 if __name__ == "__main__":
