@@ -219,11 +219,16 @@ def analyze(ticker: str):
         click.echo("  Could not check S3 (AWS credentials issue). Continuing anyway...")
         click.echo()
 
-    # Print instructions for starting Claude Code session
+    # Set up workspace staging directory
+    repo_root = find_repo_root()
+    workspace = repo_root / "workspace" / ticker
+    workspace.mkdir(parents=True, exist_ok=True)
+
+    click.echo(f"\nWorkspace ready at: {workspace}")
     click.echo(f"To analyze {ticker}:")
-    click.echo(f"  1. cd to your research workspace")
-    click.echo(f"  2. mkdir -p {ticker}")
-    click.echo(f"  3. Start a Claude Code session with the research pipeline prompt")
+    click.echo(f"  1. cd {workspace}")
+    click.echo(f"  2. Start a Claude Code session with the research pipeline prompt")
+    click.echo(f"  3. Artifacts will be produced in {workspace}/")
     click.echo(f"  4. After analysis, run: praxis sync {ticker}")
 
 
@@ -234,34 +239,29 @@ def analyze(ticker: str):
 @cli.command("sync")
 @click.argument("ticker")
 def sync(ticker: str):
-    """Sync local research artifacts for TICKER to S3."""
+    """Sync local research artifacts for TICKER to S3 and clean up workspace."""
     ticker = ticker.upper()
 
-    # Look for local ticker directory
-    local_dir = Path.cwd() / ticker
+    # Look for workspace staging directory
+    repo_root = find_repo_root()
+    local_dir = repo_root / "workspace" / ticker
     if not local_dir.exists():
-        click.echo(f"No local directory found at {local_dir}")
-        click.echo(f"Expected a '{ticker}/' directory with research artifacts.")
+        click.echo(f"No workspace found at {local_dir}")
+        click.echo(f"Run 'praxis analyze {ticker}' first to set up the workspace.")
         return
 
-    # Check for expected artifacts
-    expected = ["memo.md", "memo.yaml"]
+    # Collect all artifacts
     found = []
-    for name in expected:
-        if (local_dir / name).exists():
-            found.append(name)
-
-    # Also look for specialist reports and draft monitors
-    for path in local_dir.iterdir():
-        if path.is_file() and path.name not in expected:
-            found.append(path.name)
+    for path in local_dir.rglob("*"):
+        if path.is_file():
+            found.append(path.relative_to(local_dir))
 
     if not found:
         click.echo(f"No artifacts found in {local_dir}/")
         return
 
     click.echo(f"Found artifacts in {local_dir}/:")
-    for name in sorted(found):
+    for name in sorted(str(f) for f in found):
         click.echo(f"  {name}")
 
     s3_prefix = f"data/research/{ticker}"
@@ -272,6 +272,11 @@ def sync(ticker: str):
     click.echo(f"Synced {len(uploaded)} file(s):")
     for key in uploaded:
         click.echo(f"  {key}")
+
+    # Clean up workspace
+    import shutil
+    shutil.rmtree(local_dir)
+    click.echo(f"\nCleaned up workspace at {local_dir}")
 
 
 # ---------------------------------------------------------------------------

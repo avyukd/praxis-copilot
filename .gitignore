@@ -7,3 +7,4 @@ build/
 .venv/
 .env
 .pytest_cache/
+workspace/
