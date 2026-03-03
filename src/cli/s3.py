@@ -58,8 +58,11 @@ def key_exists(s3_client, s3_key: str) -> bool:
     try:
         s3_client.head_object(Bucket=BUCKET, Key=s3_key)
         return True
-    except ClientError:
-        return False
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code == "404":
+            return False
+        raise
 
 
 def list_prefix(s3_client, prefix: str) -> list[str]:

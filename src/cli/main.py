@@ -1,8 +1,11 @@
 """Praxis CLI — management tool for the Praxis Copilot system."""
 
+import json
+import shutil
 from pathlib import Path
 
 import click
+import yaml
 
 from cli.config_utils import find_repo_root, get_config_dir, load_yaml, save_yaml
 from cli.edgar import resolve_ticker
@@ -274,7 +277,6 @@ def status():
             for mk in monitor_keys:
                 try:
                     content = download_file(s3, mk)
-                    import yaml
                     mdata = yaml.safe_load(content)
                     listen = mdata.get("listen", [])
                     for entry in listen:
@@ -303,7 +305,6 @@ def events(ticker: str, limit: int):
     # Load ticker registry to get CIK
     try:
         registry_content = download_file(s3, "config/ticker_registry.yaml")
-        import yaml
         registry = yaml.safe_load(registry_content)
         ticker_info = registry.get("tickers", {}).get(ticker, {})
         cik = ticker_info.get("cik")
@@ -328,7 +329,6 @@ def events(ticker: str, limit: int):
     analysis_keys = analysis_keys[:limit]
 
     click.echo(f"Recent 8-K analyses for {ticker} (CIK: {cik}):\n")
-    import json
     for key in analysis_keys:
         try:
             content = download_file(s3, key)
@@ -473,9 +473,14 @@ def research_sync(ticker: str):
     for key in uploaded:
         click.echo(f"  {key}")
 
-    import shutil
-    shutil.rmtree(local_dir)
-    click.echo(f"\nCleaned up workspace at {local_dir}")
+    if len(uploaded) == len(found):
+        shutil.rmtree(local_dir)
+        click.echo(f"\nCleaned up workspace at {local_dir}")
+    else:
+        click.echo(
+            f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
+            f"Workspace preserved at {local_dir}"
+        )
 
 
 if __name__ == "__main__":

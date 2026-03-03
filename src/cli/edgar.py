@@ -1,6 +1,7 @@
 """EDGAR API utilities for resolving tickers to CIK and company info."""
 
 import json
+from datetime import datetime, timedelta
 
 import requests
 
@@ -48,11 +49,12 @@ def resolve_ticker(ticker: str) -> dict | None:
 
     # Fallback: EFTS search
     try:
+        now = datetime.now()
         params = {
             "q": ticker_upper,
             "dateRange": "custom",
-            "startdt": "2024-01-01",
-            "enddt": "2025-01-01",
+            "startdt": (now - timedelta(days=365)).strftime("%Y-%m-%d"),
+            "enddt": now.strftime("%Y-%m-%d"),
         }
         resp = requests.get(EFTS_SEARCH_URL, params=params, headers=HEADERS, timeout=15)
         resp.raise_for_status()
