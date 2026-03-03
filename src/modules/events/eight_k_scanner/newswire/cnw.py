@@ -7,6 +7,8 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
+from src.modules.events.eight_k_scanner.models import PressRelease
+
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "PraxisCopilot/1.0"
@@ -18,8 +20,8 @@ TICKER_RE = re.compile(
 )
 
 
-def poll_cnw(pages: int = 2) -> list[dict]:
-    releases = []
+def poll_cnw(pages: int = 2) -> list[PressRelease]:
+    releases: list[PressRelease] = []
     for page in range(1, pages + 1):
         url = CNW_LISTING_URL if page == 1 else f"{CNW_LISTING_URL}?page={page}"
         try:
@@ -32,9 +34,9 @@ def poll_cnw(pages: int = 2) -> list[dict]:
     return releases
 
 
-def _parse_listing(html: str) -> list[dict]:
+def _parse_listing(html: str) -> list[PressRelease]:
     soup = BeautifulSoup(html, "lxml")
-    items = []
+    items: list[PressRelease] = []
 
     for card in soup.select("div.card, article.news-release, div.news-release"):
         link_el = card.find("a", href=True)
@@ -57,15 +59,15 @@ def _parse_listing(html: str) -> list[dict]:
 
         ticker, exchange = _extract_ticker(title)
 
-        items.append({
-            "release_id": f"cnw-{release_id}",
-            "title": title,
-            "url": href,
-            "published_at": published_at,
-            "source": "cnw",
-            "ticker": ticker,
-            "exchange": exchange,
-        })
+        items.append(PressRelease(
+            release_id=f"cnw-{release_id}",
+            title=title,
+            url=href,
+            published_at=published_at,
+            source="cnw",
+            ticker=ticker,
+            exchange=exchange,
+        ))
 
     return items
 

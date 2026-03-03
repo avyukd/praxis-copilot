@@ -29,8 +29,8 @@ def lambda_handler(event=None, context=None):
     filtered_out = 0
 
     for filing_meta in filings:
-        cik = filing_meta["cik"]
-        accession = filing_meta["accession_number"]
+        cik = filing_meta.cik
+        accession = filing_meta.accession_number
 
         in_universe, info = is_in_universe(cik)
         if not in_universe:
@@ -44,18 +44,16 @@ def lambda_handler(event=None, context=None):
         try:
             result = fetch_filing(cik, accession)
 
-            meta = result["metadata"]
-            meta["ticker"] = info.get("ticker", "")
-            meta["company_name"] = info.get("company_name") or filing_meta.get("company_name", "")
-            meta["market_cap"] = info.get("market_cap")
-            meta["exchange"] = info.get("exchange", "")
-            meta["filed_date"] = filing_meta.get("filed_date", "")
-            if not meta.get("acceptance_datetime"):
-                meta["acceptance_datetime"] = filing_meta.get("acceptance_datetime", "")
-            else:
-                meta["acceptance_datetime"] = meta["acceptance_datetime"] or filing_meta.get("acceptance_datetime", "")
+            meta = result.metadata
+            meta.ticker = info.ticker
+            meta.company_name = info.company_name or filing_meta.company_name
+            meta.market_cap = info.market_cap
+            meta.exchange = info.exchange
+            meta.filed_date = filing_meta.filed_date
+            if not meta.acceptance_datetime:
+                meta.acceptance_datetime = filing_meta.acceptance_datetime
 
-            store_filing(cik, accession, meta, result["documents"])
+            store_filing(cik, accession, meta.model_dump(), result.documents)
             stored += 1
 
         except Exception:

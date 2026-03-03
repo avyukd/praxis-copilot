@@ -7,6 +7,7 @@ import requests
 import yfinance as yf
 
 from src.modules.events.eight_k_scanner.config import FMP_API_KEY, EODHD_API_KEY
+from src.modules.events.eight_k_scanner.models import FinancialSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def lookup_market_cap(ticker: str) -> int | None:
     return None
 
 
-def get_financial_snapshot(ticker: str) -> dict:
+def get_financial_snapshot(ticker: str) -> FinancialSnapshot:
     """Full financial snapshot for LLM context."""
     snap = _fmp_snapshot(ticker)
     if snap:
@@ -73,7 +74,7 @@ def _fmp_market_cap(ticker: str) -> int | None:
     return None
 
 
-def _fmp_snapshot(ticker: str) -> dict | None:
+def _fmp_snapshot(ticker: str) -> FinancialSnapshot | None:
     if not FMP_API_KEY:
         return None
     try:
@@ -95,14 +96,7 @@ def _fmp_snapshot(ticker: str) -> dict | None:
         if not market_cap:
             return None
 
-        snap = {
-            "market_cap": market_cap,
-            "revenue_ttm": None,
-            "net_income_ttm": None,
-            "cash": None,
-            "total_debt": None,
-            "source": "fmp",
-        }
+        snap = FinancialSnapshot(market_cap=market_cap, source="fmp")
 
         try:
             is_resp = requests.get(
@@ -113,8 +107,8 @@ def _fmp_snapshot(ticker: str) -> dict | None:
             is_resp.raise_for_status()
             is_data = is_resp.json()
             if isinstance(is_data, list) and is_data:
-                snap["revenue_ttm"] = is_data[0].get("revenue")
-                snap["net_income_ttm"] = is_data[0].get("netIncome")
+                snap.revenue_ttm = is_data[0].get("revenue")
+                snap.net_income_ttm = is_data[0].get("netIncome")
         except Exception:
             pass
 
@@ -127,8 +121,8 @@ def _fmp_snapshot(ticker: str) -> dict | None:
             bs_resp.raise_for_status()
             bs_data = bs_resp.json()
             if isinstance(bs_data, list) and bs_data:
-                snap["cash"] = bs_data[0].get("cashAndCashEquivalents")
-                snap["total_debt"] = bs_data[0].get("totalDebt")
+                snap.cash = bs_data[0].get("cashAndCashEquivalents")
+                snap.total_debt = bs_data[0].get("totalDebt")
         except Exception:
             pass
 
@@ -156,7 +150,7 @@ def _eodhd_market_cap(ticker: str) -> int | None:
     return None
 
 
-def _eodhd_snapshot(ticker: str) -> dict | None:
+def _eodhd_snapshot(ticker: str) -> FinancialSnapshot | None:
     if not EODHD_API_KEY:
         return None
     try:
@@ -173,18 +167,11 @@ def _eodhd_snapshot(ticker: str) -> dict | None:
         if not market_cap:
             return None
 
-        snap = {
-            "market_cap": int(market_cap),
-            "revenue_ttm": None,
-            "net_income_ttm": None,
-            "cash": None,
-            "total_debt": None,
-            "source": "eodhd",
-        }
+        snap = FinancialSnapshot(market_cap=int(market_cap), source="eodhd")
 
         revenue = highlights.get("RevenueTTM")
         if revenue:
-            snap["revenue_ttm"] = int(float(revenue))
+            snap.revenue_ttm = int(float(revenue))
 
         financials = data.get("Financials", {})
         income_stmt = financials.get("Income_Statement", {}).get("quarterly", {})
@@ -192,17 +179,17 @@ def _eodhd_snapshot(ticker: str) -> dict | None:
             latest = next(iter(income_stmt.values()), {})
             ni = latest.get("netIncome")
             if ni:
-                snap["net_income_ttm"] = int(float(ni))
+                snap.net_income_ttm = int(float(ni))
 
         balance_sheet = financials.get("Balance_Sheet", {}).get("quarterly", {})
         if balance_sheet:
             latest_bs = next(iter(balance_sheet.values()), {})
             cash = latest_bs.get("cashAndShortTermInvestments") or latest_bs.get("cash")
             if cash:
-                snap["cash"] = int(float(cash))
+                snap.cash = int(float(cash))
             debt = latest_bs.get("shortLongTermDebtTotal") or latest_bs.get("longTermDebt")
             if debt:
-                snap["total_debt"] = int(float(debt))
+                snap.total_debt = int(float(debt))
 
         return snap
     except Exception:
@@ -343,23 +330,16 @@ def _eodhd_adtv(ticker: str) -> float | None:
         return None
 
 
-def _yfinance_snapshot(ticker: str) -> dict:
-    snap = {
-        "market_cap": None,
-        "revenue_ttm": None,
-        "net_income_ttm": None,
-        "cash": None,
-        "total_debt": None,
-        "source": "yfinance",
-    }
+def _yfinance_snapshot(ticker: str) -> FinancialSnapshot:
+    snap = FinancialSnapshot(source="yfinance")
     try:
         t = yf.Ticker(ticker)
         info = t.info
-        snap["market_cap"] = info.get("marketCap")
-        snap["revenue_ttm"] = info.get("totalRevenue")
-        snap["net_income_ttm"] = info.get("netIncomeToCommon")
-        snap["cash"] = info.get("totalCash")
-        snap["total_debt"] = info.get("totalDebt")
+        snap.market_cap = info.get("marketCap")
+        snap.revenue_ttm = info.get("totalRevenue")
+        snap.net_income_ttm = info.get("netIncomeToCommon")
+        snap.cash = info.get("totalCash")
+        snap.total_debt = info.get("totalDebt")
     except Exception:
         pass
     return snap

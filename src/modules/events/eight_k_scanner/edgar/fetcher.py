@@ -5,19 +5,15 @@ import logging
 import re
 
 from src.modules.events.eight_k_scanner.edgar.client import edgar_get
+from src.modules.events.eight_k_scanner.models import ExhibitManifestEntry, FilingDocument, FilingMeta
 
 logger = logging.getLogger(__name__)
 
 ARCHIVES_BASE = "https://www.sec.gov/Archives/edgar/data"
 
 
-def fetch_filing(cik: str, accession_number: str) -> dict:
-    """Download a filing's index and all its documents.
-
-    Returns dict with:
-        metadata: filing metadata from the index
-        documents: {filename: bytes_content}
-    """
+def fetch_filing(cik: str, accession_number: str) -> FilingDocument:
+    """Download a filing's index and all its documents."""
     acc_nodashes = accession_number.replace("-", "")
     base_url = f"{ARCHIVES_BASE}/{cik}/{acc_nodashes}"
 
@@ -34,7 +30,7 @@ def fetch_filing(cik: str, accession_number: str) -> dict:
     return _fetch_via_directory(cik, accession_number, base_url)
 
 
-def _fetch_via_json_index(cik: str, accession_number: str, base_url: str, index_data: dict) -> dict:
+def _fetch_via_json_index(cik: str, accession_number: str, base_url: str, index_data: dict) -> FilingDocument:
     directory = index_data.get("directory", {})
     items = directory.get("item", [])
 
@@ -62,7 +58,7 @@ def _fetch_via_json_index(cik: str, accession_number: str, base_url: str, index_
     return _build_result(cik, accession_number, documents, primary_doc)
 
 
-def _fetch_via_directory(cik: str, accession_number: str, base_url: str) -> dict:
+def _fetch_via_directory(cik: str, accession_number: str, base_url: str) -> FilingDocument:
     acc_nodashes = accession_number.replace("-", "")
     dir_url = f"{base_url}/"
     path_prefix = f"/Archives/edgar/data/{cik}/{acc_nodashes}/"
@@ -161,27 +157,27 @@ def _fetch_acceptance_datetime(cik: str, accession_number: str) -> str:
     return ""
 
 
-def _build_result(cik: str, accession_number: str, documents: dict, primary_doc: str | None) -> dict:
+def _build_result(cik: str, accession_number: str, documents: dict, primary_doc: str | None) -> FilingDocument:
     items_detected: list[str] = []
     if primary_doc and primary_doc in documents:
         items_detected = _detect_items(documents[primary_doc])
 
     acceptance_datetime = _fetch_acceptance_datetime(cik, accession_number)
 
-    metadata = {
-        "cik": cik,
-        "accession_number": accession_number,
-        "primary_doc": primary_doc,
-        "items_detected": items_detected,
-        "acceptance_datetime": acceptance_datetime,
-        "exhibit_manifest": [
-            {"filename": name, "type": _classify_exhibit(name)}
+    metadata = FilingMeta(
+        cik=cik,
+        accession_number=accession_number,
+        primary_doc=primary_doc,
+        items_detected=items_detected,
+        acceptance_datetime=acceptance_datetime,
+        exhibit_manifest=[
+            ExhibitManifestEntry(filename=name, type=_classify_exhibit(name))
             for name in documents
             if name != primary_doc
         ],
-    }
+    )
 
-    return {"metadata": metadata, "documents": documents}
+    return FilingDocument(metadata=metadata, documents=documents)
 
 
 def _detect_items(content: bytes | str) -> list[str]:

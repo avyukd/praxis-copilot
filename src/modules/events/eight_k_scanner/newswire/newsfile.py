@@ -10,6 +10,8 @@ from email.utils import parsedate_to_datetime
 import requests
 from bs4 import BeautifulSoup
 
+from src.modules.events.eight_k_scanner.models import PressRelease
+
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "PraxisCopilot/1.0"
@@ -28,9 +30,9 @@ TICKER_RE = re.compile(
 )
 
 
-def poll_newsfile(categories: list[str] | None = None) -> list[dict]:
+def poll_newsfile(categories: list[str] | None = None) -> list[PressRelease]:
     categories = categories or DEFAULT_CATEGORIES
-    releases = []
+    releases: list[PressRelease] = []
     for cat in categories:
         url = f"https://feeds.newsfilecorp.com/industry/{cat}"
         try:
@@ -45,8 +47,8 @@ def poll_newsfile(categories: list[str] | None = None) -> list[dict]:
     return releases
 
 
-def _parse_rss(xml_text: str) -> list[dict]:
-    items = []
+def _parse_rss(xml_text: str) -> list[PressRelease]:
+    items: list[PressRelease] = []
     root = ET.fromstring(xml_text)
     for item in root.iter("item"):
         title = item.findtext("title", "")
@@ -68,15 +70,15 @@ def _parse_rss(xml_text: str) -> list[dict]:
             except Exception:
                 published_at = pub_date
 
-        items.append({
-            "release_id": f"newsfile-{release_id}",
-            "title": title,
-            "url": link,
-            "published_at": published_at,
-            "source": "newsfile",
-            "ticker": ticker,
-            "exchange": exchange,
-        })
+        items.append(PressRelease(
+            release_id=f"newsfile-{release_id}",
+            title=title,
+            url=link,
+            published_at=published_at,
+            source="newsfile",
+            ticker=ticker,
+            exchange=exchange,
+        ))
     return items
 
 

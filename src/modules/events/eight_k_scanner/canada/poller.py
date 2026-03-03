@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from botocore.exceptions import ClientError
 
 from src.modules.events.eight_k_scanner.config import S3_BUCKET, CA_LOOKBACK_MINUTES, CA_POLLER_STATE_KEY
+from src.modules.events.eight_k_scanner.models import PressRelease
 from src.modules.events.eight_k_scanner.newswire.cnw import poll_cnw
 from src.modules.events.eight_k_scanner.newswire.dedup import dedup_releases
 from src.modules.events.eight_k_scanner.newswire.gnw import poll_gnw
@@ -21,36 +22,36 @@ GNW_CA_FEEDS = [
 ]
 
 
-def poll_canadian_releases(lookback_minutes: int = CA_LOOKBACK_MINUTES) -> list[dict]:
+def poll_canadian_releases(lookback_minutes: int = CA_LOOKBACK_MINUTES) -> list[PressRelease]:
     last_seen = _load_last_seen()
     min_published_at = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
 
-    all_releases: list[dict] = []
+    all_releases: list[PressRelease] = []
     all_releases.extend(poll_gnw(GNW_CA_FEEDS))
     all_releases.extend(poll_newsfile())
     all_releases.extend(poll_cnw())
 
-    all_releases = [r for r in all_releases if r.get("exchange") in ("TSX", "TSXV")]
+    all_releases = [r for r in all_releases if r.exchange in ("TSX", "TSXV")]
     all_releases = dedup_releases(all_releases)
 
     all_releases = [
         r for r in all_releases
-        if _in_lookback_window(r.get("published_at", ""), min_published_at)
+        if _in_lookback_window(r.published_at, min_published_at)
     ]
     all_releases.sort(
-        key=lambda r: _release_position(r.get("published_at", ""), r.get("release_id", ""))
+        key=lambda r: _release_position(r.published_at, r.release_id)
     )
 
-    new_releases = []
+    new_releases: list[PressRelease] = []
     newest: dict[str, dict[str, str]] = {
         source: _normalize_state_entry(state_entry)
         for source, state_entry in (last_seen or {}).items()
     }
 
     for release in all_releases:
-        source = release["source"]
-        rid = release.get("release_id", "")
-        published_at = release.get("published_at", "")
+        source = release.source
+        rid = release.release_id
+        published_at = release.published_at
         release_pos = _release_position(published_at, rid)
 
         last_entry = newest.get(source, {"published_at": "", "release_id": ""})

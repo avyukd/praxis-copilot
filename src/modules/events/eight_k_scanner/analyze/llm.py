@@ -12,6 +12,7 @@ from litellm import completion
 
 from src.modules.events.eight_k_scanner.analyze.prompt import build_messages
 from src.modules.events.eight_k_scanner.config import LLM_MODEL, LLM_TOKENS_PER_MINUTE
+from src.modules.events.eight_k_scanner.models import ExtractedFiling, FinancialSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -195,8 +196,8 @@ def _call_llm_with_usage(
 
 
 def analyze_filing(
-    extracted: dict,
-    financial_snapshot: dict,
+    extracted: ExtractedFiling,
+    financial_snapshot: FinancialSnapshot,
     ticker: str,
     model: str | None = None,
     messages: list[dict] | None = None,
@@ -211,8 +212,8 @@ def analyze_filing(
 
 
 def analyze_filing_with_usage(
-    extracted: dict,
-    financial_snapshot: dict,
+    extracted: ExtractedFiling,
+    financial_snapshot: FinancialSnapshot,
     ticker: str,
     model: str | None = None,
     messages: list[dict] | None = None,
@@ -225,7 +226,7 @@ def analyze_filing_with_usage(
     if messages is None:
         messages = build_messages(extracted, financial_snapshot, ticker)
 
-    accession = extracted.get("accession_number", "?")
+    accession = extracted.accession_number or "?"
     logger.info(f"Calling LLM screen ({model}) for {ticker} / {accession}")
     screen_content, screen_usage = _call_llm_with_usage(
         model=model,
