@@ -401,14 +401,32 @@ def research():
     pass
 
 
-@research.command("list")
+@research.command("show")
 @click.argument("ticker")
-def research_list(ticker: str):
-    """List research artifacts for TICKER on S3."""
+@click.argument("file", required=False)
+def research_show(ticker: str, file: str | None):
+    """Show research artifacts for TICKER.
+
+    Without FILE, lists all artifacts. With FILE, streams content to stdout.
+
+    Examples:
+        praxis research show NVDA
+        praxis research show NVDA memo.md | glow
+        praxis research show NVDA memo.yaml | less
+    """
     ticker = ticker.upper()
     s3 = get_s3_client()
-    prefix = f"data/research/{ticker}/"
 
+    if file:
+        s3_key = f"data/research/{ticker}/{file}"
+        if not key_exists(s3, s3_key):
+            click.echo(f"File not found: s3://{BUCKET}/{s3_key}", err=True)
+            return
+        content = download_file(s3, s3_key)
+        click.get_text_stream("stdout").write(content.decode("utf-8"))
+        return
+
+    prefix = f"data/research/{ticker}/"
     keys = list_prefix(s3, prefix)
     if not keys:
         click.echo(f"No research artifacts found for {ticker}")
@@ -425,30 +443,8 @@ def research_list(ticker: str):
     if data_keys:
         click.echo(f"\n  ({len(data_keys)} ingested data file(s) under data/)")
 
-    click.echo(f"\nView: praxis research view {ticker} memo.md | glow")
+    click.echo(f"\nView: praxis research show {ticker} memo.md | glow")
     click.echo(f"Pull: praxis research pull {ticker}")
-
-
-@research.command("view")
-@click.argument("ticker")
-@click.argument("file")
-def research_view(ticker: str, file: str):
-    """Stream a research artifact to stdout. Pipe to glow or less.
-
-    Examples:
-        praxis research view NVDA memo.md | glow
-        praxis research view NVDA memo.yaml | less
-    """
-    ticker = ticker.upper()
-    s3 = get_s3_client()
-    s3_key = f"data/research/{ticker}/{file}"
-
-    if not key_exists(s3, s3_key):
-        click.echo(f"File not found: s3://{BUCKET}/{s3_key}", err=True)
-        return
-
-    content = download_file(s3, s3_key)
-    click.get_text_stream("stdout").write(content.decode("utf-8"))
 
 
 @research.command("pull")
