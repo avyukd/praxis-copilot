@@ -9,6 +9,7 @@ import logging
 
 from src.modules.events.eight_k_scanner.alerts import send_alert
 from src.modules.events.eight_k_scanner.analyze.llm import analyze_filing_with_usage
+from src.modules.events.eight_k_scanner.models import ExtractedFiling
 from src.modules.events.eight_k_scanner.config import (
     S3_BUCKET,
     S3_RAW_PREFIX,
@@ -95,7 +96,7 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
     # Read extracted data
     extracted_key = f"{prefix}/extracted.json"
     try:
-        extracted = read_json_from_s3(bucket, extracted_key)
+        extracted = ExtractedFiling.model_validate(read_json_from_s3(bucket, extracted_key))
     except Exception:
         logger.error(f"Cannot read extracted.json for {accession}")
         status["action"] = "error"
@@ -103,7 +104,7 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
         return status
 
     # Item filter
-    items_detected = list(extracted.get("items", {}).keys())
+    items_detected = list(extracted.items.keys())
     passes, matched_items = filter_filing(items_detected, strategy=SCANNER_STRATEGY)
     if not passes:
         warning = f"Items {items_detected or ['?']} don't match strategy={SCANNER_STRATEGY}"

@@ -5,6 +5,7 @@ import logging
 
 from src.modules.events.eight_k_scanner.config import CA_MARKET_CAP_THRESHOLD
 from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+from src.modules.events.eight_k_scanner.models import UniverseInfo
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +16,16 @@ def ca_ticker_symbol(ticker: str, exchange: str) -> str:
     return f"{ticker}.TO"
 
 
-def is_in_ca_universe(ticker: str, exchange: str) -> tuple[bool, dict]:
+def is_in_ca_universe(ticker: str, exchange: str) -> tuple[bool, UniverseInfo]:
     symbol = ca_ticker_symbol(ticker, exchange)
     mcap = lookup_market_cap(symbol)
 
-    info = {
-        "ticker": ticker,
-        "symbol": symbol,
-        "exchange": exchange,
-        "market_cap": mcap,
-    }
+    info = UniverseInfo(
+        ticker=ticker,
+        symbol=symbol,
+        exchange=exchange,
+        market_cap=mcap,
+    )
 
     if mcap is None:
         logger.warning(f"Including {ticker} ({exchange}) despite unknown market cap")

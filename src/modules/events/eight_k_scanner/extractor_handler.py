@@ -59,8 +59,8 @@ def _extract_one(bucket: str, cik: str, accession: str) -> dict:
             status["action"] = "already_extracted"
         else:
             status["action"] = "extracted"
-            status["total_chars"] = extracted.get("total_chars", 0)
-            status["items"] = list(extracted.get("items", {}).keys())
+            status["total_chars"] = extracted.total_chars
+            status["items"] = list(extracted.items.keys())
     except Exception:
         logger.exception(f"Extraction failed for {cik}/{accession}")
         status["action"] = "error"

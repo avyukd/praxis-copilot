@@ -4,22 +4,24 @@ from __future__ import annotations
 import logging
 from difflib import SequenceMatcher
 
+from src.modules.events.eight_k_scanner.models import PressRelease
+
 logger = logging.getLogger(__name__)
 
 SIMILARITY_THRESHOLD = 0.75
 
 
-def dedup_releases(releases: list[dict]) -> list[dict]:
+def dedup_releases(releases: list[PressRelease]) -> list[PressRelease]:
     """Remove duplicate releases across sources (same ticker + similar title)."""
     if not releases:
         return []
 
     seen: list[tuple[str, str]] = []
-    result = []
+    result: list[PressRelease] = []
 
     for release in releases:
-        ticker = release.get("ticker", "")
-        title = release.get("title", "")
+        ticker = release.ticker
+        title = release.title
 
         if not ticker:
             result.append(release)

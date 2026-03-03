@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+from src.modules.events.eight_k_scanner.models import FinancialSnapshot
+
 logger = logging.getLogger(__name__)
 
 MAX_RELEASE_CHARS = 40_000
@@ -52,7 +54,7 @@ def _truncate(text: str, max_chars: int, label: str) -> str:
     return text[:max_chars] + "\n\n[TRUNCATED]"
 
 
-def build_pr_messages(release_text: str, financial_snapshot: dict, ticker: str) -> list[dict]:
+def build_pr_messages(release_text: str, financial_snapshot: FinancialSnapshot, ticker: str) -> list[dict]:
     """Build LLM messages for press release analysis."""
     user_parts = []
 
@@ -61,13 +63,13 @@ def build_pr_messages(release_text: str, financial_snapshot: dict, ticker: str) 
     user_parts.append("")
 
     user_parts.append("## Financial Snapshot")
-    if financial_snapshot and financial_snapshot.get("market_cap") is not None:
-        user_parts.append(f"- Market Cap: {_format_dollars(financial_snapshot.get('market_cap'))}")
-        user_parts.append(f"- Revenue (TTM): {_format_dollars(financial_snapshot.get('revenue_ttm'))}")
-        user_parts.append(f"- Net Income (TTM): {_format_dollars(financial_snapshot.get('net_income_ttm'))}")
-        user_parts.append(f"- Cash: {_format_dollars(financial_snapshot.get('cash'))}")
-        user_parts.append(f"- Total Debt: {_format_dollars(financial_snapshot.get('total_debt'))}")
-        user_parts.append(f"- Source: {financial_snapshot.get('source', 'unknown')}")
+    if financial_snapshot.market_cap is not None:
+        user_parts.append(f"- Market Cap: {_format_dollars(financial_snapshot.market_cap)}")
+        user_parts.append(f"- Revenue (TTM): {_format_dollars(financial_snapshot.revenue_ttm)}")
+        user_parts.append(f"- Net Income (TTM): {_format_dollars(financial_snapshot.net_income_ttm)}")
+        user_parts.append(f"- Cash: {_format_dollars(financial_snapshot.cash)}")
+        user_parts.append(f"- Total Debt: {_format_dollars(financial_snapshot.total_debt)}")
+        user_parts.append(f"- Source: {financial_snapshot.source}")
     else:
         user_parts.append("Financial data unavailable.")
     user_parts.append("")

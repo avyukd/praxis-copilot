@@ -7,6 +7,7 @@ import re
 from bs4 import BeautifulSoup
 
 from src.modules.events.eight_k_scanner.config import S3_BUCKET, S3_RAW_PREFIX
+from src.modules.events.eight_k_scanner.models import ExtractedExhibit, ExtractedFiling
 from src.modules.events.eight_k_scanner.storage.s3 import get_s3_client, read_json_from_s3, write_json_to_s3
 
 logger = logging.getLogger(__name__)
@@ -61,10 +62,10 @@ def _should_skip_file(filename: str) -> bool:
     return False
 
 
-def extract_filing(cik: str, accession_number: str, bucket: str | None = None, force: bool = False) -> dict | None:
+def extract_filing(cik: str, accession_number: str, bucket: str | None = None, force: bool = False) -> ExtractedFiling | None:
     """Extract text from a raw filing in S3. Writes extracted.json back to S3.
 
-    Returns the extracted data dict, or None if already extracted and not force.
+    Returns the ExtractedFiling, or None if already extracted and not force.
     """
     bucket = bucket or S3_BUCKET
     prefix = f"{S3_RAW_PREFIX}/{cik}/{accession_number}"
@@ -109,7 +110,7 @@ def extract_filing(cik: str, accession_number: str, bucket: str | None = None, f
     else:
         logger.warning(f"No primary doc for {accession_number}")
 
-    exhibits: list[dict] = []
+    exhibits: list[ExtractedExhibit] = []
     for exhibit in exhibit_manifest:
         filename = exhibit.get("filename", "")
         exhibit_type = exhibit.get("type", "other")
@@ -130,11 +131,11 @@ def extract_filing(cik: str, accession_number: str, bucket: str | None = None, f
             text = _parse_html(content)
             text = _strip_exhibit_boilerplate(text)
             if text.strip():
-                exhibits.append({
-                    "filename": filename,
-                    "type": exhibit_type,
-                    "text": text.strip(),
-                })
+                exhibits.append(ExtractedExhibit(
+                    filename=filename,
+                    type=exhibit_type,
+                    text=text.strip(),
+                ))
                 files_processed += 1
             else:
                 files_skipped += 1
@@ -142,20 +143,20 @@ def extract_filing(cik: str, accession_number: str, bucket: str | None = None, f
             logger.warning(f"Failed to parse exhibit {filename}: {e}")
             files_skipped += 1
 
-    total_chars = sum(len(v) for v in items.values()) + sum(len(e["text"]) for e in exhibits)
+    total_chars = sum(len(v) for v in items.values()) + sum(len(e.text) for e in exhibits)
 
-    result = {
-        "cik": cik,
-        "accession_number": accession_number,
-        "ticker": ticker,
-        "items": items,
-        "exhibits": exhibits,
-        "total_chars": total_chars,
-        "files_processed": files_processed,
-        "files_skipped": files_skipped,
-    }
+    result = ExtractedFiling(
+        cik=cik,
+        accession_number=accession_number,
+        ticker=ticker,
+        items=items,
+        exhibits=exhibits,
+        total_chars=total_chars,
+        files_processed=files_processed,
+        files_skipped=files_skipped,
+    )
 
-    write_json_to_s3(bucket, output_key, result)
+    write_json_to_s3(bucket, output_key, result.model_dump())
     logger.info(f"Extracted {accession_number}: {files_processed} files, {total_chars} chars")
     return result
 

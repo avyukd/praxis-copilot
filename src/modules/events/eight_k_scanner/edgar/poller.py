@@ -13,6 +13,7 @@ from src.modules.events.eight_k_scanner.config import (
     SCANNER_POLLER_SEEN_TTL_DAYS,
 )
 from src.modules.events.eight_k_scanner.edgar.client import edgar_get
+from src.modules.events.eight_k_scanner.models import PolledFiling
 from src.modules.events.eight_k_scanner.storage.s3 import read_json_from_s3, write_json_to_s3
 
 logger = logging.getLogger(__name__)
@@ -20,8 +21,8 @@ logger = logging.getLogger(__name__)
 EFTS_URL = "https://efts.sec.gov/LATEST/search-index"
 
 
-def poll_new_8k_filings(lookback_minutes: int = 60) -> list[dict]:
-    """Discover new 8-K filings via EFTS. Returns list of filing metadata dicts."""
+def poll_new_8k_filings(lookback_minutes: int = 60) -> list[PolledFiling]:
+    """Discover new 8-K filings via EFTS. Returns list of PolledFiling."""
     now_utc = datetime.now(timezone.utc)
     start_dt = now_utc - timedelta(minutes=lookback_minutes)
     fetch_start = start_dt.date()
@@ -35,9 +36,9 @@ def poll_new_8k_filings(lookback_minutes: int = 60) -> list[dict]:
         logger.info("EFTS returned no results, falling back to RSS")
         filings = _fetch_rss()
 
-    new_filings = []
+    new_filings: list[PolledFiling] = []
     for filing in filings:
-        accession = filing.get("accession_number", "")
+        accession = filing.accession_number
         if not accession:
             continue
         if accession in seen_accessions:
@@ -52,7 +53,7 @@ def poll_new_8k_filings(lookback_minutes: int = 60) -> list[dict]:
         {
             "seen_accessions": _prune_and_stamp_seen_accessions(
                 state.get("seen_accessions", {}),
-                new_accessions=[f["accession_number"] for f in new_filings],
+                new_accessions=[f.accession_number for f in new_filings],
                 now_utc=now_utc,
                 ttl_days=SCANNER_POLLER_SEEN_TTL_DAYS,
             ),
@@ -64,18 +65,18 @@ def poll_new_8k_filings(lookback_minutes: int = 60) -> list[dict]:
     return new_filings
 
 
-def _in_lookback_window(filing: Dict[str, str], start_dt: datetime, end_dt: datetime) -> bool:
+def _in_lookback_window(filing: PolledFiling, start_dt: datetime, end_dt: datetime) -> bool:
     filing_dt = _parse_filing_datetime(filing)
     if filing_dt is None:
-        filed_date = (filing.get("filed_date") or "")[:10]
+        filed_date = (filing.filed_date or "")[:10]
         if not filed_date:
             return True
         return start_dt.date().isoformat() <= filed_date <= end_dt.date().isoformat()
     return start_dt <= filing_dt <= end_dt
 
 
-def _parse_filing_datetime(filing: Dict[str, str]) -> datetime | None:
-    raw_acceptance = (filing.get("acceptance_datetime") or "").strip()
+def _parse_filing_datetime(filing: PolledFiling) -> datetime | None:
+    raw_acceptance = (filing.acceptance_datetime or "").strip()
     if raw_acceptance and "T" in raw_acceptance:
         parsed = _parse_datetime(raw_acceptance)
         if parsed is not None:
@@ -126,7 +127,7 @@ def _prune_and_stamp_seen_accessions(
     return keep
 
 
-def fetch_filings_by_date(start_date: date, end_date: date) -> list[dict]:
+def fetch_filings_by_date(start_date: date, end_date: date) -> list[PolledFiling]:
     """Fetch all 8-K filings in a date range (no state-based dedupe)."""
     filings = _fetch_efts(start_date, end_date)
     if not filings:
@@ -136,8 +137,8 @@ def fetch_filings_by_date(start_date: date, end_date: date) -> list[dict]:
     return filings
 
 
-def _fetch_efts(start_date: date, end_date: date) -> list[dict]:
-    all_filings: list[dict] = []
+def _fetch_efts(start_date: date, end_date: date) -> list[PolledFiling]:
+    all_filings: list[PolledFiling] = []
     page_from = 0
     page_size = 100
 
@@ -166,8 +167,8 @@ def _fetch_efts(start_date: date, end_date: date) -> list[dict]:
     return all_filings
 
 
-def _parse_efts_response(data: dict) -> list[dict]:
-    filings = []
+def _parse_efts_response(data: dict) -> list[PolledFiling]:
+    filings: list[PolledFiling] = []
     hits = data.get("hits", {}).get("hits", [])
     for hit in hits:
         src = hit.get("_source", {})
@@ -195,21 +196,21 @@ def _parse_efts_response(data: dict) -> list[dict]:
                     ticker = token
                     break
 
-        filings.append({
-            "cik": cik,
-            "accession_number": accession,
-            "company_name": company_name,
-            "ticker": ticker,
-            "filed_date": src.get("file_date", ""),
-            "acceptance_datetime": src.get("file_date", ""),
-            "items": src.get("items", []),
-        })
+        filings.append(PolledFiling(
+            cik=cik,
+            accession_number=accession,
+            company_name=company_name,
+            ticker=ticker,
+            filed_date=src.get("file_date", ""),
+            acceptance_datetime=src.get("file_date", ""),
+            items=src.get("items", []),
+        ))
 
     logger.info(f"EFTS returned {len(filings)} 8-K filings (from {len(hits)} hits)")
     return filings
 
 
-def _fetch_rss() -> list[dict]:
+def _fetch_rss() -> list[PolledFiling]:
     url = (
         "https://www.sec.gov/cgi-bin/browse-edgar"
         "?action=getcurrent&type=8-K&count=100&output=atom"
@@ -222,10 +223,10 @@ def _fetch_rss() -> list[dict]:
         return []
 
 
-def _parse_rss(xml_text: str) -> list[dict]:
+def _parse_rss(xml_text: str) -> list[PolledFiling]:
     import xml.etree.ElementTree as ET
 
-    filings = []
+    filings: list[PolledFiling] = []
     root = ET.fromstring(xml_text)
     ns = {"atom": "http://www.w3.org/2005/Atom"}
 
@@ -250,13 +251,13 @@ def _parse_rss(xml_text: str) -> list[dict]:
         if cik and accession:
             if "-" not in accession and len(accession) >= 10:
                 accession = f"{accession[:10]}-{accession[10:12]}-{accession[12:]}"
-            filings.append({
-                "cik": cik,
-                "accession_number": accession,
-                "company_name": title.replace("8-K", "").strip(" -"),
-                "filed_date": updated[:10] if updated else "",
-                "acceptance_datetime": updated,
-            })
+            filings.append(PolledFiling(
+                cik=cik,
+                accession_number=accession,
+                company_name=title.replace("8-K", "").strip(" -"),
+                filed_date=updated[:10] if updated else "",
+                acceptance_datetime=updated,
+            ))
 
     return filings
 

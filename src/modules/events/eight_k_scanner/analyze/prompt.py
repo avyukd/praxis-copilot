@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+from src.modules.events.eight_k_scanner.models import ExtractedFiling, FinancialSnapshot
+
 logger = logging.getLogger(__name__)
 
 MAX_ITEM_CHARS = 20_000
@@ -53,36 +55,34 @@ def _truncate(text: str, max_chars: int, label: str) -> str:
     return text[:max_chars] + "\n\n[TRUNCATED]"
 
 
-def build_messages(extracted: dict, financial_snapshot: dict, ticker: str) -> list[dict]:
+def build_messages(extracted: ExtractedFiling, financial_snapshot: FinancialSnapshot, ticker: str) -> list[dict]:
     """Build the messages list for the LLM call."""
     user_parts = []
 
-    company = extracted.get("ticker", ticker) or ticker
-    accession = extracted.get("accession_number", "")
+    company = extracted.ticker or ticker
+    accession = extracted.accession_number
     user_parts.append(f"## 8-K Filing: {company} ({accession})\n")
 
-    items = extracted.get("items", {})
-    if items:
+    if extracted.items:
         item_text = ""
-        for item_num, text in items.items():
+        for item_num, text in extracted.items.items():
             item_text += f"### Item {item_num}\n{text}\n\n"
         user_parts.append(_truncate(item_text.strip(), MAX_ITEM_CHARS, f"items for {accession}"))
 
-    exhibits = extracted.get("exhibits", [])
-    if exhibits:
+    if extracted.exhibits:
         exhibit_text = ""
-        for ex in exhibits:
-            exhibit_text += f"### Exhibit: {ex['filename']} (type: {ex['type']})\n{ex['text']}\n\n"
+        for ex in extracted.exhibits:
+            exhibit_text += f"### Exhibit: {ex.filename} (type: {ex.type})\n{ex.text}\n\n"
         user_parts.append(_truncate(exhibit_text.strip(), MAX_EXHIBIT_CHARS, f"exhibits for {accession}"))
 
     user_parts.append("## Financial Snapshot")
-    if financial_snapshot and financial_snapshot.get("market_cap") is not None:
-        user_parts.append(f"- Market Cap: {_format_dollars(financial_snapshot.get('market_cap'))}")
-        user_parts.append(f"- Revenue (TTM): {_format_dollars(financial_snapshot.get('revenue_ttm'))}")
-        user_parts.append(f"- Net Income (TTM): {_format_dollars(financial_snapshot.get('net_income_ttm'))}")
-        user_parts.append(f"- Cash: {_format_dollars(financial_snapshot.get('cash'))}")
-        user_parts.append(f"- Total Debt: {_format_dollars(financial_snapshot.get('total_debt'))}")
-        user_parts.append(f"- Source: {financial_snapshot.get('source', 'unknown')}")
+    if financial_snapshot.market_cap is not None:
+        user_parts.append(f"- Market Cap: {_format_dollars(financial_snapshot.market_cap)}")
+        user_parts.append(f"- Revenue (TTM): {_format_dollars(financial_snapshot.revenue_ttm)}")
+        user_parts.append(f"- Net Income (TTM): {_format_dollars(financial_snapshot.net_income_ttm)}")
+        user_parts.append(f"- Cash: {_format_dollars(financial_snapshot.cash)}")
+        user_parts.append(f"- Total Debt: {_format_dollars(financial_snapshot.total_debt)}")
+        user_parts.append(f"- Source: {financial_snapshot.source}")
     else:
         user_parts.append("Financial data unavailable.")
     user_parts.append("")

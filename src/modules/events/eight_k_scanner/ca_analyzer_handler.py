@@ -5,6 +5,7 @@ import logging
 
 from src.modules.events.eight_k_scanner.alerts import send_alert
 from src.modules.events.eight_k_scanner.analyze.llm import analyze_filing_with_usage
+from src.modules.events.eight_k_scanner.models import ExtractedFiling
 from src.modules.events.eight_k_scanner.config import (
     DISABLE_LLM_ANALYSIS,
     S3_BUCKET,
@@ -94,7 +95,10 @@ def _process_one(bucket: str, ticker: str, release_id: str) -> dict:
         snapshot = get_financial_snapshot(symbol)
         messages = build_pr_messages(release_text, snapshot, symbol)
         try:
-            result = analyze_filing_with_usage({}, snapshot, symbol, messages=messages)
+            result = analyze_filing_with_usage(
+                ExtractedFiling(cik="", accession_number=release_id),
+                snapshot, symbol, messages=messages,
+            )
             analysis_data = result.analysis.model_dump()
             analysis_data["token_usage"] = result.token_usage.model_dump()
             analyzed_at = et_now_iso()

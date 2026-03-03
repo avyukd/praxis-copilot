@@ -6,6 +6,7 @@ import logging
 from src.modules.events.eight_k_scanner.canada.poller import poll_canadian_releases
 from src.modules.events.eight_k_scanner.canada.universe import is_in_ca_universe
 from src.modules.events.eight_k_scanner.config import S3_BUCKET, S3_CA_RAW_PREFIX
+from src.modules.events.eight_k_scanner.models import PRIndexMeta
 from src.modules.events.eight_k_scanner.newswire.fetcher import fetch_release
 from src.modules.events.eight_k_scanner.storage.s3 import (
     et_now_iso,
@@ -29,9 +30,9 @@ def lambda_handler(event=None, context=None):
     skipped = 0
 
     for release in releases:
-        ticker = release.get("ticker", "")
-        exchange = release.get("exchange", "")
-        release_id = release["release_id"]
+        ticker = release.ticker
+        exchange = release.exchange
+        release_id = release.release_id
 
         if not ticker:
             filtered_out += 1
@@ -51,30 +52,29 @@ def lambda_handler(event=None, context=None):
             pass
 
         try:
-            result = fetch_release(release["url"], release["source"])
+            result = fetch_release(release.url, release.source)
             extracted_at = et_now_iso()
 
-            meta = {
-                "ticker": ticker,
-                "symbol": info.get("symbol", ""),
-                "exchange": exchange,
-                "market_cap": info.get("market_cap"),
-                "release_id": release_id,
-                "title": release["title"],
-                "url": release["url"],
-                "published_at": release["published_at"],
-                "filed_date": (release.get("published_at", "") or "")[:10],
-                "acceptance_datetime": release.get("published_at", ""),
-                "source": release["source"],
-                "extracted_at": extracted_at,
-                "analyzed_at": None,
-            }
+            meta = PRIndexMeta(
+                ticker=ticker,
+                symbol=info.symbol,
+                exchange=exchange,
+                market_cap=info.market_cap,
+                release_id=release_id,
+                title=release.title,
+                url=release.url,
+                published_at=release.published_at,
+                filed_date=(release.published_at or "")[:10],
+                acceptance_datetime=release.published_at,
+                source=release.source,
+                extracted_at=extracted_at,
+            )
 
-            write_json_to_s3(S3_BUCKET, f"{prefix}/index.json", meta)
+            write_json_to_s3(S3_BUCKET, f"{prefix}/index.json", meta.model_dump())
             get_s3_client().put_object(
                 Bucket=S3_BUCKET,
                 Key=f"{prefix}/release.txt",
-                Body=result["text"],
+                Body=result.text,
                 ContentType="text/plain",
             )
             stored += 1

@@ -9,6 +9,8 @@ from email.utils import parsedate_to_datetime
 import requests
 from bs4 import BeautifulSoup
 
+from src.modules.events.eight_k_scanner.models import PressRelease
+
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "PraxisCopilot/1.0"
@@ -18,8 +20,8 @@ TICKER_RE = re.compile(
 )
 
 
-def poll_gnw(feed_urls: list[str]) -> list[dict]:
-    releases = []
+def poll_gnw(feed_urls: list[str]) -> list[PressRelease]:
+    releases: list[PressRelease] = []
     for url in feed_urls:
         try:
             resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
@@ -31,8 +33,8 @@ def poll_gnw(feed_urls: list[str]) -> list[dict]:
     return releases
 
 
-def _parse_rss(xml_text: str) -> list[dict]:
-    items = []
+def _parse_rss(xml_text: str) -> list[PressRelease]:
+    items: list[PressRelease] = []
     root = ET.fromstring(xml_text)
     for item in root.iter("item"):
         title = item.findtext("title", "")
@@ -54,15 +56,15 @@ def _parse_rss(xml_text: str) -> list[dict]:
             except Exception:
                 published_at = pub_date
 
-        items.append({
-            "release_id": f"gnw-{release_id}",
-            "title": title,
-            "url": link,
-            "published_at": published_at,
-            "source": "gnw",
-            "ticker": ticker,
-            "exchange": exchange,
-        })
+        items.append(PressRelease(
+            release_id=f"gnw-{release_id}",
+            title=title,
+            url=link,
+            published_at=published_at,
+            source="gnw",
+            ticker=ticker,
+            exchange=exchange,
+        ))
     return items
 
 
