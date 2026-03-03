@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
@@ -48,19 +49,28 @@ class SerpAPIProvider(SerpProvider):
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    def search(self, query: str, num_results: int = 10) -> list[SerpResult]:
+    def search(self, query: str, num_results: int = 10, max_retries: int = 3) -> list[SerpResult]:
         params = {
             "q": query,
             "api_key": self.api_key,
             "engine": "google_news",
             "num": num_results,
         }
-        try:
-            resp = requests.get(SERPAPI_ENDPOINT, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-        except requests.RequestException as e:
-            logger.error("SerpAPI request failed for query %r: %s", query, e)
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                resp = requests.get(SERPAPI_ENDPOINT, params=params, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            except requests.RequestException as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt
+                    logger.warning("SerpAPI attempt %d failed for %r, retrying in %ds: %s", attempt + 1, query, wait, e)
+                    time.sleep(wait)
+        else:
+            logger.error("SerpAPI request failed after %d attempts for query %r: %s", max_retries, query, last_error)
             return []
 
         results: list[SerpResult] = []

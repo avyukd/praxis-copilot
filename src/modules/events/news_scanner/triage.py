@@ -13,6 +13,7 @@ from typing import Any
 import anthropic
 import boto3
 import yaml
+from botocore.exceptions import ClientError
 
 from .serp import SerpResponse
 
@@ -83,28 +84,31 @@ def _load_monitors(s3_client: boto3.client, ticker: str) -> list[dict[str, Any]]
     """Load active monitor definitions that listen to this ticker."""
     monitors: list[dict[str, Any]] = []
     try:
-        # List all monitor config files
-        resp = s3_client.list_objects_v2(Bucket=BUCKET, Prefix="config/monitors/")
-        for obj in resp.get("Contents", []):
-            key = obj["Key"]
-            if not key.endswith((".yaml", ".yml")):
-                continue
-            body = s3_client.get_object(Bucket=BUCKET, Key=key)["Body"].read().decode()
-            monitor = yaml.safe_load(body)
-            if not isinstance(monitor, dict):
-                continue
-            # Check if this monitor listens to this ticker
-            listen_list = monitor.get("listen", [])
-            for listen_item in listen_list:
-                if isinstance(listen_item, str) and listen_item.startswith(f"{ticker}:"):
-                    monitors.append({
-                        "id": monitor.get("id", key.split("/")[-1].replace(".yaml", "")),
-                        "description": monitor.get("description", ""),
-                        "listen": listen_list,
-                    })
-                    break
+        # List all monitor config files (paginated)
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=BUCKET, Prefix="config/monitors/"):
+            for obj in page.get("Contents", []):
+                key = obj["Key"]
+                if not key.endswith((".yaml", ".yml")):
+                    continue
+                body = s3_client.get_object(Bucket=BUCKET, Key=key)["Body"].read().decode()
+                monitor = yaml.safe_load(body)
+                if not isinstance(monitor, dict):
+                    continue
+                # Check if this monitor listens to this ticker
+                listen_list = monitor.get("listen", [])
+                for listen_item in listen_list:
+                    if isinstance(listen_item, str) and listen_item.startswith(f"{ticker}:"):
+                        monitors.append({
+                            "id": monitor.get("id", key.split("/")[-1].replace(".yaml", "")),
+                            "description": monitor.get("description", ""),
+                            "listen": listen_list,
+                        })
+                        break
+    except ClientError as e:
+        logger.error("S3 error loading monitors for %s: %s", ticker, e)
     except Exception:
-        logger.debug("Failed to load monitors for %s", ticker)
+        logger.exception("Failed to load monitors for %s", ticker)
     return monitors
 
 
@@ -185,12 +189,20 @@ def run_triage(
         list(changed_responses.keys()),
     )
 
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=4096,
-        system=TRIAGE_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=4096,
+            system=TRIAGE_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+    except anthropic.APIError as e:
+        logger.error("Anthropic API call failed: %s", e)
+        return {"material": [], "nothing_material": list(changed_responses.keys()), "_error": str(e)}
+
+    if not response.content or not hasattr(response.content[0], "text"):
+        logger.error("Anthropic API returned empty content")
+        return {"material": [], "nothing_material": list(changed_responses.keys()), "_error": "empty_response"}
 
     raw_text = response.content[0].text
 

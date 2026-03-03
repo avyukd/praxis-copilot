@@ -8,6 +8,7 @@ import logging
 from dataclasses import asdict
 
 import boto3
+from botocore.exceptions import ClientError
 
 from .serp import SerpResponse
 
@@ -33,11 +34,15 @@ def load_previous_hashes(s3_client: boto3.client) -> dict[str, str]:
     try:
         obj = s3_client.get_object(Bucket=BUCKET, Key=HASHES_KEY)
         return json.loads(obj["Body"].read().decode())
-    except s3_client.exceptions.NoSuchKey:
-        logger.info("No previous hashes found at %s — first sweep", HASHES_KEY)
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("NoSuchKey", "404"):
+            logger.info("No previous hashes found at %s — first sweep", HASHES_KEY)
+        else:
+            logger.error("S3 error loading hashes (%s): %s", code, e)
         return {}
-    except Exception:
-        logger.exception("Failed to load previous hashes from S3")
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error("Corrupt hashes file at %s: %s", HASHES_KEY, e)
         return {}
 
 

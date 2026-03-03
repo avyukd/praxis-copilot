@@ -14,6 +14,7 @@ from typing import Any
 
 import boto3
 import yaml
+from botocore.exceptions import ClientError
 
 from . import dedup, serp, triage
 
@@ -45,8 +46,15 @@ def _load_config(s3_client: boto3.client) -> dict[str, Any]:
     """Load news scanner config from S3, with defaults."""
     try:
         config = _load_yaml_from_s3(s3_client, CONFIG_KEY)
-    except Exception:
-        logger.warning("Could not load %s, using defaults", CONFIG_KEY)
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("NoSuchKey", "404"):
+            logger.info("No config at %s, using defaults", CONFIG_KEY)
+        else:
+            logger.warning("S3 error loading %s (%s), using defaults", CONFIG_KEY, code)
+        config = {}
+    except (yaml.YAMLError, ValueError) as e:
+        logger.warning("Failed to parse %s (%s), using defaults", CONFIG_KEY, e)
         config = {}
     merged = {**DEFAULTS, **config}
     return merged
@@ -65,14 +73,24 @@ def _get_serp_api_key(ssm_client: boto3.client, param_name: str) -> str:
 
 
 def _is_market_hours(now: datetime) -> bool:
-    """Check if current time is within US market hours (roughly 7am-5pm ET).
+    """Check if current time is within extended US market hours (7am-5pm ET).
 
-    Approximation — doesn't handle holidays or DST precisely.
+    Uses US Eastern DST rules: second Sunday of March to first Sunday of November.
     """
-    # Convert to ET (UTC-5 or UTC-4 for DST)
-    # Simple approximation: market hours are 12:00-22:00 UTC
-    hour_utc = now.hour
-    return 12 <= hour_utc <= 22
+    # Determine ET offset: UTC-4 during DST, UTC-5 otherwise
+    year = now.year
+    # Second Sunday of March
+    march_1 = datetime(year, 3, 1, tzinfo=timezone.utc)
+    dst_start = datetime(year, 3, 14 - (march_1.weekday() + 1) % 7, 2, tzinfo=timezone.utc)
+    # First Sunday of November
+    nov_1 = datetime(year, 11, 1, tzinfo=timezone.utc)
+    dst_end = datetime(year, 11, 7 - (nov_1.weekday() + 1) % 7, 2, tzinfo=timezone.utc)
+
+    is_dst = dst_start <= now < dst_end
+    et_offset = -4 if is_dst else -5
+    et_hour = (now.hour + et_offset) % 24
+
+    return 7 <= et_hour <= 17
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -105,7 +123,11 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         return {"status": "skipped", "reason": "no_tickers"}
 
     # Get SERP API key from SSM
-    api_key = _get_serp_api_key(ssm, config["serp_api_key_param"])
+    try:
+        api_key = _get_serp_api_key(ssm, config["serp_api_key_param"])
+    except ClientError as e:
+        logger.error("Failed to retrieve SERP API key from SSM: %s", e)
+        return {"status": "error", "reason": "ssm_key_retrieval_failed"}
 
     # Initialize SERP provider
     provider = serp.get_provider(config["serp_api"], api_key)
