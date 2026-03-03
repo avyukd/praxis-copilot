@@ -29,5 +29,5 @@ dev = [
 praxis = "cli.main:cli"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*", "config*"]
+where = ["src"]
+include = ["cli*"]
