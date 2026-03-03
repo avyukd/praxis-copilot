@@ -4,12 +4,15 @@ import json
 import shutil
 from pathlib import Path
 
-import boto3
 import click
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from cli.config_utils import find_repo_root, get_config_dir, load_yaml, save_yaml
 from cli.edgar import resolve_ticker
+from cli.ingest import run_ingestion
 from cli.macro import (
     list_macro_files,
     pull_macro_workspace,
@@ -124,29 +127,18 @@ def universe_add(ticker: str):
     uploaded = upload_directory(s3, config_dir, "config")
     click.echo(f"Synced {len(uploaded)} config file(s) to S3.")
 
-    # Invoke data ingestion Lambda
+    # Run data ingestion locally
     click.echo()
-    click.echo(f"Invoking data ingestion for {ticker} (CIK: {info.cik})...")
-    try:
-        lambda_client = boto3.client("lambda")
-        payload = json.dumps({"ticker": ticker, "cik": info.cik})
-        response = lambda_client.invoke(
-            FunctionName="praxis-data-ingestion",
-            InvocationType="Event",  # async — don't wait
-            Payload=payload,
-        )
-        status = response.get("StatusCode", 0)
-        if status in (200, 202):
-            click.echo(f"  Data ingestion triggered (async). Data will appear at:")
-            click.echo(f"  s3://{BUCKET}/data/research/{ticker}/data/")
-        else:
-            click.echo(f"  Lambda invocation returned status {status}")
-    except Exception as e:
-        click.echo(f"  Could not invoke ingestion Lambda: {e}")
-        click.echo(f"  You can run ingestion locally with:")
-        click.echo(f'    python -c "from modules.data_ingestion.handler import handler; '
-                   f"handler({{'ticker': '{ticker}', 'cik': '{info.cik}'}})\"")
-
+    click.echo(f"Ingesting data for {ticker} (CIK: {info.cik})...")
+    result = run_ingestion(ticker, info.cik, s3)
+    click.echo(f"  Filings: {result.filings_count} section(s)")
+    click.echo(f"  Fundamentals: {result.fundamentals_source or 'unavailable'}")
+    click.echo(f"  Transcripts: {result.transcripts_count}")
+    if result.warnings:
+        click.echo(f"  Warnings:")
+        for w in result.warnings:
+            click.echo(f"    - {w}")
+    click.echo(f"\n  Data stored at: s3://{BUCKET}/data/research/{ticker}/data/")
 
 @universe.command("remove")
 @click.argument("ticker")
@@ -219,21 +211,23 @@ def analyze(ticker: str):
         click.echo(f"{ticker} is not in the universe. Run 'praxis universe add {ticker}' first.")
         return
 
-    # Check data ingestion status (stub — check S3 prefix)
-    click.echo(f"Checking data ingestion status for {ticker}...")
-    try:
-        s3 = get_s3_client()
-        data_prefix = f"data/research/{ticker}/data/"
-        data_keys = list_prefix(s3, data_prefix)
-        if data_keys:
-            click.echo(f"  Data available: {len(data_keys)} file(s) under {data_prefix}")
+    # Check data ingestion status
+    click.echo(f"Checking data for {ticker}...")
+    s3 = get_s3_client()
+    data_prefix = f"data/research/{ticker}/data/"
+    data_keys = list_prefix(s3, data_prefix)
+    if data_keys:
+        click.echo(f"  Data available: {len(data_keys)} file(s)")
+    else:
+        click.echo(f"  No ingested data found. Running ingestion...")
+        registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
+        entry = registry_cfg.tickers.get(ticker)
+        if entry:
+            result = run_ingestion(ticker, entry.cik, s3)
+            click.echo(f"  Filings: {result.filings_count}, Fundamentals: {result.fundamentals_source or 'N/A'}, Transcripts: {result.transcripts_count}")
         else:
-            click.echo(f"  No ingested data found at s3://{BUCKET}/{data_prefix}")
-            click.echo(f"  Data ingestion may still be in progress.")
-            click.echo()
-    except SystemExit:
-        click.echo("  Could not check S3 (AWS credentials issue). Continuing anyway...")
-        click.echo()
+            click.echo(f"  No CIK found for {ticker}. Re-add with 'praxis universe add {ticker}'.")
+            return
 
     # Set up workspace staging directory
     repo_root = find_repo_root()
