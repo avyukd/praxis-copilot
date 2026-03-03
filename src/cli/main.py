@@ -10,6 +10,11 @@ import yaml
 
 from cli.config_utils import find_repo_root, get_config_dir, load_yaml, save_yaml
 from cli.edgar import resolve_ticker
+from cli.macro import (
+    list_macro_files,
+    pull_macro_workspace,
+    sync_macro_workspace,
+)
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
 from cli.s3 import (
     BUCKET,
@@ -488,6 +493,88 @@ def research_sync(ticker: str):
             f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
             f"Workspace preserved at {local_dir}"
         )
+
+
+# ---------------------------------------------------------------------------
+# praxis macro
+# ---------------------------------------------------------------------------
+
+@cli.group()
+def macro():
+    """Macro workspace — freeform collection of macro views and notes."""
+    pass
+
+
+@macro.command("show")
+@click.argument("file", required=False)
+def macro_show(file: str | None):
+    """Show macro workspace contents.
+
+    Without FILE, lists all files. With FILE, streams content to stdout.
+
+    Examples:
+        praxis macro show
+        praxis macro show rates-higher-longer.md | glow
+    """
+    s3 = get_s3_client()
+
+    if file:
+        s3_key = f"data/context/macro/{file}"
+        if not key_exists(s3, s3_key):
+            click.echo(f"File not found: s3://{BUCKET}/{s3_key}", err=True)
+            return
+        content = download_file(s3, s3_key)
+        click.get_text_stream("stdout").write(content.decode("utf-8"))
+        return
+
+    files = list_macro_files(s3)
+    if not files:
+        click.echo("No macro files on S3. Run 'praxis macro pull' after adding files to workspace/macro/.")
+        return
+
+    click.echo(f"Macro workspace ({len(files)} file(s)):\n")
+    for f in sorted(files):
+        click.echo(f"  {f}")
+    click.echo(f"\nView: praxis macro show <file> | glow")
+    click.echo(f"Pull: praxis macro pull")
+
+
+@macro.command("pull")
+def macro_pull():
+    """Download all macro files from S3 to workspace/macro/ for editing."""
+    s3 = get_s3_client()
+
+    repo_root = find_repo_root()
+    local_dir = repo_root / "workspace" / "macro"
+    local_dir.mkdir(parents=True, exist_ok=True)
+
+    pulled = pull_macro_workspace(s3, local_dir)
+    if not pulled:
+        click.echo("No macro files found on S3.")
+        click.echo("Add files to workspace/macro/ and run 'praxis macro sync'.")
+        return
+
+    click.echo(f"Pulled {len(pulled)} file(s) to {local_dir}/:\n")
+    for f in sorted(pulled):
+        click.echo(f"  {f}")
+    click.echo(f"\nEdit or add files, then run: praxis macro sync")
+
+
+@macro.command("sync")
+def macro_sync():
+    """Upload workspace/macro/ contents to S3."""
+    repo_root = find_repo_root()
+    local_dir = repo_root / "workspace" / "macro"
+    if not local_dir.exists() or not any(local_dir.rglob("*")):
+        click.echo(f"No files in {local_dir}/")
+        click.echo("Add macro notes/views there, then run this again.")
+        return
+
+    s3 = get_s3_client()
+    uploaded = sync_macro_workspace(s3, local_dir)
+    click.echo(f"Synced {len(uploaded)} file(s):")
+    for key in uploaded:
+        click.echo(f"  {key}")
 
 
 if __name__ == "__main__":
