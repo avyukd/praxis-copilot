@@ -1,0 +1,4 @@
+# Ticker registry: CIK <-> ticker mapping
+# Populated by: praxis universe add TICKER
+# Consumed by: event dispatch, 8k-scanner, news scanner, research ingestion
+tickers: {}
