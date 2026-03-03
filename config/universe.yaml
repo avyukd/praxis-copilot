@@ -1,3 +1,4 @@
-# Praxis investment universe
-# Managed via: praxis universe add/remove TICKER
+# Universe configuration
+# Tickers actively tracked with full pipeline (research, manage, etc.)
+# Add tickers via `praxis universe add TICKER`
 tickers: []

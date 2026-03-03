@@ -3,19 +3,31 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "praxis-cli"
+name = "praxis-copilot"
 version = "0.1.0"
-description = "CLI tool for the Praxis Copilot system"
+description = "Praxis Copilot - investment research automation"
 requires-python = ">=3.11"
 dependencies = [
-    "click>=8.1",
     "boto3>=1.28",
-    "pyyaml>=6.0",
     "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "lxml>=4.9",
+    "pydantic>=2.0",
+    "litellm>=1.0",
+    "yfinance>=0.2",
+    "pyyaml>=6.0",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.scripts]
 praxis = "cli.main:cli"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["src*", "config*"]

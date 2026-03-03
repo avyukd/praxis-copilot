@@ -1,4 +1,18 @@
-# Ticker registry: CIK <-> ticker mapping
-# Populated by: praxis universe add TICKER
-# Consumed by: event dispatch, 8k-scanner, news scanner, research ingestion
-tickers: {}
+# CIK <-> ticker mapping
+# Maintained by `praxis universe add TICKER`, manually editable
+# Deployed to S3 via `praxis config sync`
+tickers:
+  NVDA:
+    cik: "0001045810"
+    exchange: NASDAQ
+    name: "NVIDIA Corporation"
+    news_queries:
+      - '"NVIDIA" OR "NVDA"'
+      - '"Jensen Huang"'
+  TSM:
+    cik: "0001046179"
+    exchange: NYSE
+    name: "Taiwan Semiconductor Manufacturing"
+    universe_status: external
+    news_queries:
+      - '"TSMC" OR "Taiwan Semiconductor"'
