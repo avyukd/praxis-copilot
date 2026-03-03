@@ -392,57 +392,101 @@ def events(ticker: str, limit: int):
 
 
 # ---------------------------------------------------------------------------
-# praxis research TICKER [FILE]
+# praxis research
 # ---------------------------------------------------------------------------
 
-@cli.command("research")
-@click.argument("ticker")
-@click.argument("file", required=False)
-def research(ticker: str, file: str | None):
-    """List or view research artifacts for TICKER.
+@cli.group()
+def research():
+    """Research artifact commands."""
+    pass
 
-    Without FILE: lists all artifacts in data/research/{TICKER}/.
-    With FILE: streams the file content to stdout (pipe to glow or less).
+
+@research.command("list")
+@click.argument("ticker")
+def research_list(ticker: str):
+    """List research artifacts for TICKER on S3."""
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+    prefix = f"data/research/{ticker}/"
+
+    keys = list_prefix(s3, prefix)
+    if not keys:
+        click.echo(f"No research artifacts found for {ticker}")
+        return
+
+    click.echo(f"Research artifacts for {ticker}:\n")
+    for key in sorted(keys):
+        relative = key[len(prefix):]
+        if relative.startswith("data/"):
+            continue
+        click.echo(f"  {relative}")
+
+    data_keys = [k for k in keys if k[len(prefix):].startswith("data/")]
+    if data_keys:
+        click.echo(f"\n  ({len(data_keys)} ingested data file(s) under data/)")
+
+    click.echo(f"\nView: praxis research view {ticker} memo.md | glow")
+    click.echo(f"Pull: praxis research pull {ticker}")
+
+
+@research.command("view")
+@click.argument("ticker")
+@click.argument("file")
+def research_view(ticker: str, file: str):
+    """Stream a research artifact to stdout. Pipe to glow or less.
 
     Examples:
-        praxis research NVDA
-        praxis research NVDA memo.md | glow
-        praxis research NVDA memo.yaml | less
+        praxis research view NVDA memo.md | glow
+        praxis research view NVDA memo.yaml | less
     """
     ticker = ticker.upper()
     s3 = get_s3_client()
+    s3_key = f"data/research/{ticker}/{file}"
 
+    if not key_exists(s3, s3_key):
+        click.echo(f"File not found: s3://{BUCKET}/{s3_key}", err=True)
+        return
+
+    content = download_file(s3, s3_key)
+    click.get_text_stream("stdout").write(content.decode("utf-8"))
+
+
+@research.command("pull")
+@click.argument("ticker")
+def research_pull(ticker: str):
+    """Pull research artifacts from S3 into workspace/{TICKER}/ for re-analysis.
+
+    Downloads memo, specialist reports, and draft_monitors — everything
+    except raw ingested data. After editing, run praxis sync TICKER to push back.
+    """
+    ticker = ticker.upper()
+    s3 = get_s3_client()
     prefix = f"data/research/{ticker}/"
 
-    if file:
-        # Stream a specific file to stdout
-        s3_key = f"{prefix}{file}"
-        if not key_exists(s3, s3_key):
-            click.echo(f"File not found: s3://{BUCKET}/{s3_key}", err=True)
-            return
-        content = download_file(s3, s3_key)
-        click.get_text_stream("stdout").write(content.decode("utf-8"))
-    else:
-        # List all artifacts
-        keys = list_prefix(s3, prefix)
-        if not keys:
-            click.echo(f"No research artifacts found for {ticker}")
-            return
+    keys = list_prefix(s3, prefix)
+    # Filter out ingested data — only pull research artifacts
+    artifact_keys = [k for k in keys if not k[len(prefix):].startswith("data/")]
 
-        click.echo(f"Research artifacts for {ticker}:\n")
-        for key in sorted(keys):
-            relative = key[len(prefix):]
-            # Skip the data/ ingestion directory in the listing for clarity
-            if relative.startswith("data/"):
-                continue
-            click.echo(f"  {relative}")
+    if not artifact_keys:
+        click.echo(f"No research artifacts found for {ticker} on S3.")
+        return
 
-        # Show data ingestion summary separately
-        data_keys = [k for k in keys if k[len(prefix):].startswith("data/")]
-        if data_keys:
-            click.echo(f"\n  ({len(data_keys)} ingested data file(s) under data/)")
+    repo_root = find_repo_root()
+    workspace = repo_root / "workspace" / ticker
+    workspace.mkdir(parents=True, exist_ok=True)
 
-        click.echo(f"\nView a file: praxis research {ticker} memo.md | glow")
+    click.echo(f"Pulling research artifacts for {ticker} into {workspace}/\n")
+    for key in sorted(artifact_keys):
+        relative = key[len(prefix):]
+        local_path = workspace / relative
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+
+        content = download_file(s3, key)
+        local_path.write_bytes(content)
+        click.echo(f"  {relative}")
+
+    click.echo(f"\nPulled {len(artifact_keys)} file(s) to {workspace}/")
+    click.echo(f"After re-analysis, run: praxis sync {ticker}")
 
 
 if __name__ == "__main__":
