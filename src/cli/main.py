@@ -6,6 +6,9 @@ from pathlib import Path
 
 import click
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from cli.config_utils import find_repo_root, get_config_dir, load_yaml, save_yaml
 from cli.edgar import resolve_ticker

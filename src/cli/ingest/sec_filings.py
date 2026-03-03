@@ -32,6 +32,15 @@ TENQ_SECTIONS = {
     "item1a_risk_factors": r"(?:part\s*i[,.\s]*)?item\s*1a[\.\s:\-]*risk\s*factors",
 }
 
+# Sections to extract from S-1 (IPO/spin-off prospectus)
+S1_SECTIONS = {
+    "prospectus_summary": r"prospectus\s*summary",
+    "risk_factors": r"risk\s*factors",
+    "use_of_proceeds": r"use\s*of\s*proceeds",
+    "business": r"(?:our\s+)?business",
+    "mda": r"management.{0,5}s?\s*discussion\s*and\s*analysis",
+}
+
 # All possible section headers for finding boundaries
 ALL_ITEM_PATTERNS = [
     r"item\s*1a",
@@ -248,48 +257,48 @@ def ingest_sec_filings(cik: str, ticker: str) -> list[FilingSection]:
     """
     all_sections: list[FilingSection] = []
 
-    # Pull most recent 10-K
+    # Pull last 2 years of 10-Ks
     logger.info(f"Fetching 10-K filings for {ticker} (CIK: {cik})")
-    tenk_filings = get_filing_urls(cik, "10-K", count=1)
+    tenk_filings = get_filing_urls(cik, "10-K", count=2)
+    all_sections.extend(_fetch_filing_sections(tenk_filings, "10-K", TENK_SECTIONS))
 
-    for filing in tenk_filings:
-        try:
-            logger.info(f"  Fetching 10-K for period {filing['period']}")
-            resp = _sec_get(filing["primary_doc_url"])
-            html = resp.text
-
-            sections = _extract_sections_from_html(html, TENK_SECTIONS)
-            for section_name, text in sections.items():
-                all_sections.append(FilingSection(
-                    filing_type="10-K",
-                    period=filing["period"],
-                    section_name=section_name,
-                    text=text,
-                ))
-            logger.info(f"  Extracted {len(sections)} sections from 10-K")
-        except requests.RequestException as e:
-            logger.warning(f"  Failed to fetch 10-K document: {e}")
-
-    # Pull last 4 10-Qs
+    # Pull last 8 10-Qs
     logger.info(f"Fetching 10-Q filings for {ticker} (CIK: {cik})")
-    tenq_filings = get_filing_urls(cik, "10-Q", count=4)
+    tenq_filings = get_filing_urls(cik, "10-Q", count=8)
+    all_sections.extend(_fetch_filing_sections(tenq_filings, "10-Q", TENQ_SECTIONS))
 
-    for filing in tenq_filings:
-        try:
-            logger.info(f"  Fetching 10-Q for period {filing['period']}")
-            resp = _sec_get(filing["primary_doc_url"])
-            html = resp.text
-
-            sections = _extract_sections_from_html(html, TENQ_SECTIONS)
-            for section_name, text in sections.items():
-                all_sections.append(FilingSection(
-                    filing_type="10-Q",
-                    period=filing["period"],
-                    section_name=section_name,
-                    text=text,
-                ))
-            logger.info(f"  Extracted {len(sections)} sections from 10-Q ({filing['period']})")
-        except requests.RequestException as e:
-            logger.warning(f"  Failed to fetch 10-Q document: {e}")
+    # Pull S-1 for recent IPOs/spinoffs (best-effort)
+    logger.info(f"Checking for S-1 filings for {ticker} (CIK: {cik})")
+    s1_filings = get_filing_urls(cik, "S-1", count=1)
+    if s1_filings:
+        all_sections.extend(_fetch_filing_sections(s1_filings, "S-1", S1_SECTIONS))
+    else:
+        # Also check S-1/A (amended S-1)
+        s1a_filings = get_filing_urls(cik, "S-1/A", count=1)
+        if s1a_filings:
+            all_sections.extend(_fetch_filing_sections(s1a_filings, "S-1", S1_SECTIONS))
 
     return all_sections
+
+
+def _fetch_filing_sections(
+    filings: list[dict], filing_type: str, section_patterns: dict[str, str]
+) -> list[FilingSection]:
+    """Fetch and extract sections from a list of filings."""
+    sections: list[FilingSection] = []
+    for filing in filings:
+        try:
+            logger.info(f"  Fetching {filing_type} for period {filing['period']}")
+            resp = _sec_get(filing["primary_doc_url"])
+            extracted = _extract_sections_from_html(resp.text, section_patterns)
+            for section_name, text in extracted.items():
+                sections.append(FilingSection(
+                    filing_type=filing_type,
+                    period=filing["period"],
+                    section_name=section_name,
+                    text=text,
+                ))
+            logger.info(f"  Extracted {len(extracted)} sections from {filing_type} ({filing['period']})")
+        except requests.RequestException as e:
+            logger.warning(f"  Failed to fetch {filing_type} document: {e}")
+    return sections
