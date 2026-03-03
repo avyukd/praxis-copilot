@@ -9,6 +9,7 @@ import yaml
 
 from cli.config_utils import find_repo_root, get_config_dir, load_yaml, save_yaml
 from cli.edgar import resolve_ticker
+from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
 from cli.s3 import (
     BUCKET,
     download_file,
@@ -75,12 +76,11 @@ def universe_add(ticker: str):
     # Load existing configs
     universe_path = config_dir / "universe.yaml"
     registry_path = config_dir / "ticker_registry.yaml"
-    universe_data = load_yaml(universe_path)
-    registry_data = load_yaml(registry_path)
+    universe_cfg = UniverseConfig(**load_yaml(universe_path))
+    registry_cfg = TickerRegistry(**load_yaml(registry_path))
 
     # Check if already in universe
-    tickers_list = universe_data.get("tickers", [])
-    if ticker in tickers_list:
+    if ticker in universe_cfg.tickers:
         click.echo(f"{ticker} is already in the universe.")
         return
 
@@ -91,30 +91,25 @@ def universe_add(ticker: str):
         click.echo(f"Could not resolve {ticker} via EDGAR. Please verify the ticker symbol.")
         return
 
-    click.echo(f"  Found: {info['name']} (CIK: {info['cik']}, Exchange: {info['exchange']})")
+    click.echo(f"  Found: {info.name} (CIK: {info.cik}, Exchange: {info.exchange})")
 
     # Update universe.yaml
-    if "tickers" not in universe_data:
-        universe_data["tickers"] = []
-    universe_data["tickers"].append(ticker)
-    save_yaml(universe_path, universe_data)
+    universe_cfg.tickers.append(ticker)
+    save_yaml(universe_path, universe_cfg.model_dump())
     click.echo(f"Added {ticker} to universe.yaml")
 
     # Update ticker_registry.yaml
-    if "tickers" not in registry_data:
-        registry_data["tickers"] = {}
-    registry_entry = {
-        "cik": info["cik"],
-        "exchange": info["exchange"],
-        "name": info["name"],
-        "news_queries": [f'"{info["name"]}" OR "{ticker}"'],
-    }
-    # If it was previously external, remove that status
-    existing = registry_data["tickers"].get(ticker, {})
-    if existing.get("universe_status") == "external":
+    existing = registry_cfg.tickers.get(ticker)
+    if existing and existing.universe_status == "external":
         click.echo(f"  Promoting {ticker} from external to in-universe")
-    registry_data["tickers"][ticker] = registry_entry
-    save_yaml(registry_path, registry_data)
+    registry_entry = TickerRegistryEntry(
+        cik=info.cik,
+        exchange=info.exchange,
+        name=info.name,
+        news_queries=[f'"{info.name}" OR "{ticker}"'],
+    )
+    registry_cfg.tickers[ticker] = registry_entry
+    save_yaml(registry_path, registry_cfg.model_dump(exclude_none=True))
     click.echo(f"Added {ticker} to ticker_registry.yaml")
 
     # Sync config
@@ -125,13 +120,12 @@ def universe_add(ticker: str):
 
     # Invoke data ingestion Lambda
     click.echo()
-    click.echo(f"Invoking data ingestion for {ticker} (CIK: {info['cik']})...")
+    click.echo(f"Invoking data ingestion for {ticker} (CIK: {info.cik})...")
     click.echo(f"  Target: s3://{BUCKET}/data/research/{ticker}/data/")
     try:
         import boto3 as _boto3
         lambda_client = _boto3.client("lambda")
-        import json as _json
-        payload = _json.dumps({"ticker": ticker, "cik": info["cik"]})
+        payload = json.dumps({"ticker": ticker, "cik": info.cik})
         resp = lambda_client.invoke(
             FunctionName="praxis-data-ingestion",
             InvocationType="Event",  # async — don't wait
@@ -146,7 +140,7 @@ def universe_add(ticker: str):
         click.echo(f"  Could not invoke Lambda: {e}")
         click.echo(f"  You can run ingestion locally with:")
         click.echo(f'    python -c "from src.modules.analyze.ingestion.handler import lambda_handler; '
-                   f"lambda_handler({{'ticker': '{ticker}', 'cik': '{info['cik']}'}})\"")
+                   f"lambda_handler({{'ticker': '{ticker}', 'cik': '{info.cik}'}})\"")
 
 
 @universe.command("remove")
@@ -158,17 +152,16 @@ def universe_remove(ticker: str):
 
     universe_path = config_dir / "universe.yaml"
     registry_path = config_dir / "ticker_registry.yaml"
-    universe_data = load_yaml(universe_path)
-    registry_data = load_yaml(registry_path)
+    universe_cfg = UniverseConfig(**load_yaml(universe_path))
+    registry_cfg = TickerRegistry(**load_yaml(registry_path))
 
-    tickers_list = universe_data.get("tickers", [])
-    if ticker not in tickers_list:
+    if ticker not in universe_cfg.tickers:
         click.echo(f"{ticker} is not in the universe.")
         return
 
     # Remove from universe.yaml
-    universe_data["tickers"].remove(ticker)
-    save_yaml(universe_path, universe_data)
+    universe_cfg.tickers.remove(ticker)
+    save_yaml(universe_path, universe_cfg.model_dump())
     click.echo(f"Removed {ticker} from universe.yaml")
 
     # Check if any monitors depend on this ticker
@@ -186,18 +179,15 @@ def universe_remove(ticker: str):
                 break
 
     # Update ticker registry
-    if ticker in registry_data.get("tickers", {}):
+    if ticker in registry_cfg.tickers:
+        registry_cfg.tickers[ticker].universe_status = "external"
+        save_yaml(registry_path, registry_cfg.model_dump(exclude_none=True))
         if has_monitor_deps:
-            registry_data["tickers"][ticker]["universe_status"] = "external"
-            save_yaml(registry_path, registry_data)
             click.echo(
                 f"Marked {ticker} as external in ticker_registry.yaml "
                 f"(monitors still depend on it)"
             )
         else:
-            # No dependencies — could remove entirely, but keep for audit trail
-            registry_data["tickers"][ticker]["universe_status"] = "external"
-            save_yaml(registry_path, registry_data)
             click.echo(f"Marked {ticker} as external in ticker_registry.yaml")
 
     # Sync config
@@ -219,9 +209,8 @@ def analyze(ticker: str):
     config_dir = get_config_dir()
 
     # Check ticker is in universe
-    universe_data = load_yaml(config_dir / "universe.yaml")
-    tickers_list = universe_data.get("tickers", [])
-    if ticker not in tickers_list:
+    universe_cfg = UniverseConfig(**load_yaml(config_dir / "universe.yaml"))
+    if ticker not in universe_cfg.tickers:
         click.echo(f"{ticker} is not in the universe. Run 'praxis universe add {ticker}' first.")
         return
 
@@ -262,14 +251,13 @@ def analyze(ticker: str):
 def status():
     """Show universe tickers with their status."""
     config_dir = get_config_dir()
-    universe_data = load_yaml(config_dir / "universe.yaml")
-    tickers_list = universe_data.get("tickers", [])
+    universe_cfg = UniverseConfig(**load_yaml(config_dir / "universe.yaml"))
 
-    if not tickers_list:
+    if not universe_cfg.tickers:
         click.echo("Universe is empty. Run 'praxis universe add TICKER' to add tickers.")
         return
 
-    click.echo(f"Universe: {len(tickers_list)} ticker(s)\n")
+    click.echo(f"Universe: {len(universe_cfg.tickers)} ticker(s)\n")
 
     try:
         s3 = get_s3_client()
@@ -278,7 +266,7 @@ def status():
         click.echo("(Could not connect to AWS — showing local status only)\n")
         use_s3 = False
 
-    for ticker in sorted(tickers_list):
+    for ticker in sorted(universe_cfg.tickers):
         parts = [ticker]
 
         if use_s3:
@@ -324,9 +312,9 @@ def events(ticker: str, limit: int):
     # Load ticker registry to get CIK
     try:
         registry_content = download_file(s3, "config/ticker_registry.yaml")
-        registry = yaml.safe_load(registry_content)
-        ticker_info = registry.get("tickers", {}).get(ticker, {})
-        cik = ticker_info.get("cik")
+        registry_cfg = TickerRegistry(**yaml.safe_load(registry_content))
+        entry = registry_cfg.tickers.get(ticker)
+        cik = entry.cik if entry else None
     except Exception:
         cik = None
 
