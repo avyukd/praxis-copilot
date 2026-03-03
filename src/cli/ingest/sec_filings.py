@@ -22,14 +22,18 @@ ARCHIVES_BASE = "https://www.sec.gov/Archives/edgar/data"
 TENK_SECTIONS = {
     "item1_business": r"item\s*1[\.\s:\-]*business",
     "item1a_risk_factors": r"item\s*1a[\.\s:\-]*risk\s*factors",
+    "item1c_cybersecurity": r"item\s*1c[\.\s:\-]*cyber\s*security",
+    "item3_legal_proceedings": r"item\s*3[\.\s:\-]*legal\s*proceedings",
     "item7_mda": r"item\s*7[\.\s:\-]*management.{0,5}s?\s*discussion\s*and\s*analysis",
     "item7a_market_risk": r"item\s*7a[\.\s:\-]*quantitative\s*and\s*qualitative",
+    "item9a_controls": r"item\s*9a[\.\s:\-]*controls\s*and\s*procedures",
 }
 
 # Sections to extract from 10-Q
 TENQ_SECTIONS = {
     "item2_mda": r"(?:part\s*i[,.\s]*)?item\s*2[\.\s:\-]*management.{0,5}s?\s*discussion\s*and\s*analysis",
-    "item1a_risk_factors": r"(?:part\s*i[,.\s]*)?item\s*1a[\.\s:\-]*risk\s*factors",
+    "item1a_risk_factors": r"(?:part\s*i[i,.\s]*)?item\s*1a[\.\s:\-]*risk\s*factors",
+    "part2_item1_legal": r"part\s*ii[,.\s]*item\s*1[\.\s:\-]*legal\s*proceedings",
 }
 
 # Sections to extract from S-1 (IPO/spin-off prospectus)
