@@ -335,5 +335,115 @@ def status():
         click.echo("  ".join(parts))
 
 
+# ---------------------------------------------------------------------------
+# praxis events TICKER
+# ---------------------------------------------------------------------------
+
+@cli.command("events")
+@click.argument("ticker")
+@click.option("-n", "--limit", default=10, help="Number of recent events to show")
+def events(ticker: str, limit: int):
+    """List recent 8k-scanner results for TICKER."""
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+
+    # Load ticker registry to get CIK
+    try:
+        registry_content = download_file(s3, "config/ticker_registry.yaml")
+        import yaml
+        registry = yaml.safe_load(registry_content)
+        ticker_info = registry.get("tickers", {}).get(ticker, {})
+        cik = ticker_info.get("cik")
+    except Exception:
+        cik = None
+
+    if not cik:
+        click.echo(f"No CIK found for {ticker} in ticker registry.")
+        return
+
+    # List analysis files for this CIK
+    prefix = f"data/raw/8k/{cik}/"
+    all_keys = list_prefix(s3, prefix)
+    analysis_keys = [k for k in all_keys if k.endswith("/analysis.json")]
+
+    if not analysis_keys:
+        click.echo(f"No 8-K analyses found for {ticker} (CIK: {cik})")
+        return
+
+    # Sort by key (contains accession, roughly chronological) and take most recent
+    analysis_keys.sort(reverse=True)
+    analysis_keys = analysis_keys[:limit]
+
+    click.echo(f"Recent 8-K analyses for {ticker} (CIK: {cik}):\n")
+    import json
+    for key in analysis_keys:
+        try:
+            content = download_file(s3, key)
+            data = json.loads(content)
+            accession = key.split("/")[-2]
+            classification = data.get("classification", "?")
+            magnitude = data.get("magnitude", "?")
+            summary = data.get("summary", data.get("headline", ""))
+            if len(summary) > 100:
+                summary = summary[:100] + "..."
+            click.echo(f"  {accession}  {classification}  mag:{magnitude}  {summary}")
+        except Exception:
+            click.echo(f"  {key}  (could not parse)")
+
+
+# ---------------------------------------------------------------------------
+# praxis research TICKER [FILE]
+# ---------------------------------------------------------------------------
+
+@cli.command("research")
+@click.argument("ticker")
+@click.argument("file", required=False)
+def research(ticker: str, file: str | None):
+    """List or view research artifacts for TICKER.
+
+    Without FILE: lists all artifacts in data/research/{TICKER}/.
+    With FILE: streams the file content to stdout (pipe to glow or less).
+
+    Examples:
+        praxis research NVDA
+        praxis research NVDA memo.md | glow
+        praxis research NVDA memo.yaml | less
+    """
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+
+    prefix = f"data/research/{ticker}/"
+
+    if file:
+        # Stream a specific file to stdout
+        s3_key = f"{prefix}{file}"
+        if not key_exists(s3, s3_key):
+            click.echo(f"File not found: s3://{BUCKET}/{s3_key}", err=True)
+            return
+        content = download_file(s3, s3_key)
+        click.get_text_stream("stdout").write(content.decode("utf-8"))
+    else:
+        # List all artifacts
+        keys = list_prefix(s3, prefix)
+        if not keys:
+            click.echo(f"No research artifacts found for {ticker}")
+            return
+
+        click.echo(f"Research artifacts for {ticker}:\n")
+        for key in sorted(keys):
+            relative = key[len(prefix):]
+            # Skip the data/ ingestion directory in the listing for clarity
+            if relative.startswith("data/"):
+                continue
+            click.echo(f"  {relative}")
+
+        # Show data ingestion summary separately
+        data_keys = [k for k in keys if k[len(prefix):].startswith("data/")]
+        if data_keys:
+            click.echo(f"\n  ({len(data_keys)} ingested data file(s) under data/)")
+
+        click.echo(f"\nView a file: praxis research {ticker} memo.md | glow")
+
+
 if __name__ == "__main__":
     cli()
