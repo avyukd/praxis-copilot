@@ -1,18 +1,16 @@
-# CIK <-> ticker mapping
-# Maintained by `praxis universe add TICKER`, manually editable
-# Deployed to S3 via `praxis config sync`
 tickers:
   NVDA:
-    cik: "0001045810"
-    exchange: NASDAQ
-    name: "NVIDIA Corporation"
+    cik: 0001045810
+    exchange: Nasdaq
+    name: NVIDIA CORP
     news_queries:
-      - '"NVIDIA" OR "NVDA"'
-      - '"Jensen Huang"'
+    - '"NVIDIA CORP" OR "NVDA"'
+    research_priority: 5
   TSM:
-    cik: "0001046179"
+    cik: 0001046179
     exchange: NYSE
-    name: "Taiwan Semiconductor Manufacturing"
-    universe_status: external
+    name: Taiwan Semiconductor Manufacturing
     news_queries:
-      - '"TSMC" OR "Taiwan Semiconductor"'
+    - '"TSMC" OR "Taiwan Semiconductor"'
+    universe_status: external
+    research_priority: 5

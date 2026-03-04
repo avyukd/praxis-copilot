@@ -1,4 +1,2 @@
-# Universe configuration
-# Tickers actively tracked with full pipeline (research, manage, etc.)
-# Add tickers via `praxis universe add TICKER`
-tickers: []
+tickers:
+- NVDA
