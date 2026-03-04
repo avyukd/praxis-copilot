@@ -281,15 +281,37 @@ dependencies:
 ```
 
 - `draft_monitors.yaml` — Proposed monitoring signals for ongoing tracking. These are suggestions
-  for the human to review, NOT auto-applied config:
+  for the human to review and approve via `praxis monitor approve {ticker}`.
+
+  Three monitor types are supported:
+
+  **filing** — triggers when a subscribed SEC filing lands (10-K, 10-Q, 8-K, etc.)
+  **search** — daily cron, runs search queries and analyzes results
+  **scraper** — daily cron, runs a custom scraper script with delta detection
 
 ```yaml
 monitors:
   - name: "<descriptive name>"
-    type: "<scraper|agent>"
-    description: "<what to monitor and why>"
-    threshold: "<what triggers an alert>"
+    type: "<filing|search|scraper>"
+    description: "<what to monitor and why — be specific about the data source>"
+    threshold: "<what triggers an alert — quantitative when possible>"
+    # For filing type: specify which filings trigger this monitor
+    filing_types: ["10-K", "10-Q"]  # optional, for type=filing
+    # For search type: specify search queries
+    queries: ['"exact phrase"', 'keyword search']  # optional, for type=search
+    # For scraper type: specify the URL to scrape
+    source_url: "https://..."  # optional, for type=scraper
 ```
+
+  Guidelines for drafting monitors:
+  - Use `type: filing` for anything extractable from SEC filings (financial metrics,
+    segment data, risk factors, executive changes, delinquency rates, etc.)
+  - Use `type: search` for external signals (legislative activity, trade policy,
+    competitor announcements, industry news)
+  - Use `type: scraper` only for specific structured web pages with regular updates
+    (e.g. monthly revenue tables, government data releases)
+  - Thresholds should be quantitative when possible ("spread below 2%", "growth < 5% YoY")
+  - Description should say WHERE the data comes from, not just what to track
 
 ---
 
