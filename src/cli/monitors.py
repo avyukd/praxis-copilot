@@ -245,8 +245,67 @@ def monitor_drafts(ticker: str | None):
             click.echo(f"      threshold: {threshold}")
         click.echo()
 
-    click.echo(f"Approve: praxis monitor approve {ticker}")
+    click.echo(f"Edit drafts: praxis monitor drafts-edit {ticker}")
+    click.echo(f"Approve:     praxis monitor approve {ticker}")
     click.echo(f"Approve one: praxis monitor approve {ticker} -n 0")
+
+
+@monitor.command("drafts-edit")
+@click.argument("ticker")
+def monitor_drafts_edit(ticker: str):
+    """Edit draft monitors for TICKER in $EDITOR, then push back to S3.
+
+    Downloads draft_monitors.yaml, opens in your editor, uploads on save.
+    """
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+
+    s3_key = f"data/research/{ticker}/draft_monitors.yaml"
+    try:
+        content = download_file(s3, s3_key)
+    except Exception:
+        click.echo(f"No draft monitors found for {ticker}.")
+        return
+
+    # Write to temp file and open in editor
+    editor = os.environ.get("EDITOR", "vi")
+    with tempfile.NamedTemporaryFile(
+        suffix=f"-{ticker}-drafts.yaml", mode="wb", delete=False
+    ) as f:
+        f.write(content)
+        tmp_path = f.name
+
+    click.echo(f"Opening {ticker} drafts in {editor}...")
+    subprocess.run([editor, tmp_path])
+
+    # Read back and validate
+    try:
+        with open(tmp_path) as f:
+            edited = f.read()
+        data = yaml.safe_load(edited)
+        if not data:
+            click.echo("Empty file — not uploading.")
+            return
+    except yaml.YAMLError as e:
+        click.echo(f"Invalid YAML: {e}", err=True)
+        click.echo(f"Your edits are saved at {tmp_path}")
+        return
+
+    # Count monitors for confirmation
+    monitors = data.get("monitors", [data] if isinstance(data, dict) and "name" in data else [])
+    if isinstance(data, list):
+        monitors = data
+
+    # Upload back to S3
+    s3.put_object(
+        Bucket=BUCKET,
+        Key=s3_key,
+        Body=edited.encode(),
+        ContentType="application/x-yaml",
+    )
+    Path(tmp_path).unlink(missing_ok=True)
+    click.echo(f"Updated {ticker} drafts on S3 ({len(monitors)} monitors).")
+    click.echo(f"Review: praxis monitor drafts {ticker}")
 
 
 @monitor.command("approve")
