@@ -3,6 +3,7 @@
 import json
 import logging
 
+from cli.fundamentals_summary import generate_summary
 from cli.ingest.fundamentals import ingest_fundamentals
 from cli.ingest.models import IngestionResult
 from cli.ingest.sec_filings import ingest_sec_filings
@@ -43,8 +44,14 @@ def run_ingestion(ticker: str, cik: str, s3_client) -> IngestionResult:
     try:
         fundamentals = ingest_fundamentals(ticker)
         if fundamentals:
+            raw_data = fundamentals.model_dump()
+            # Upload raw JSON (for MCP server to query)
             s3_key = f"{base_prefix}/fundamentals/fundamentals.json"
-            _upload(s3_client, s3_key, json.dumps(fundamentals.model_dump(), default=str))
+            _upload(s3_client, s3_key, json.dumps(raw_data, default=str))
+            # Upload compact summary (for Claude to read directly)
+            summary = generate_summary(raw_data)
+            s3_key_summary = f"{base_prefix}/fundamentals/summary.md"
+            _upload(s3_client, s3_key_summary, summary)
             result.fundamentals_source = fundamentals.source
             logger.info(f"Ingested fundamentals from {fundamentals.source}")
         else:
