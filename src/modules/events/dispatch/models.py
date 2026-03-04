@@ -15,6 +15,7 @@ class ParsedTrigger(BaseModel):
     ticker_direct: str | None = None
     release_id: str | None = None
     date: str | None = None
+    form_type: str | None = None
 
 
 class MonitorDefinition(BaseModel):

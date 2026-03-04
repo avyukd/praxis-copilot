@@ -21,8 +21,20 @@ logger = logging.getLogger(__name__)
 EFTS_URL = "https://efts.sec.gov/LATEST/search-index"
 
 
-def poll_new_8k_filings(lookback_minutes: int = 60) -> list[PolledFiling]:
-    """Discover new 8-K filings via EFTS. Returns list of PolledFiling."""
+def poll_new_8k_filings(
+    lookback_minutes: int = 60,
+    forms: list[str] | None = None,
+) -> list[PolledFiling]:
+    """Discover new filings via EFTS. Returns list of PolledFiling.
+
+    Args:
+        lookback_minutes: How far back to look for filings.
+        forms: List of form types to poll (e.g. ["8-K", "10-K", "10-Q"]).
+               Defaults to ["8-K"] for backward compatibility.
+    """
+    if forms is None:
+        forms = ["8-K"]
+
     now_utc = datetime.now(timezone.utc)
     start_dt = now_utc - timedelta(minutes=lookback_minutes)
     fetch_start = start_dt.date()
@@ -31,8 +43,8 @@ def poll_new_8k_filings(lookback_minutes: int = 60) -> list[PolledFiling]:
     state = _load_state()
     seen_accessions = set(state.get("seen_accessions", {}).keys())
 
-    filings = _fetch_efts(fetch_start, fetch_end)
-    if not filings:
+    filings = _fetch_efts(fetch_start, fetch_end, forms=forms)
+    if not filings and "8-K" in forms:
         logger.info("EFTS returned no results, falling back to RSS")
         filings = _fetch_rss()
 
@@ -61,7 +73,7 @@ def poll_new_8k_filings(lookback_minutes: int = 60) -> list[PolledFiling]:
         }
     )
 
-    logger.info(f"Found {len(new_filings)} new 8-K filings")
+    logger.info(f"Found {len(new_filings)} new filings (forms={forms})")
     return new_filings
 
 
@@ -127,24 +139,38 @@ def _prune_and_stamp_seen_accessions(
     return keep
 
 
-def fetch_filings_by_date(start_date: date, end_date: date) -> list[PolledFiling]:
-    """Fetch all 8-K filings in a date range (no state-based dedupe)."""
-    filings = _fetch_efts(start_date, end_date)
-    if not filings:
+def fetch_filings_by_date(
+    start_date: date,
+    end_date: date,
+    forms: list[str] | None = None,
+) -> list[PolledFiling]:
+    """Fetch filings in a date range (no state-based dedupe)."""
+    if forms is None:
+        forms = ["8-K"]
+    filings = _fetch_efts(start_date, end_date, forms=forms)
+    if not filings and "8-K" in forms:
         logger.info("EFTS returned no results for date range, falling back to RSS")
         filings = _fetch_rss()
     logger.info(f"fetch_filings_by_date({start_date} -> {end_date}): {len(filings)} filings")
     return filings
 
 
-def _fetch_efts(start_date: date, end_date: date) -> list[PolledFiling]:
+def _fetch_efts(
+    start_date: date,
+    end_date: date,
+    forms: list[str] | None = None,
+) -> list[PolledFiling]:
+    if forms is None:
+        forms = ["8-K"]
+    forms_query = ",".join(forms)
+
     all_filings: list[PolledFiling] = []
     page_from = 0
     page_size = 100
 
     while True:
         params = {
-            "forms": "8-K",
+            "forms": forms_query,
             "startdt": start_date.isoformat(),
             "enddt": end_date.isoformat(),
             "from": page_from,
@@ -153,7 +179,7 @@ def _fetch_efts(start_date: date, end_date: date) -> list[PolledFiling]:
         try:
             resp = edgar_get(EFTS_URL, params=params)
             data = resp.json()
-            filings = _parse_efts_response(data)
+            filings = _parse_efts_response(data, allowed_forms=forms)
             all_filings.extend(filings)
 
             total = data.get("hits", {}).get("total", {}).get("value", 0)
@@ -167,13 +193,24 @@ def _fetch_efts(start_date: date, end_date: date) -> list[PolledFiling]:
     return all_filings
 
 
-def _parse_efts_response(data: dict) -> list[PolledFiling]:
+def _parse_efts_response(
+    data: dict,
+    allowed_forms: list[str] | None = None,
+) -> list[PolledFiling]:
+    if allowed_forms is None:
+        allowed_forms = ["8-K"]
+    # Build set of allowed forms including amendments
+    allowed_set = set()
+    for f in allowed_forms:
+        allowed_set.add(f)
+        allowed_set.add(f"{f}/A")
+
     filings: list[PolledFiling] = []
     hits = data.get("hits", {}).get("hits", [])
     for hit in hits:
         src = hit.get("_source", {})
 
-        if src.get("form") not in ("8-K", "8-K/A"):
+        if src.get("form") not in allowed_set:
             continue
 
         ciks = src.get("ciks", [])
@@ -201,12 +238,13 @@ def _parse_efts_response(data: dict) -> list[PolledFiling]:
             accession_number=accession,
             company_name=company_name,
             ticker=ticker,
+            form_type=src.get("form", ""),
             filed_date=src.get("file_date", ""),
             acceptance_datetime=src.get("file_date", ""),
             items=src.get("items", []),
         ))
 
-    logger.info(f"EFTS returned {len(filings)} 8-K filings (from {len(hits)} hits)")
+    logger.info(f"EFTS returned {len(filings)} filings (from {len(hits)} hits, forms={allowed_forms})")
     return filings
 
 

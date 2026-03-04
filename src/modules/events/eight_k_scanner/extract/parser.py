@@ -222,6 +222,70 @@ def _strip_exhibit_boilerplate(text: str) -> str:
     return text.strip()
 
 
+def extract_generic_filing(
+    cik: str,
+    accession_number: str,
+    bucket: str | None = None,
+    prefix: str = "data/raw/filings",
+    form_type: str = "",
+    force: bool = False,
+) -> ExtractedFiling | None:
+    """Extract text from a non-8-K filing (10-K, 10-Q, etc.) in S3.
+
+    Simpler than 8-K extraction: just HTML -> plain text, no item splitting.
+    Writes extracted.json back to S3.
+    """
+    bucket = bucket or S3_BUCKET
+    file_prefix = f"{prefix}/{cik}/{accession_number}"
+    output_key = f"{file_prefix}/extracted.json"
+
+    if not force:
+        try:
+            get_s3_client().head_object(Bucket=bucket, Key=output_key)
+            logger.info(f"Already extracted: {accession_number}")
+            return None
+        except Exception:
+            pass
+
+    index_key = f"{file_prefix}/index.json"
+    try:
+        index_data = read_json_from_s3(bucket, index_key)
+    except Exception as e:
+        logger.error(f"Cannot read index for {accession_number}: {e}")
+        return None
+
+    primary_doc = index_data.get("primary_doc")
+    ticker = index_data.get("ticker", "")
+    total_chars = 0
+    full_text = ""
+
+    if primary_doc:
+        primary_key = f"{file_prefix}/{primary_doc}"
+        try:
+            content = _read_s3_file(bucket, primary_key)
+            full_text = _parse_html(content)
+            total_chars = len(full_text)
+        except Exception as e:
+            logger.warning(f"Failed to parse primary doc {primary_doc}: {e}")
+
+    result = ExtractedFiling(
+        cik=cik,
+        accession_number=accession_number,
+        ticker=ticker,
+        form_type=form_type,
+        items={},
+        exhibits=[],
+        text=full_text,
+        total_chars=total_chars,
+        files_processed=1 if full_text else 0,
+        files_skipped=0,
+    )
+
+    write_json_to_s3(bucket, output_key, result.model_dump())
+    logger.info(f"Extracted {form_type} {accession_number}: {total_chars} chars")
+    return result
+
+
 def _split_items(text: str) -> dict[str, str]:
     splits = list(ITEM_PATTERN.finditer(text))
 

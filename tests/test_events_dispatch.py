@@ -124,7 +124,7 @@ def test_lambda_handler_routes_matching_monitor(monkeypatch):
         ],
     )
     monkeypatch.setattr(handler, "_emit_event_record", lambda bucket, event_record: emitted.append(event_record))
-    monkeypatch.setattr(handler, "_invoke_monitor_collector", lambda monitor, event_record: invoked.append(monitor.id))
+    monkeypatch.setattr(handler, "_invoke_monitor_collector", lambda monitor, event_record, parsed=None: invoked.append(monitor.id))
 
     event = {
         "Records": [

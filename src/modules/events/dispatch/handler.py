@@ -2,6 +2,7 @@
 
 Triggered by S3 PUTs on:
   - data/raw/8k/{cik}/{accession}/analysis.json
+  - data/raw/filings/{cik}/{accession}/extracted.json  (unified filing path)
   - data/raw/ca-pr/{ticker}/{release_id}/analysis.json
   - data/raw/us-pr/{ticker}/{release_id}/analysis.json
   - data/news/{date}/digest/{hour}.yaml
@@ -35,6 +36,8 @@ logger = logging.getLogger(__name__)
 S3_BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 S3_CONFIG_PREFIX = "config"
 S3_DATA_PREFIX = "data"
+
+MONITOR_EVALUATOR_LAMBDA = os.environ.get("MONITOR_EVALUATOR_LAMBDA", "praxis-monitor-evaluator")
 
 _s3_client = None
 _lambda_client = None
@@ -106,7 +109,7 @@ def lambda_handler(event: dict, context=None) -> dict:
 
             # Invoke matching monitors
             for monitor in matching_monitors:
-                _invoke_monitor_collector(monitor, event_record)
+                _invoke_monitor_collector(monitor, event_record, parsed)
                 dispatched += 1
 
     logger.info(f"Dispatch complete: {dispatched} monitor invocations, {skipped} skipped")
@@ -117,7 +120,21 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
     """Parse an S3 key to determine source, data type, and identifiers."""
     parts = key.split("/")
 
-    # data/raw/8k/{cik}/{accession}/analysis.json
+    # Unified filing path: data/raw/filings/{cik}/{accession}/extracted.json
+    if key.startswith("data/raw/filings/") and key.endswith("/extracted.json"):
+        try:
+            form_type = _read_form_type_from_extracted(key)
+            return ParsedTrigger(
+                source="filing-extractor",
+                data_type=f"filings:{form_type}" if form_type else "filings",
+                cik=parts[3],
+                accession=parts[4],
+                form_type=form_type,
+            )
+        except IndexError:
+            return None
+
+    # Legacy 8-K path: data/raw/8k/{cik}/{accession}/analysis.json
     if key.startswith("data/raw/8k/") and key.endswith("/analysis.json"):
         try:
             return ParsedTrigger(
@@ -125,6 +142,20 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
                 data_type="filings",
                 cik=parts[3],
                 accession=parts[4],
+                form_type="8-K",
+            )
+        except IndexError:
+            return None
+
+    # Legacy 8-K extracted.json trigger (for filing monitors)
+    if key.startswith("data/raw/8k/") and key.endswith("/extracted.json"):
+        try:
+            return ParsedTrigger(
+                source="8k-extractor",
+                data_type="filings:8-K",
+                cik=parts[3],
+                accession=parts[4],
+                form_type="8-K",
             )
         except IndexError:
             return None
@@ -167,18 +198,27 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
     return None
 
 
+def _read_form_type_from_extracted(key: str) -> str:
+    """Read form_type from an extracted.json file in S3."""
+    try:
+        data = _read_json(S3_BUCKET, key)
+        return data.get("form_type", "")
+    except Exception:
+        return ""
+
+
 def _resolve_tickers(bucket: str, key: str, parsed: ParsedTrigger) -> list[str]:
     """Resolve tickers from the event source."""
     # PR scanners have ticker directly in the path
     if parsed.ticker_direct:
         return [parsed.ticker_direct]
 
-    # 8k-scanner: resolve CIK -> ticker via registry
+    # Filing scanners: resolve CIK -> ticker via registry
     if parsed.cik:
         ticker = _resolve_cik_to_ticker(bucket, parsed.cik)
         if ticker:
             return [ticker]
-        # Fall back to reading the analysis.json itself
+        # Fall back to reading the extracted/analysis JSON itself
         try:
             data = _read_json(bucket, key)
             ticker = data.get("ticker")
@@ -205,8 +245,6 @@ def _resolve_tickers(bucket: str, key: str, parsed: ParsedTrigger) -> list[str]:
             digest = yaml.safe_load(content) or {}
             tickers = []
             for item in digest.get("material", []):
-                # Support both historical schema (ticker: str) and
-                # multi-ticker schema (tickers: [str, ...]).
                 single_ticker = item.get("ticker")
                 if isinstance(single_ticker, str) and single_ticker:
                     tickers.append(single_ticker)
@@ -265,8 +303,11 @@ def _load_monitor_registry(bucket: str) -> list[MonitorDefinition]:
                         # Use filename stem as monitor ID if not specified
                         if "id" not in raw:
                             raw["id"] = key.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-                        # Normalize listen to list
-                        if isinstance(raw.get("listen"), str):
+                        # Build listen keys from the new schema
+                        if "tickers" in raw and raw.get("type") == "filing":
+                            listen = _build_listen_keys(raw)
+                            raw["listen"] = listen
+                        elif isinstance(raw.get("listen"), str):
                             raw["listen"] = [raw["listen"]]
                         monitors.append(MonitorDefinition.model_validate(raw))
                 except Exception:
@@ -277,24 +318,65 @@ def _load_monitor_registry(bucket: str) -> list[MonitorDefinition]:
     return monitors
 
 
+def _build_listen_keys(raw: dict) -> list[str]:
+    """Build listen keys from the new monitor schema."""
+    keys = []
+    tickers = raw.get("tickers", [])
+    filing_types = raw.get("filing_types", [])
+    for ticker in tickers:
+        if filing_types:
+            for ft in filing_types:
+                keys.append(f"{ticker}:filings:{ft}")
+        else:
+            keys.append(f"{ticker}:filings")
+    return keys
+
+
 def _match_monitors(
     ticker: str, data_type: str, monitors: list[MonitorDefinition]
 ) -> list[MonitorDefinition]:
-    """Match monitors whose listen fields include {ticker}:{data_type}."""
+    """Match monitors whose listen fields include {ticker}:{data_type}.
+
+    Supports hierarchical matching:
+      - "AGM:filings" matches any filing type (data_type="filings:10-K", etc.)
+      - "AGM:filings:10-K" matches only 10-K
+      - "*:filings" matches any ticker's filings
+    """
     matched = []
-    listen_key = f"{ticker}:{data_type}"
 
     for monitor in monitors:
         for listen in monitor.listen:
-            if listen == listen_key:
-                matched.append(monitor)
-                break
-            # Also match wildcard patterns like *:filings
-            if listen.startswith("*:") and listen.split(":", 1)[1] == data_type:
+            if _listen_entry_matches(listen, ticker, data_type):
                 matched.append(monitor)
                 break
 
     return matched
+
+
+def _listen_entry_matches(listen: str, ticker: str, data_type: str) -> bool:
+    """Check if a single listen entry matches a ticker + data_type."""
+    listen_parts = listen.split(":", 1)
+    if len(listen_parts) != 2:
+        return False
+
+    listen_ticker, listen_dtype = listen_parts
+
+    # Ticker match (exact or wildcard)
+    ticker_matches = listen_ticker == ticker or listen_ticker == "*"
+    if not ticker_matches:
+        return False
+
+    # Data type match (exact or hierarchical prefix)
+    # "filings" matches "filings:8-K", "filings:10-K", etc.
+    if listen_dtype == data_type:
+        return True
+    if data_type.startswith(f"{listen_dtype}:"):
+        return True
+    if listen_dtype.startswith(f"{data_type}:"):
+        # More specific listen matches broader data_type (shouldn't normally happen)
+        return False
+
+    return False
 
 
 def _emit_event_record(bucket: str, event_record: EventRecord) -> None:
@@ -313,24 +395,39 @@ def _emit_event_record(bucket: str, event_record: EventRecord) -> None:
         logger.exception(f"Failed to emit event record: {key}")
 
 
-def _invoke_monitor_collector(monitor: MonitorDefinition, event_record: EventRecord) -> None:
-    """Invoke a monitor's collector Lambda asynchronously."""
-    if not monitor.collector_lambda:
+def _invoke_monitor_collector(
+    monitor: MonitorDefinition,
+    event_record: EventRecord,
+    parsed: ParsedTrigger,
+) -> None:
+    """Invoke the monitor evaluator Lambda for a matched monitor."""
+    # Use the specific collector_lambda if set, otherwise use the shared evaluator
+    function_name = monitor.collector_lambda or MONITOR_EVALUATOR_LAMBDA
+    if not function_name:
         logger.debug(f"Monitor {monitor.id} has no collector_lambda, skipping invoke")
         return
 
     payload = {
-        "event": event_record.model_dump(),
+        "trigger_type": "event",
+        "trigger_sources": [f"{event_record.ticker}:{event_record.data_type}"],
         "monitor_id": monitor.id,
+        "event_data": {
+            "event_id": event_record.event_id,
+            "s3_path": event_record.s3_path,
+            "ticker": event_record.ticker,
+            "cik": event_record.cik,
+            "data_type": event_record.data_type,
+            "form_type": parsed.form_type or "",
+        },
     }
 
     try:
         _get_lambda_client().invoke(
-            FunctionName=monitor.collector_lambda,
+            FunctionName=function_name,
             InvocationType="Event",  # async
             Payload=json.dumps(payload),
         )
-        logger.info(f"Invoked collector {monitor.collector_lambda} for monitor {monitor.id}")
+        logger.info(f"Invoked collector {function_name} for monitor {monitor.id}")
     except Exception:
         logger.exception(f"Failed to invoke collector for monitor {monitor.id}")
 
