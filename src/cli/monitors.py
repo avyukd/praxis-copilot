@@ -357,10 +357,20 @@ def monitor_approve(ticker: str, number: tuple[int, ...], approve_all: bool, edi
 
     monitors_dir = _monitors_dir()
     approved = 0
+    skipped_existing = 0
+
+    # Load existing committed monitor IDs to skip duplicates
+    existing_ids = {p.stem for p in monitors_dir.glob("*.yaml")}
 
     for draft in drafts:
         name = draft.get("name", draft.get("id", "unknown"))
         monitor_data = _draft_to_monitor(draft, ticker)
+
+        # Skip if already committed
+        if monitor_data["id"] in existing_ids:
+            click.echo(f"  Skipping '{name}' — already committed as {monitor_data['id']}")
+            skipped_existing += 1
+            continue
 
         if not approve_all:
             click.echo(f"\n{'='*50}")
@@ -406,9 +416,11 @@ def monitor_approve(ticker: str, number: tuple[int, ...], approve_all: bool, edi
         click.echo(f"  Wrote {out_path.name}")
         approved += 1
 
+    if skipped_existing:
+        click.echo(f"\nSkipped {skipped_existing} already-committed monitor(s).")
     if approved:
-        click.echo(f"\nApproved {approved} monitor(s). Run 'praxis config sync' to push to S3.")
-    else:
+        click.echo(f"Approved {approved} new monitor(s). Run 'praxis config sync' to push to S3.")
+    elif not skipped_existing:
         click.echo("\nNo monitors approved.")
 
 
