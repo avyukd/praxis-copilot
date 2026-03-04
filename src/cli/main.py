@@ -201,16 +201,16 @@ def universe_remove(ticker: str):
 
 
 # ---------------------------------------------------------------------------
-# praxis analyze TICKER
+# praxis stage TICKER
 # ---------------------------------------------------------------------------
 
-@cli.command("analyze")
+@cli.command("stage")
 @click.argument("ticker")
-def analyze(ticker: str):
-    """Prepare workspace and start analysis for TICKER.
+def stage(ticker: str):
+    """Stage workspace for TICKER research.
 
     Pulls ingested data from S3, downloads macro context, generates
-    a CLAUDE.md research prompt, and drops you into the workspace.
+    a CLAUDE.md research prompt. Then: cd workspace/TICKER && claude
     """
     ticker = ticker.upper()
     config_dir = get_config_dir()
@@ -538,7 +538,7 @@ def research_sync(ticker: str):
     local_dir = repo_root / "workspace" / ticker
     if not local_dir.exists():
         click.echo(f"No workspace found at {local_dir}")
-        click.echo(f"Run 'praxis analyze {ticker}' first to set up the workspace.")
+        click.echo(f"Run 'praxis stage {ticker}' first to set up the workspace.")
         return
 
     found = []
