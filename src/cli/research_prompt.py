@@ -303,15 +303,30 @@ monitors:
     source_url: "https://..."  # optional, for type=scraper
 ```
 
-  Guidelines for drafting monitors:
-  - Use `type: filing` for anything extractable from SEC filings (financial metrics,
-    segment data, risk factors, executive changes, delinquency rates, etc.)
-  - Use `type: search` for external signals (legislative activity, trade policy,
-    competitor announcements, industry news)
-  - Use `type: scraper` only for specific structured web pages with regular updates
-    (e.g. monthly revenue tables, government data releases)
-  - Thresholds should be quantitative when possible ("spread below 2%", "growth < 5% YoY")
-  - Description should say WHERE the data comes from, not just what to track
+  **Cost hierarchy (prefer cheaper types):**
+  - `filing` — **cheapest**. Reactive: only runs when a filing actually lands. One Sonnet
+    call on already-extracted text. No daily cost. Use this as the default for anything
+    that can be answered from SEC filings.
+  - `search` — **moderate**. Runs daily on cron. Costs a search API call + Sonnet per run.
+    Use only for signals that genuinely can't wait for a filing (breaking news, policy
+    changes, competitor moves).
+  - `scraper` — **most expensive operationally**. Requires custom Python script that
+    someone must write and maintain. Use only when there's a specific structured data
+    source with no other way to get the data (e.g. TSMC monthly revenue page, USDA
+    data releases, government portals).
+
+  **Guidelines:**
+  - **Default to `filing`**. Most investment-relevant data eventually shows up in SEC
+    filings. Financial metrics, segment data, risk factors, management changes,
+    delinquency rates, compensation, debt covenants — all filing monitors.
+  - Use `search` for things that are external to the company's SEC filings:
+    legislative/regulatory activity, trade policy, competitor announcements, industry
+    news, macro signals that affect the thesis.
+  - Use `scraper` as a last resort — only for specific URLs with structured data that
+    updates on a known schedule and can't be captured by search or filing.
+  - A good monitor set is ~70% filing, ~25% search, ~5% scraper.
+  - Thresholds should be quantitative when possible ("spread below 2%", "growth < 5% YoY").
+  - Description should say WHERE the data comes from, not just what to track.
 
 ---
 
