@@ -78,7 +78,9 @@ def universe():
 
 @universe.command("add")
 @click.argument("ticker")
-def universe_add(ticker: str):
+@click.option("-p", "--priority", type=click.IntRange(0, 10), default=5,
+              help="Research priority 0-10 (0=quick screen, 5=standard, 10=full deep dive)")
+def universe_add(ticker: str, priority: int):
     """Add TICKER to the investment universe."""
     ticker = ticker.upper()
     config_dir = get_config_dir()
@@ -102,6 +104,8 @@ def universe_add(ticker: str):
         return
 
     click.echo(f"  Found: {info.name} (CIK: {info.cik}, Exchange: {info.exchange})")
+    budget = ResearchBudget.from_priority(priority)
+    click.echo(f"  Research depth: {budget.depth_label}")
 
     # Update universe.yaml
     universe_cfg.tickers.append(ticker)
@@ -117,6 +121,7 @@ def universe_add(ticker: str):
         exchange=info.exchange,
         name=info.name,
         news_queries=[f'"{info.name}" OR "{ticker}"'],
+        research_priority=priority,
     )
     registry_cfg.tickers[ticker] = registry_entry
     save_yaml(registry_path, registry_cfg.model_dump(exclude_none=True))
