@@ -305,26 +305,27 @@ monitors:
 
   **Cost hierarchy (prefer cheaper types):**
   - `filing` — **cheapest**. Reactive: only runs when a filing actually lands. One Sonnet
-    call on already-extracted text. No daily cost. Use this as the default for anything
-    that can be answered from SEC filings.
-  - `search` — **moderate**. Runs daily on cron. Costs a search API call + Sonnet per run.
-    Use only for signals that genuinely can't wait for a filing (breaking news, policy
-    changes, competitor moves).
-  - `scraper` — **most expensive operationally**. Requires custom Python script that
-    someone must write and maintain. Use only when there's a specific structured data
-    source with no other way to get the data (e.g. TSMC monthly revenue page, USDA
-    data releases, government portals).
+    call on already-extracted text. No daily cost. Default for anything answerable from
+    SEC filings.
+  - `scraper` — **cheap**. Runs a script on cron, compares output to previous run.
+    Sonnet only called when data actually changes (delta detection). Good for structured
+    data sources with known update schedules (TSMC monthly revenue, USDA data, Fed
+    surveys, government portals).
+  - `search` — **most expensive**. Daily search API call + Sonnet analysis every run,
+    even when nothing has changed. Use sparingly for signals that can't be captured by
+    filing or scraper.
 
   **Guidelines:**
   - **Default to `filing`**. Most investment-relevant data eventually shows up in SEC
     filings. Financial metrics, segment data, risk factors, management changes,
     delinquency rates, compensation, debt covenants — all filing monitors.
-  - Use `search` for things that are external to the company's SEC filings:
-    legislative/regulatory activity, trade policy, competitor announcements, industry
-    news, macro signals that affect the thesis.
-  - Use `scraper` as a last resort — only for specific URLs with structured data that
-    updates on a known schedule and can't be captured by search or filing.
-  - A good monitor set is ~70% filing, ~25% search, ~5% scraper.
+  - Use `scraper` for specific external data sources with structured, regularly updated
+    pages (monthly revenue disclosures, government statistical releases, central bank
+    surveys). These are cheap because Sonnet only runs on changes.
+  - Use `search` only for diffuse, unpredictable signals that have no single data source:
+    legislative/regulatory activity, trade policy shifts, competitor announcements where
+    you don't know which site will break the news.
+  - A good monitor set is ~60% filing, ~25% scraper, ~15% search.
   - Thresholds should be quantitative when possible ("spread below 2%", "growth < 5% YoY").
   - Description should say WHERE the data comes from, not just what to track.
 
