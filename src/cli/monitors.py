@@ -16,14 +16,6 @@ from cli.s3 import BUCKET, download_file, get_s3_client, list_prefix
 
 MONITOR_TYPES = ("filing", "scraper", "search")
 
-# Map draft types from research sessions to our schema types
-DRAFT_TYPE_MAP = {
-    "scraper": "filing",   # most "scraper" drafts are really filing-triggered
-    "agent": "search",     # "agent" drafts are typically search-based
-    "filing": "filing",
-    "search": "search",
-}
-
 
 def _monitors_dir() -> Path:
     d = get_config_dir() / "monitors"
@@ -49,27 +41,29 @@ def _slugify(text: str) -> str:
     return slug.strip("-")
 
 
-def _infer_type(draft: dict, ticker: str) -> str:
-    """Infer the monitor type from a draft's content.
+def _resolve_type(draft: dict) -> str:
+    """Resolve the monitor type from a draft.
 
-    Looks at the draft type field, description, and name to guess
-    whether it's filing, scraper, or search.
+    If the draft already specifies a valid type (filing/scraper/search), use it.
+    For legacy types (agent), infer from description.
     """
-    draft_type = draft.get("type", "").lower()
-    desc = (draft.get("description", "") + " " + draft.get("name", "")).lower()
+    draft_type = draft.get("type", "").lower().strip()
 
-    # Explicit mapping first
-    if draft_type in DRAFT_TYPE_MAP:
-        mapped = DRAFT_TYPE_MAP[draft_type]
-        # But refine: if desc mentions filings/10-K/10-Q/quarterly, it's filing
-        if any(kw in desc for kw in ["10-k", "10-q", "filing", "quarterly", "earnings"]):
+    # Draft already uses our schema types — trust it
+    if draft_type in MONITOR_TYPES:
+        return draft_type
+
+    # Legacy "agent" type needs inference from description
+    if draft_type == "agent":
+        desc = (draft.get("description", "") + " " + draft.get("name", "")).lower()
+        # If it references filings/10-K/10-Q/proxy, it's filing
+        if any(kw in desc for kw in ["10-k", "10-q", "filing", "proxy", "earnings call"]):
             return "filing"
-        # If desc mentions "monitor press releases", "legislative", "congressional", it's search
-        if any(kw in desc for kw in ["legislative", "congressional", "monitor press", "bills", "trade policy", "export control"]):
-            return "search"
-        return mapped
+        # Otherwise agent maps to search (external signals)
+        return "search"
 
-    # Fallback heuristics
+    # Unknown type — guess from description
+    desc = (draft.get("description", "") + " " + draft.get("name", "")).lower()
     if any(kw in desc for kw in ["10-k", "10-q", "filing", "quarterly filings"]):
         return "filing"
     if any(kw in desc for kw in ["url", "website", "scrape", "monthly revenue"]):
@@ -101,7 +95,7 @@ def _draft_to_monitor(draft: dict, ticker: str) -> dict:
     """
     name = draft.get("name", draft.get("id", "unknown"))
     monitor_id = f"{ticker.lower()}-{_slugify(name)}"
-    mtype = _infer_type(draft, ticker)
+    mtype = _resolve_type(draft)
 
     monitor: dict = {
         "id": monitor_id,
@@ -226,19 +220,26 @@ def monitor_drafts(ticker: str | None):
     for i, draft in enumerate(drafts):
         name = draft.get("name", draft.get("id", "?"))
         draft_type = draft.get("type", "?")
-        inferred = _infer_type(draft, ticker)
+        resolved = _resolve_type(draft)
         desc = draft.get("description", "")
         threshold = draft.get("threshold", "")
 
         click.echo(f"  [{i}] {name}")
-        click.echo(f"      draft type: {draft_type} -> inferred: {inferred}")
-        if inferred == "filing":
+        if draft_type != resolved:
+            click.echo(f"      type: {draft_type} -> {resolved}")
+        else:
+            click.echo(f"      type: {resolved}")
+        if resolved == "filing":
             ft = _infer_filing_types(draft)
             click.echo(f"      filing_types: {', '.join(ft)}")
-        elif inferred == "search":
+        elif resolved == "search":
             queries = _generate_search_queries(draft, ticker)
             click.echo(f"      queries: {queries}")
             click.echo(f"      frequency: daily")
+        elif resolved == "scraper":
+            url = draft.get("source_url", "")
+            if url:
+                click.echo(f"      source_url: {url}")
         click.echo(f"      description: {desc}")
         if threshold:
             click.echo(f"      threshold: {threshold}")
