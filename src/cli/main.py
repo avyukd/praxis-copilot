@@ -610,6 +610,75 @@ def research_sync(ticker: str):
 
 
 # ---------------------------------------------------------------------------
+# praxis migrate
+# ---------------------------------------------------------------------------
+
+@cli.command("migrate")
+@click.argument("source_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--dry-run", is_flag=True, help="Show what would be uploaded without uploading")
+@click.option("--ticker", help="Migrate a single ticker instead of all")
+def migrate(source_dir: str, dry_run: bool, ticker: str | None):
+    """Bulk-import existing research artifacts to S3.
+
+    Walks SOURCE_DIR for subdirectories containing memo.md and uploads
+    all files in each as research artifacts for that ticker.
+
+    \b
+    Example:
+      praxis migrate ~/dev/models/claude/
+      praxis migrate ~/dev/models/claude/ --ticker CRDO
+      praxis migrate ~/dev/models/claude/ --dry-run
+    """
+    source = Path(source_dir)
+    s3 = None if dry_run else get_s3_client()
+
+    # Find ticker directories (must contain memo.md)
+    ticker_dirs = []
+    for child in sorted(source.iterdir()):
+        if not child.is_dir():
+            continue
+        if ticker and child.name.upper() != ticker.upper():
+            continue
+        if (child / "memo.md").exists():
+            ticker_dirs.append(child)
+
+    if not ticker_dirs:
+        click.echo("No ticker directories with memo.md found.")
+        return
+
+    click.echo(f"Found {len(ticker_dirs)} ticker(s) to migrate\n")
+
+    total_uploaded = 0
+    for tdir in ticker_dirs:
+        tk = tdir.name.upper()
+        files = [f for f in tdir.rglob("*") if f.is_file()]
+        # Skip hidden files and non-research artifacts
+        files = [f for f in files if not f.name.startswith(".")]
+
+        if dry_run:
+            click.echo(f"  {tk}: {len(files)} file(s)")
+            for f in files:
+                click.echo(f"    {f.relative_to(tdir)}")
+            continue
+
+        s3_prefix = f"data/research/{tk}"
+        for f in files:
+            relative = str(f.relative_to(tdir))
+            s3_key = f"{s3_prefix}/{relative}"
+            s3.put_object(Bucket=BUCKET, Key=s3_key, Body=f.read_bytes())
+
+        total_uploaded += len(files)
+        click.echo(f"  {tk}: {len(files)} file(s) → s3://{BUCKET}/{s3_prefix}/")
+
+    if dry_run:
+        click.echo(f"\nDry run — nothing uploaded. Remove --dry-run to migrate.")
+    else:
+        click.echo(f"\nMigrated {total_uploaded} file(s) across {len(ticker_dirs)} ticker(s)")
+        click.echo("View with: praxis research show <TICKER>")
+        click.echo("To ingest data + add to universe: praxis universe add <TICKER>")
+
+
+# ---------------------------------------------------------------------------
 # praxis supplement
 # ---------------------------------------------------------------------------
 
