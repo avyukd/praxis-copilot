@@ -468,3 +468,52 @@ tickers:
     news_queries:
     - '"Viatris Inc" OR "VTRS"'
     research_priority: 5
+  FTRK:
+    cik: '0002027262'
+    exchange: Nasdaq
+    name: Fast Track Group
+    news_queries:
+    - '"Fast Track Group" OR "FTRK"'
+    research_priority: 5
+  CEIN:
+    cik: 0001309082
+    exchange: OTC
+    name: CAMBER ENERGY, INC.
+    news_queries:
+    - '"CAMBER ENERGY, INC." OR "CEIN"'
+    research_priority: 5
+  INV:
+    cik: '0002001557'
+    exchange: Nasdaq
+    name: Innventure, Inc.
+    news_queries:
+    - '"Innventure, Inc." OR "INV"'
+    research_priority: 5
+  RBNE:
+    cik: 0002039060
+    exchange: Nasdaq
+    name: Robin Energy Ltd.
+    news_queries:
+    - '"Robin Energy Ltd." OR "RBNE"'
+    research_priority: 5
+  CTXR:
+    cik: '0001506251'
+    exchange: Nasdaq
+    name: Citius Pharmaceuticals, Inc.
+    news_queries:
+    - '"Citius Pharmaceuticals, Inc." OR "CTXR"'
+    research_priority: 5
+  CTOR:
+    cik: 0001851484
+    exchange: Nasdaq
+    name: CITIUS ONCOLOGY, INC.
+    news_queries:
+    - '"CITIUS ONCOLOGY, INC." OR "CTOR"'
+    research_priority: 5
+  AIRT:
+    cik: 0000353184
+    exchange: Nasdaq
+    name: AIR T INC
+    news_queries:
+    - '"AIR T INC" OR "AIRT"'
+    research_priority: 5
