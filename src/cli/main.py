@@ -309,16 +309,38 @@ def stage(ticker: str):
     claude_md_path.write_text(prompt)
     click.echo(f"  Generated CLAUDE.md (depth: {budget.depth_label})")
 
+    # Configure MCP server for fundamentals querying
+    fundamentals_path = data_dir / "fundamentals" / "fundamentals.json"
+    if fundamentals_path.exists():
+        server_script = str(Path(__file__).parent / "fundamentals_server.py")
+        mcp_config = {
+            "mcpServers": {
+                "fundamentals": {
+                    "command": sys.executable,
+                    "args": [server_script, str(fundamentals_path)],
+                }
+            }
+        }
+        mcp_path = workspace / ".mcp.json"
+        mcp_path.write_text(json.dumps(mcp_config, indent=2))
+        click.echo(f"  Configured fundamentals MCP server")
+
     click.echo(f"\nWorkspace ready: {workspace}")
     click.echo(f"  cd {workspace} && claude")
     click.echo(f"  After analysis: praxis research sync {ticker}")
 
 
 def _build_manifest(data_dir: Path) -> str:
-    """Build a file listing for the research prompt."""
+    """Build a file listing for the research prompt.
+
+    Excludes fundamentals.json (too large for context — use MCP tools instead).
+    """
     lines = []
     for path in sorted(data_dir.rglob("*")):
         if path.is_file():
+            # Skip raw fundamentals JSON — Claude uses MCP tools for that
+            if path.name == "fundamentals.json":
+                continue
             relative = path.relative_to(data_dir)
             size = path.stat().st_size
             if size > 1024:
