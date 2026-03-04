@@ -19,6 +19,7 @@ from cli.macro import (
     sync_macro_workspace,
 )
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
+from cli.research_prompt import ResearchBudget, generate_research_prompt
 from cli.s3 import (
     BUCKET,
     download_file,
@@ -285,18 +286,20 @@ def analyze(ticker: str):
     registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
     entry = registry_cfg.tickers.get(ticker)
 
-    # Generate CLAUDE.md
-    from cli.research_prompt import generate_research_prompt
+    # Generate CLAUDE.md with priority-scaled budgets
+    priority = entry.research_priority if entry else 5
+    budget = ResearchBudget.from_priority(priority)
     prompt = generate_research_prompt(
         ticker=ticker,
         company_name=entry.name if entry else ticker,
         data_manifest=data_manifest,
         has_macro=bool(macro_files),
         has_existing_artifacts=bool(artifact_keys),
+        research_priority=priority,
     )
     claude_md_path = workspace / "CLAUDE.md"
     claude_md_path.write_text(prompt)
-    click.echo(f"  Generated CLAUDE.md")
+    click.echo(f"  Generated CLAUDE.md (depth: {budget.depth_label})")
 
     click.echo(f"\nWorkspace ready: {workspace}")
     click.echo(f"  cd {workspace} && claude")
