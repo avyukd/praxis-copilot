@@ -205,8 +205,15 @@ def _resolve_tickers(bucket: str, key: str, parsed: ParsedTrigger) -> list[str]:
             digest = yaml.safe_load(content) or {}
             tickers = []
             for item in digest.get("material", []):
+                # Support both historical schema (ticker: str) and
+                # multi-ticker schema (tickers: [str, ...]).
+                single_ticker = item.get("ticker")
+                if isinstance(single_ticker, str) and single_ticker:
+                    tickers.append(single_ticker)
+
                 item_tickers = item.get("tickers", [])
-                tickers.extend(item_tickers)
+                if isinstance(item_tickers, list):
+                    tickers.extend(t for t in item_tickers if isinstance(t, str) and t)
             return list(set(tickers))
         except Exception:
             logger.exception(f"Failed to parse news digest: {key}")

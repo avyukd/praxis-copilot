@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ParsedTrigger(BaseModel):
@@ -21,7 +21,7 @@ class MonitorDefinition(BaseModel):
     """A monitor loaded from S3 config/monitors/."""
 
     id: str
-    listen: list[str] = []
+    listen: list[str] = Field(default_factory=list)
     collector_lambda: str | None = None
 
     class Config:
@@ -38,29 +38,31 @@ class EventRecord(BaseModel):
     cik: str | None = None
     data_type: str
     s3_path: str
-    monitors_triggered: list[str] = []
+    monitors_triggered: list[str] = Field(default_factory=list)
+
+class S3BucketInfo(BaseModel):
+    name: str = ""
+
+
+class S3ObjectInfo(BaseModel):
+    key: str = ""
+
+
+class S3Info(BaseModel):
+    bucket: S3BucketInfo = Field(default_factory=S3BucketInfo)
+    object: S3ObjectInfo = Field(default_factory=S3ObjectInfo)
 
 
 class S3EventRecord(BaseModel):
     """Minimal S3 event notification record."""
 
-    class S3BucketInfo(BaseModel):
-        name: str = ""
-
-    class S3ObjectInfo(BaseModel):
-        key: str = ""
-
-    class S3Info(BaseModel):
-        bucket: "S3EventRecord.S3BucketInfo" = S3EventRecord.S3BucketInfo()
-        object: "S3EventRecord.S3ObjectInfo" = S3EventRecord.S3ObjectInfo()
-
-    s3: S3Info = S3Info()
+    s3: S3Info = Field(default_factory=S3Info)
 
 
 class S3Event(BaseModel):
     """Top-level S3 event notification."""
 
-    Records: list[S3EventRecord] = []
+    Records: list[S3EventRecord] = Field(default_factory=list)
 
 
 class DispatchResult(BaseModel):
