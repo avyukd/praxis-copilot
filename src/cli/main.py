@@ -1,7 +1,10 @@
 """Praxis CLI — management tool for the Praxis Copilot system."""
 
 import json
+import re
 import shutil
+import sys
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -571,6 +574,170 @@ def research_sync(ticker: str):
             f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
             f"Workspace preserved at {local_dir}"
         )
+
+
+# ---------------------------------------------------------------------------
+# praxis supplement
+# ---------------------------------------------------------------------------
+
+@cli.group()
+def supplement():
+    """Add supplementary materials to research sessions."""
+    pass
+
+
+@supplement.command("add")
+@click.argument("ticker")
+@click.option("-f", "--file", "file_path", type=click.Path(exists=True),
+              help="Path to a local file to upload as supplement")
+@click.option("-u", "--url", help="URL to scrape and save as supplement")
+@click.option("-n", "--name", help="Override filename (e.g. 'competitor-analysis.md')")
+def supplement_add(ticker: str, file_path: str | None, url: str | None, name: str | None):
+    """Add a supplement to TICKER's research data.
+
+    Three modes:
+
+    \b
+      praxis supplement add NVDA -f notes.md          # upload local file
+      praxis supplement add NVDA -u https://example.com/article  # scrape URL
+      echo "my notes" | praxis supplement add NVDA -n notes.md   # pipe stdin
+
+    Supplements land in S3 under data/research/{ticker}/data/supplements/
+    and are pulled into the workspace by `praxis stage`.
+    """
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+
+    if file_path and url:
+        click.echo("Specify either --file or --url, not both.", err=True)
+        return
+
+    if file_path:
+        # Mode 1: upload local file
+        path = Path(file_path)
+        filename = name or path.name
+        content = path.read_bytes()
+        click.echo(f"Uploading {path.name} as supplement for {ticker}...")
+
+    elif url:
+        # Mode 2: scrape URL
+        import requests
+        from bs4 import BeautifulSoup
+
+        click.echo(f"Fetching {url}...")
+        try:
+            resp = requests.get(url, timeout=30, headers={
+                "User-Agent": "Mozilla/5.0 (compatible; PraxisCopilot/0.1)"
+            })
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            click.echo(f"Failed to fetch URL: {e}", err=True)
+            return
+
+        soup = BeautifulSoup(resp.text, "lxml")
+
+        # Remove noise
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+            tag.decompose()
+
+        # Extract title
+        title = soup.title.string.strip() if soup.title and soup.title.string else ""
+
+        # Get text
+        body = soup.find("article") or soup.find("main") or soup.body or soup
+        text = body.get_text(separator="\n")
+        # Clean whitespace
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        text = "\n".join(lines)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        # Build markdown
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        md = f"# {title}\n\n> Source: {url}\n> Scraped: {date_str}\n\n{text}"
+        content = md.encode("utf-8")
+
+        if name:
+            filename = name
+        else:
+            # Derive filename from URL
+            slug = re.sub(r"[^a-z0-9]+", "-", url.split("//")[-1].lower()).strip("-")[:60]
+            filename = f"{slug}.md"
+
+        click.echo(f"Scraped {len(lines)} lines from {url}")
+
+    elif not sys.stdin.isatty():
+        # Mode 3: pipe from stdin
+        if not name:
+            click.echo("When piping stdin, --name is required (e.g. -n notes.md)", err=True)
+            return
+        filename = name
+        content = sys.stdin.buffer.read()
+        click.echo(f"Reading from stdin...")
+
+    else:
+        click.echo("Provide --file, --url, or pipe content to stdin.", err=True)
+        return
+
+    # Ensure .md extension for text content
+    if not any(filename.endswith(ext) for ext in [".md", ".txt", ".yaml", ".json", ".csv"]):
+        filename += ".md"
+
+    s3_key = f"data/research/{ticker}/data/supplements/{filename}"
+    s3.put_object(Bucket=BUCKET, Key=s3_key, Body=content)
+    click.echo(f"  Uploaded: s3://{BUCKET}/{s3_key}")
+
+    # Also write to local workspace if it exists
+    repo_root = find_repo_root()
+    local_path = repo_root / "workspace" / ticker / "data" / "supplements" / filename
+    if (repo_root / "workspace" / ticker).exists():
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_bytes(content)
+        click.echo(f"  Also written to: {local_path}")
+
+
+@supplement.command("list")
+@click.argument("ticker")
+def supplement_list(ticker: str):
+    """List supplements for TICKER."""
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+
+    prefix = f"data/research/{ticker}/data/supplements/"
+    keys = list_prefix(s3, prefix)
+    supplements = [k[len(prefix):] for k in keys if k != prefix]
+
+    if not supplements:
+        click.echo(f"No supplements for {ticker}.")
+        click.echo(f"Add one: praxis supplement add {ticker} -f file.md")
+        return
+
+    click.echo(f"Supplements for {ticker} ({len(supplements)}):\n")
+    for name in sorted(supplements):
+        click.echo(f"  {name}")
+
+
+@supplement.command("remove")
+@click.argument("ticker")
+@click.argument("filename")
+def supplement_remove(ticker: str, filename: str):
+    """Remove a supplement from TICKER."""
+    ticker = ticker.upper()
+    s3 = get_s3_client()
+
+    s3_key = f"data/research/{ticker}/data/supplements/{filename}"
+    if not key_exists(s3, s3_key):
+        click.echo(f"Supplement not found: {filename}", err=True)
+        return
+
+    s3.delete_object(Bucket=BUCKET, Key=s3_key)
+    click.echo(f"Removed: {filename}")
+
+    # Clean local copy too
+    repo_root = find_repo_root()
+    local_path = repo_root / "workspace" / ticker / "data" / "supplements" / filename
+    if local_path.exists():
+        local_path.unlink()
+        click.echo(f"  Also removed local copy")
 
 
 # ---------------------------------------------------------------------------
