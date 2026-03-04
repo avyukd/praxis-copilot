@@ -14,3 +14,31 @@ tickers:
     - '"TSMC" OR "Taiwan Semiconductor"'
     universe_status: external
     research_priority: 5
+  AAOI:
+    cik: 0001158114
+    exchange: Nasdaq
+    name: APPLIED OPTOELECTRONICS, INC.
+    news_queries:
+    - '"APPLIED OPTOELECTRONICS, INC." OR "AAOI"'
+    research_priority: 5
+  ACMR:
+    cik: 0001680062
+    exchange: Nasdaq
+    name: ACM Research, Inc.
+    news_queries:
+    - '"ACM Research, Inc." OR "ACMR"'
+    research_priority: 5
+  ACNT:
+    cik: 0000095953
+    exchange: Nasdaq
+    name: ASCENT INDUSTRIES CO.
+    news_queries:
+    - '"ASCENT INDUSTRIES CO." OR "ACNT"'
+    research_priority: 5
+  AEHR:
+    cik: '0001040470'
+    exchange: Nasdaq
+    name: AEHR TEST SYSTEMS
+    news_queries:
+    - '"AEHR TEST SYSTEMS" OR "AEHR"'
+    research_priority: 5
