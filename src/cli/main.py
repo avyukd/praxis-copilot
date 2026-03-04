@@ -201,7 +201,11 @@ def universe_remove(ticker: str):
 @cli.command("analyze")
 @click.argument("ticker")
 def analyze(ticker: str):
-    """Check status and start analysis for TICKER."""
+    """Prepare workspace and start analysis for TICKER.
+
+    Pulls ingested data from S3, downloads macro context, generates
+    a CLAUDE.md research prompt, and drops you into the workspace.
+    """
     ticker = ticker.upper()
     config_dir = get_config_dir()
 
@@ -211,35 +215,107 @@ def analyze(ticker: str):
         click.echo(f"{ticker} is not in the universe. Run 'praxis universe add {ticker}' first.")
         return
 
-    # Check data ingestion status
-    click.echo(f"Checking data for {ticker}...")
     s3 = get_s3_client()
+
+    # Ensure data is ingested
     data_prefix = f"data/research/{ticker}/data/"
     data_keys = list_prefix(s3, data_prefix)
-    if data_keys:
-        click.echo(f"  Data available: {len(data_keys)} file(s)")
-    else:
-        click.echo(f"  No ingested data found. Running ingestion...")
+    if not data_keys:
+        click.echo(f"No ingested data found. Running ingestion...")
         registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
         entry = registry_cfg.tickers.get(ticker)
         if entry:
             result = run_ingestion(ticker, entry.cik, s3)
             click.echo(f"  Filings: {result.filings_count}, Fundamentals: {result.fundamentals_source or 'N/A'}, Transcripts: {result.transcripts_count}")
+            data_keys = list_prefix(s3, data_prefix)
         else:
             click.echo(f"  No CIK found for {ticker}. Re-add with 'praxis universe add {ticker}'.")
             return
 
-    # Set up workspace staging directory
+    # Set up workspace
     repo_root = find_repo_root()
     workspace = repo_root / "workspace" / ticker
     workspace.mkdir(parents=True, exist_ok=True)
 
-    click.echo(f"\nWorkspace ready at: {workspace}")
-    click.echo(f"To analyze {ticker}:")
-    click.echo(f"  1. cd {workspace}")
-    click.echo(f"  2. Start a Claude Code session with the research pipeline prompt")
-    click.echo(f"  3. Artifacts will be produced in {workspace}/")
-    click.echo(f"  4. After analysis, run: praxis research sync {ticker}")
+    # Pull ingested data into workspace/data/
+    click.echo(f"Pulling ingested data to workspace...")
+    data_dir = workspace / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    for key in data_keys:
+        relative = key[len(data_prefix):]
+        if not relative:
+            continue
+        local_path = data_dir / relative
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        content = download_file(s3, key)
+        local_path.write_bytes(content)
+    click.echo(f"  {len(data_keys)} file(s) pulled to {data_dir}/")
+
+    # Pull macro context if it exists
+    macro_keys = list_prefix(s3, "data/context/macro/")
+    macro_files = [k for k in macro_keys if k != "data/context/macro/"]
+    if macro_files:
+        macro_dir = workspace / "macro"
+        macro_dir.mkdir(parents=True, exist_ok=True)
+        for key in macro_files:
+            relative = key[len("data/context/macro/"):]
+            local_path = macro_dir / relative
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            content = download_file(s3, key)
+            local_path.write_bytes(content)
+        click.echo(f"  {len(macro_files)} macro file(s) pulled to {workspace}/macro/")
+
+    # Pull existing research artifacts (for re-analysis idempotency)
+    research_prefix = f"data/research/{ticker}/"
+    all_research = list_prefix(s3, research_prefix)
+    artifact_keys = [k for k in all_research if not k[len(research_prefix):].startswith("data/")]
+    if artifact_keys:
+        for key in artifact_keys:
+            relative = key[len(research_prefix):]
+            local_path = workspace / relative
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            content = download_file(s3, key)
+            local_path.write_bytes(content)
+        click.echo(f"  {len(artifact_keys)} existing artifact(s) pulled")
+
+    # Build file manifest for the prompt
+    data_manifest = _build_manifest(data_dir)
+
+    # Load ticker info
+    registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
+    entry = registry_cfg.tickers.get(ticker)
+
+    # Generate CLAUDE.md
+    from cli.research_prompt import generate_research_prompt
+    prompt = generate_research_prompt(
+        ticker=ticker,
+        company_name=entry.name if entry else ticker,
+        data_manifest=data_manifest,
+        has_macro=bool(macro_files),
+        has_existing_artifacts=bool(artifact_keys),
+    )
+    claude_md_path = workspace / "CLAUDE.md"
+    claude_md_path.write_text(prompt)
+    click.echo(f"  Generated CLAUDE.md")
+
+    click.echo(f"\nWorkspace ready: {workspace}")
+    click.echo(f"  cd {workspace} && claude")
+    click.echo(f"  After analysis: praxis research sync {ticker}")
+
+
+def _build_manifest(data_dir: Path) -> str:
+    """Build a file listing for the research prompt."""
+    lines = []
+    for path in sorted(data_dir.rglob("*")):
+        if path.is_file():
+            relative = path.relative_to(data_dir)
+            size = path.stat().st_size
+            if size > 1024:
+                size_str = f"{size // 1024}KB"
+            else:
+                size_str = f"{size}B"
+            lines.append(f"  - data/{relative} ({size_str})")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
