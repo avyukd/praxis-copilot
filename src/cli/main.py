@@ -210,30 +210,55 @@ def universe_remove(ticker: str):
 # ---------------------------------------------------------------------------
 
 @cli.command("stage")
-@click.argument("ticker")
-def stage(ticker: str):
-    """Stage workspace for TICKER research.
+@click.argument("tickers", nargs=-1, required=True)
+def stage(tickers: tuple[str, ...]):
+    """Stage workspace for TICKER(s) research.
 
     Pulls ingested data from S3, downloads macro context, generates
     a CLAUDE.md research prompt. Then: cd workspace/TICKER && claude
+
+    \b
+    Examples:
+      praxis stage NVDA
+      praxis stage CRDO APP MKL
     """
-    ticker = ticker.upper()
     config_dir = get_config_dir()
-
-    # Check ticker is in universe
     universe_cfg = UniverseConfig(**load_yaml(config_dir / "universe.yaml"))
-    if ticker not in universe_cfg.tickers:
-        click.echo(f"{ticker} is not in the universe. Run 'praxis universe add {ticker}' first.")
-        return
-
+    registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
     s3 = get_s3_client()
 
+    # Pre-fetch macro context once (shared across all tickers)
+    macro_keys = list_prefix(s3, "data/context/macro/")
+    macro_files = [k for k in macro_keys if k != "data/context/macro/"]
+
+    staged = []
+    for raw_ticker in tickers:
+        ticker = raw_ticker.upper()
+        click.echo(f"\n{'='*40}")
+        click.echo(f"Staging {ticker}...")
+
+        if ticker not in universe_cfg.tickers:
+            click.echo(f"  {ticker} is not in the universe. Skipping.")
+            continue
+
+        workspace = _stage_ticker(ticker, config_dir, registry_cfg, s3, macro_files)
+        if workspace:
+            staged.append((ticker, workspace))
+
+    if staged:
+        click.echo(f"\n{'='*40}")
+        click.echo(f"Staged {len(staged)} workspace(s):")
+        for tk, ws in staged:
+            click.echo(f"  cd {ws} && claude")
+
+
+def _stage_ticker(ticker: str, config_dir: Path, registry_cfg, s3, macro_files: list[str]) -> Path | None:
+    """Stage a single ticker workspace. Returns workspace path or None on failure."""
     # Ensure data is ingested
     data_prefix = f"data/research/{ticker}/data/"
     data_keys = list_prefix(s3, data_prefix)
     if not data_keys:
-        click.echo(f"No ingested data found. Running ingestion...")
-        registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
+        click.echo(f"  No ingested data found. Running ingestion...")
         entry = registry_cfg.tickers.get(ticker)
         if entry:
             result = run_ingestion(ticker, entry.cik, s3)
@@ -241,7 +266,7 @@ def stage(ticker: str):
             data_keys = list_prefix(s3, data_prefix)
         else:
             click.echo(f"  No CIK found for {ticker}. Re-add with 'praxis universe add {ticker}'.")
-            return
+            return None
 
     # Set up workspace
     repo_root = find_repo_root()
@@ -249,7 +274,7 @@ def stage(ticker: str):
     workspace.mkdir(parents=True, exist_ok=True)
 
     # Pull ingested data into workspace/data/
-    click.echo(f"Pulling ingested data to workspace...")
+    click.echo(f"  Pulling ingested data...")
     data_dir = workspace / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     for key in data_keys:
@@ -260,11 +285,9 @@ def stage(ticker: str):
         local_path.parent.mkdir(parents=True, exist_ok=True)
         content = download_file(s3, key)
         local_path.write_bytes(content)
-    click.echo(f"  {len(data_keys)} file(s) pulled to {data_dir}/")
+    click.echo(f"  {len(data_keys)} file(s) pulled")
 
     # Pull macro context if it exists
-    macro_keys = list_prefix(s3, "data/context/macro/")
-    macro_files = [k for k in macro_keys if k != "data/context/macro/"]
     if macro_files:
         macro_dir = workspace / "macro"
         macro_dir.mkdir(parents=True, exist_ok=True)
@@ -274,7 +297,7 @@ def stage(ticker: str):
             local_path.parent.mkdir(parents=True, exist_ok=True)
             content = download_file(s3, key)
             local_path.write_bytes(content)
-        click.echo(f"  {len(macro_files)} macro file(s) pulled to {workspace}/macro/")
+        click.echo(f"  {len(macro_files)} macro file(s) pulled")
 
     # Pull existing research artifacts (for re-analysis idempotency)
     research_prefix = f"data/research/{ticker}/"
@@ -293,7 +316,6 @@ def stage(ticker: str):
     data_manifest = _build_manifest(data_dir)
 
     # Load ticker info
-    registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
     entry = registry_cfg.tickers.get(ticker)
 
     # Configure MCP server for fundamentals querying
@@ -327,11 +349,9 @@ def stage(ticker: str):
     )
     claude_md_path = workspace / "CLAUDE.md"
     claude_md_path.write_text(prompt)
-    click.echo(f"  Generated CLAUDE.md (depth: {budget.depth_label})")
+    click.echo(f"  CLAUDE.md generated (depth: {budget.depth_label})")
 
-    click.echo(f"\nWorkspace ready: {workspace}")
-    click.echo(f"  cd {workspace} && claude")
-    click.echo(f"  After analysis: praxis research sync {ticker}")
+    return workspace
 
 
 def _build_manifest(data_dir: Path) -> str:
