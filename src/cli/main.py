@@ -578,57 +578,59 @@ def research_pull(ticker: str):
 
 
 @research.command("sync")
-@click.argument("ticker")
-def research_sync(ticker: str):
-    """Sync local research artifacts for TICKER to S3 and clean up workspace."""
-    ticker = ticker.upper()
-
+@click.argument("tickers", nargs=-1, required=True)
+def research_sync(tickers: tuple[str, ...]):
+    """Sync local research artifacts for TICKER(s) to S3 and clean up workspace."""
     repo_root = find_repo_root()
-    local_dir = repo_root / "workspace" / ticker
-    if not local_dir.exists():
-        click.echo(f"No workspace found at {local_dir}")
-        click.echo(f"Run 'praxis stage {ticker}' first to set up the workspace.")
-        return
-
-    # Only sync research artifacts — skip ingested data, CLAUDE.md, and MCP config
-    skip_prefixes = ("data/", "macro/")
-    skip_names = {"CLAUDE.md", ".mcp.json"}
-    found = []
-    for path in local_dir.rglob("*"):
-        if path.is_file():
-            rel = path.relative_to(local_dir)
-            rel_str = str(rel)
-            if any(rel_str.startswith(p) for p in skip_prefixes):
-                continue
-            if rel.name in skip_names:
-                continue
-            found.append(rel)
-
-    if not found:
-        click.echo(f"No artifacts found in {local_dir}/")
-        return
-
-    click.echo(f"Found artifacts in {local_dir}/:")
-    for name in sorted(str(f) for f in found):
-        click.echo(f"  {name}")
-
-    s3_prefix = f"data/research/{ticker}"
-    click.echo(f"\nUploading to s3://{BUCKET}/{s3_prefix}/ ...")
-
     s3 = get_s3_client()
-    uploaded = upload_directory(s3, local_dir, s3_prefix)
-    click.echo(f"Synced {len(uploaded)} file(s):")
-    for key in uploaded:
-        click.echo(f"  {key}")
 
-    if len(uploaded) == len(found):
-        shutil.rmtree(local_dir)
-        click.echo(f"\nCleaned up workspace at {local_dir}")
-    else:
-        click.echo(
-            f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
-            f"Workspace preserved at {local_dir}"
-        )
+    for ticker in tickers:
+        ticker = ticker.upper()
+        local_dir = repo_root / "workspace" / ticker
+
+        if not local_dir.exists():
+            click.echo(f"No workspace found at {local_dir}")
+            click.echo(f"Run 'praxis stage {ticker}' first to set up the workspace.")
+            continue
+
+        # Only sync research artifacts — skip ingested data, CLAUDE.md, and MCP config
+        skip_prefixes = ("data/", "macro/")
+        skip_names = {"CLAUDE.md", ".mcp.json"}
+        found = []
+        for path in local_dir.rglob("*"):
+            if path.is_file():
+                rel = path.relative_to(local_dir)
+                rel_str = str(rel)
+                if any(rel_str.startswith(p) for p in skip_prefixes):
+                    continue
+                if rel.name in skip_names:
+                    continue
+                found.append(rel)
+
+        if not found:
+            click.echo(f"No artifacts found in {local_dir}/")
+            continue
+
+        click.echo(f"Found artifacts in {local_dir}/:")
+        for name in sorted(str(f) for f in found):
+            click.echo(f"  {name}")
+
+        s3_prefix = f"data/research/{ticker}"
+        click.echo(f"\nUploading to s3://{BUCKET}/{s3_prefix}/ ...")
+
+        uploaded = upload_directory(s3, local_dir, s3_prefix)
+        click.echo(f"Synced {len(uploaded)} file(s):")
+        for key in uploaded:
+            click.echo(f"  {key}")
+
+        if len(uploaded) == len(found):
+            shutil.rmtree(local_dir)
+            click.echo(f"\nCleaned up workspace at {local_dir}")
+        else:
+            click.echo(
+                f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
+                f"Workspace preserved at {local_dir}"
+            )
 
 
 # ---------------------------------------------------------------------------
