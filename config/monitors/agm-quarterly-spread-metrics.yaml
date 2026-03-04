@@ -1,0 +1,12 @@
+id: agm-quarterly-spread-metrics
+type: filing
+tickers:
+- AGM
+description: Track consolidated net effective spread from AGM 10-Q/10-K filings. Current
+  level ~120bps.
+extract: Track consolidated net effective spread from AGM 10-Q/10-K filings. Current
+  level ~120bps.
+threshold: Alert if spread drops below 110bps or rises above 135bps
+filing_types:
+- 10-K
+- 10-Q

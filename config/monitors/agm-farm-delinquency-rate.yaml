@@ -1,0 +1,11 @@
+id: agm-farm-delinquency-rate
+type: filing
+tickers:
+- AGM
+description: Track 90-day delinquency rate on Farm & Ranch portfolio from quarterly
+  filings. Currently 1.35%.
+extract: Track 90-day delinquency rate on Farm & Ranch portfolio from quarterly filings.
+  Currently 1.35%.
+threshold: Alert if delinquencies exceed 2.0% or cross 3.0% (systemic stress level)
+filing_types:
+- 10-Q
