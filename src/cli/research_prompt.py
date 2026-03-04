@@ -103,6 +103,7 @@ def generate_research_prompt(
     has_macro: bool,
     has_existing_artifacts: bool,
     research_priority: int = 5,
+    has_fundamentals_mcp: bool = False,
 ) -> str:
     """Generate a CLAUDE.md research pipeline prompt for the workspace."""
     today = date.today().isoformat()
@@ -139,6 +140,42 @@ Only generate missing outputs. If the user explicitly requests a rerun, replace 
     if has_macro:
         agent_selection += "\n- **macro-analyst**: run if macro/ directory exists"
 
+    mcp_section = ""
+    if has_fundamentals_mcp:
+        mcp_section = """
+## Fundamentals MCP Tools
+
+An MCP server is configured for querying financial data. **Do NOT read `fundamentals.json` directly**
+— it's 700KB+ and will waste context. Instead:
+
+1. Read `data/fundamentals/summary.md` for orientation (key metrics, valuation, recent financials)
+2. Use MCP tools to drill into specifics:
+
+| Tool | Use For |
+|------|---------|
+| `company_overview()` | Highlights, valuation, share stats, dividends |
+| `list_financial_metrics(statement)` | Discover available field names for a statement |
+| `get_financial_data(statement, metrics, period_type, count)` | Pull specific metrics for N periods |
+| `get_full_statement(statement, period_type, count)` | Full statement for a few periods (max 5) |
+| `get_earnings(count)` | Recent earnings history + estimates |
+| `get_holders()` | Institutional/insider holdings |
+| `search_fundamentals(keyword)` | Find fields by keyword |
+
+**statement** values: `"income"`, `"balance"`, `"cashflow"`
+**period_type** values: `"yearly"`, `"quarterly"`
+
+Example workflow:
+```
+1. Read summary.md → see revenue is $216B, margins expanding
+2. get_financial_data("income", ["totalRevenue", "grossProfit", "operatingIncome"], "quarterly", 8)
+   → get quarterly trend
+3. get_financial_data("balance", ["longTermDebt", "cashAndShortTermInvestments"], "yearly", 5)
+   → check leverage trajectory
+```
+
+---
+"""
+
     return f"""# Research Pipeline — {ticker} ({company_name})
 
 Generated: {today}
@@ -153,7 +190,7 @@ data has been pre-ingested and is available locally in `data/`. Read these files
 analysis — do NOT rely solely on web searches. The ingested data is your primary source of truth.
 {idempotency_note}
 ---
-
+{mcp_section}
 ## Resource Budget
 
 | Resource | Limit |
@@ -185,11 +222,12 @@ analysis — do NOT rely solely on web searches. The ingested data is your prima
 These agents analyze independent dimensions and should run concurrently:
 
 1. **rigorous-financial-analyst** — Earnings quality, cash flow analysis, balance sheet health,
-   normalized earnings, valuation. Must read `data/fundamentals/` and `data/filings/` (especially
-   MD&A, financial statement notes on revenue, segments, debt, income tax).
+   normalized earnings, valuation. Must read `data/fundamentals/summary.md` and use fundamentals MCP
+   tools for detailed drill-down. Also read `data/filings/` (especially MD&A, financial statement
+   notes on revenue, segments, debt, income tax).
    - Output: `rigorous-financial-analyst.md`
    - Word limit: {budget.specialist_words:,} words
-   - Primary data: `data/fundamentals/fundamentals.json`, `data/filings/10-K/*/item7_mda.txt`,
+   - Primary data: `data/fundamentals/summary.md` + MCP tools, `data/filings/10-K/*/item7_mda.txt`,
      `data/filings/10-Q/*/item2_mda.txt`, note_* files
 
 2. **business-moat-analyst** — Competitive durability, switching costs, pricing power, network
@@ -260,10 +298,13 @@ monitors:
 ### Step 1 — Read Data First
 
 Before running any agent, read the ingested data to understand what's available. At minimum:
-- `data/fundamentals/fundamentals.json` — key financial metrics
+- `data/fundamentals/summary.md` — key financial metrics overview (use MCP tools for drill-down)
 - Latest `data/filings/10-K/*/item7_mda.txt` — management's own narrative
 - Latest `data/filings/10-K/*/item1_business.txt` — business description
 - Any `data/transcripts/` files if they exist
+
+**IMPORTANT:** Do NOT read `data/fundamentals/fundamentals.json` directly — it's 700KB+ raw JSON.
+Use `summary.md` + the fundamentals MCP tools instead.
 
 ### Step 2 — Run Specialist Agents (In Parallel)
 
