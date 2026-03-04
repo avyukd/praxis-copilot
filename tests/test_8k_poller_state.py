@@ -24,7 +24,7 @@ def test_poller_seen_set_does_not_skip_unseen_out_of_order_accession(monkeypatch
     ]
     saved = {}
 
-    monkeypatch.setattr(poller, "_fetch_efts", lambda start, end: filings)
+    monkeypatch.setattr(poller, "_fetch_efts", lambda start, end, forms=None: filings)
     monkeypatch.setattr(poller, "_fetch_rss", lambda: [])
     monkeypatch.setattr(
         poller,
@@ -50,7 +50,7 @@ def test_poller_uses_datetime_lookback_when_timestamp_available(monkeypatch):
     monkeypatch.setattr(
         poller,
         "_fetch_efts",
-        lambda start, end: [
+        lambda start, end, forms=None: [
             _filing("A-OLD", now.date().isoformat(), too_old),
             _filing("A-NEW", now.date().isoformat(), in_window),
         ],
@@ -89,7 +89,7 @@ def test_poller_date_only_fallback_still_includes_unseen_filings(monkeypatch):
     monkeypatch.setattr(
         poller,
         "_fetch_efts",
-        lambda start, end: [_filing("DATE-ONLY", today, today)],
+        lambda start, end, forms=None: [_filing("DATE-ONLY", today, today)],
     )
     monkeypatch.setattr(poller, "_fetch_rss", lambda: [])
     monkeypatch.setattr(

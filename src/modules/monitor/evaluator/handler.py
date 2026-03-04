@@ -13,11 +13,11 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
-from . import collector, snapshot
-from .models import EvaluatorResult, MonitorConfig
+from src.modules.monitor.evaluator import collector, snapshot
+from src.modules.monitor.evaluator.alerts import send_monitor_alert
+from src.modules.monitor.evaluator.models import EvaluatorResult, MonitorConfig
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 BUCKET = "praxis-copilot"
 CONFIG_PREFIX = "config/monitors/"
@@ -38,7 +38,6 @@ def _load_monitor_configs(s3_client: boto3.client) -> list[MonitorConfig]:
                     data = yaml.safe_load(raw["Body"].read().decode())
                     if data is None:
                         continue
-                    # Config file may contain a single monitor dict or a list
                     if isinstance(data, list):
                         for entry in data:
                             configs.append(MonitorConfig(**entry))
@@ -52,43 +51,41 @@ def _load_monitor_configs(s3_client: boto3.client) -> list[MonitorConfig]:
 
 
 def _filter_monitors(
-    configs: list[MonitorConfig], trigger_type: str | None, trigger_sources: list[str] | None
+    configs: list[MonitorConfig],
+    trigger_type: str | None,
+    trigger_sources: list[str] | None,
 ) -> list[MonitorConfig]:
     """Filter monitors based on trigger type and sources.
 
-    For scheduled/periodic invocations (trigger_type is None or "scheduled"),
-    return all monitors with matching trigger. For event-triggered invocations,
-    filter to monitors whose listen fields overlap with trigger_sources.
+    For event triggers: match filing monitors whose listen_keys overlap with trigger_sources.
+    For scheduled triggers: return scraper and search monitors.
     """
     if trigger_type == "event" and trigger_sources:
+        source_set = set(trigger_sources)
         return [
             c for c in configs
-            if c.trigger == "event" and _listen_matches(c.listen, trigger_sources)
+            if c.type == "filing" and bool(set(c.listen_keys) & source_set)
         ]
 
-    # Daily scheduled run: process scheduled and periodic monitors
-    return [c for c in configs if c.trigger in ("scheduled", "periodic")]
-
-
-def _listen_matches(listen: list[str], sources: list[str]) -> bool:
-    """Check if any listen entry matches any trigger source."""
-    listen_set = set(listen)
-    source_set = set(sources)
-    return bool(listen_set & source_set)
+    # Daily scheduled run: process scraper and search monitors
+    return [c for c in configs if c.type in ("scraper", "search")]
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Lambda entry point.
 
     Event payload:
-      - trigger_type: "event" | "scheduled" (optional, defaults to "scheduled")
-      - trigger_sources: list of data source keys like ["NVDA:8k"] (for event triggers)
+      - trigger_type: "event" | "scheduled" (defaults to "scheduled")
+      - trigger_sources: list of data source keys like ["NVDA:filings:8-K"]
+      - event_data: dict with s3_path, ticker, form_type etc. (for filing triggers)
+      - monitor_id: optional, to evaluate a single specific monitor
     """
     now = datetime.now(timezone.utc)
     date_str = now.strftime("%Y-%m-%d")
 
     trigger_type = event.get("trigger_type", "scheduled")
     trigger_sources = event.get("trigger_sources", [])
+    event_data = event.get("event_data") or event.get("event")
 
     s3 = boto3.client("s3")
 
@@ -96,8 +93,13 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     all_configs = _load_monitor_configs(s3)
     logger.info("Loaded %d monitor configs", len(all_configs))
 
-    # Filter to relevant monitors for this invocation
-    configs = _filter_monitors(all_configs, trigger_type, trigger_sources)
+    # If a specific monitor is requested, evaluate only that one
+    monitor_id = event.get("monitor_id")
+    if monitor_id:
+        configs = [c for c in all_configs if c.id == monitor_id]
+    else:
+        configs = _filter_monitors(all_configs, trigger_type, trigger_sources)
+
     logger.info(
         "Evaluating %d monitors (trigger_type=%s, sources=%s)",
         len(configs),
@@ -112,13 +114,29 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             # Load previous snapshot for delta detection
             previous = snapshot.load_previous_snapshot(s3, config.id)
 
-            # Run collector
-            collected = collector.collect(config, previous)
+            # Run collector with event data
+            collected = collector.collect(config, previous, event_data=event_data)
 
             # Build and store snapshot
             snap = snapshot.build_snapshot(config.id, date_str, collected, previous)
             key = snapshot.store_snapshot(s3, snap)
             result.snapshots_written.append(key)
+
+            # Alert if significant and updated
+            if (
+                snap.status == "updated"
+                and snap.significance in ("medium", "high")
+            ):
+                sent = send_monitor_alert(
+                    monitor_id=config.id,
+                    description=config.description,
+                    tickers=config.tickers,
+                    significance=snap.significance,
+                    delta_summary=snap.delta_from_previous,
+                    current_state=snap.current_state,
+                )
+                if sent:
+                    result.alerts_sent += 1
 
         except Exception as e:
             msg = f"Error evaluating monitor {config.id}: {e}"
@@ -126,9 +144,10 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             result.errors.append(msg)
 
     logger.info(
-        "Evaluator complete: %d evaluated, %d snapshots, %d errors",
+        "Evaluator complete: %d evaluated, %d snapshots, %d alerts, %d errors",
         result.monitors_evaluated,
         len(result.snapshots_written),
+        result.alerts_sent,
         len(result.errors),
     )
 

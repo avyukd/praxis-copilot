@@ -64,6 +64,7 @@ class PolledFiling(BaseModel):
     accession_number: str
     company_name: str = ""
     ticker: str = ""
+    form_type: str = ""
     filed_date: str = ""
     acceptance_datetime: str = ""
     items: list[str] = Field(default_factory=list)
@@ -86,8 +87,10 @@ class ExtractedFiling(BaseModel):
     cik: str
     accession_number: str
     ticker: str = ""
+    form_type: str = ""
     items: dict[str, str] = Field(default_factory=dict)
     exhibits: list[ExtractedExhibit] = Field(default_factory=list)
+    text: str = ""  # plain text for non-8-K filings (10-K, 10-Q)
     total_chars: int = 0
     files_processed: int = 0
     files_skipped: int = 0

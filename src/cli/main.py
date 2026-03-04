@@ -22,6 +22,7 @@ from cli.macro import (
     sync_macro_workspace,
 )
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
+from cli.monitors import monitor
 from cli.research_prompt import ResearchBudget, generate_research_prompt
 from cli.s3 import (
     BUCKET,
@@ -37,6 +38,9 @@ from cli.s3 import (
 def cli():
     """Praxis Copilot CLI."""
     pass
+
+
+cli.add_command(monitor)
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +182,11 @@ def universe_remove(ticker: str):
     if monitors_dir.exists():
         for monitor_file in monitors_dir.glob("*.yaml"):
             monitor_data = load_yaml(monitor_file)
+            # New schema: check tickers list
+            if ticker in monitor_data.get("tickers", []):
+                has_monitor_deps = True
+                break
+            # Legacy schema: check listen keys
             listen = monitor_data.get("listen", [])
             for entry in listen:
                 if isinstance(entry, str) and entry.startswith(f"{ticker}:"):
@@ -417,6 +426,12 @@ def status():
                 try:
                     content = download_file(s3, mk)
                     mdata = yaml.safe_load(content)
+                    # New schema: check tickers list
+                    tickers_list = mdata.get("tickers", [])
+                    if ticker in tickers_list:
+                        monitor_count += 1
+                        continue
+                    # Legacy schema: check listen keys
                     listen = mdata.get("listen", [])
                     for entry in listen:
                         if isinstance(entry, str) and entry.startswith(f"{ticker}:"):
