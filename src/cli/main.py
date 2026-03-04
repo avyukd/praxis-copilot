@@ -568,10 +568,19 @@ def research_sync(ticker: str):
         click.echo(f"Run 'praxis stage {ticker}' first to set up the workspace.")
         return
 
+    # Only sync research artifacts — skip ingested data, CLAUDE.md, and MCP config
+    skip_prefixes = ("data/", "macro/")
+    skip_names = {"CLAUDE.md", ".mcp.json"}
     found = []
     for path in local_dir.rglob("*"):
         if path.is_file():
-            found.append(path.relative_to(local_dir))
+            rel = path.relative_to(local_dir)
+            rel_str = str(rel)
+            if any(rel_str.startswith(p) for p in skip_prefixes):
+                continue
+            if rel.name in skip_names:
+                continue
+            found.append(rel)
 
     if not found:
         click.echo(f"No artifacts found in {local_dir}/")
