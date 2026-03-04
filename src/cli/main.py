@@ -80,74 +80,76 @@ def universe():
 
 
 @universe.command("add")
-@click.argument("ticker")
+@click.argument("tickers", nargs=-1, required=True)
 @click.option("-p", "--priority", type=click.IntRange(0, 10), default=5,
               help="Research priority 0-10 (0=quick screen, 5=standard, 10=full deep dive)")
-def universe_add(ticker: str, priority: int):
-    """Add TICKER to the investment universe."""
-    ticker = ticker.upper()
-    config_dir = get_config_dir()
+def universe_add(tickers: tuple[str, ...], priority: int):
+    """Add TICKER(s) to the investment universe.
 
-    # Load existing configs
+    \b
+    Examples:
+      praxis universe add NVDA
+      praxis universe add CRDO APP MKL -p 7
+    """
+    config_dir = get_config_dir()
     universe_path = config_dir / "universe.yaml"
     registry_path = config_dir / "ticker_registry.yaml"
     universe_cfg = UniverseConfig(**load_yaml(universe_path))
     registry_cfg = TickerRegistry(**load_yaml(registry_path))
 
-    # Check if already in universe
-    if ticker in universe_cfg.tickers:
-        click.echo(f"{ticker} is already in the universe.")
-        return
-
-    # Resolve ticker via EDGAR
-    click.echo(f"Resolving {ticker} via EDGAR...")
-    info = resolve_ticker(ticker)
-    if not info:
-        click.echo(f"Could not resolve {ticker} via EDGAR. Please verify the ticker symbol.")
-        return
-
-    click.echo(f"  Found: {info.name} (CIK: {info.cik}, Exchange: {info.exchange})")
-    budget = ResearchBudget.from_priority(priority)
-    click.echo(f"  Research depth: {budget.depth_label}")
-
-    # Update universe.yaml
-    universe_cfg.tickers.append(ticker)
-    save_yaml(universe_path, universe_cfg.model_dump())
-    click.echo(f"Added {ticker} to universe.yaml")
-
-    # Update ticker_registry.yaml
-    existing = registry_cfg.tickers.get(ticker)
-    if existing and existing.universe_status == "external":
-        click.echo(f"  Promoting {ticker} from external to in-universe")
-    registry_entry = TickerRegistryEntry(
-        cik=info.cik,
-        exchange=info.exchange,
-        name=info.name,
-        news_queries=[f'"{info.name}" OR "{ticker}"'],
-        research_priority=priority,
-    )
-    registry_cfg.tickers[ticker] = registry_entry
-    save_yaml(registry_path, registry_cfg.model_dump(exclude_none=True))
-    click.echo(f"Added {ticker} to ticker_registry.yaml")
-
-    # Sync config
-    click.echo()
     s3 = get_s3_client()
-    uploaded = upload_directory(s3, config_dir, "config")
-    click.echo(f"Synced {len(uploaded)} config file(s) to S3.")
+    added = []
 
-    # Run data ingestion locally
-    click.echo()
-    click.echo(f"Ingesting data for {ticker} (CIK: {info.cik})...")
-    result = run_ingestion(ticker, info.cik, s3)
-    click.echo(f"  Filings: {result.filings_count} section(s)")
-    click.echo(f"  Fundamentals: {result.fundamentals_source or 'unavailable'}")
-    click.echo(f"  Transcripts: {result.transcripts_count}")
-    if result.warnings:
-        click.echo(f"  Warnings:")
-        for w in result.warnings:
-            click.echo(f"    - {w}")
-    click.echo(f"\n  Data stored at: s3://{BUCKET}/data/research/{ticker}/data/")
+    for raw_ticker in tickers:
+        ticker = raw_ticker.upper()
+        click.echo(f"\n{'='*40}")
+        click.echo(f"Processing {ticker}...")
+
+        if ticker in universe_cfg.tickers:
+            click.echo(f"  {ticker} is already in the universe, skipping.")
+            continue
+
+        # Resolve ticker via EDGAR
+        click.echo(f"  Resolving via EDGAR...")
+        info = resolve_ticker(ticker)
+        if not info:
+            click.echo(f"  Could not resolve {ticker} via EDGAR. Skipping.")
+            continue
+
+        click.echo(f"  Found: {info.name} (CIK: {info.cik}, Exchange: {info.exchange})")
+
+        # Update configs
+        universe_cfg.tickers.append(ticker)
+        existing = registry_cfg.tickers.get(ticker)
+        if existing and existing.universe_status == "external":
+            click.echo(f"  Promoting {ticker} from external to in-universe")
+        registry_cfg.tickers[ticker] = TickerRegistryEntry(
+            cik=info.cik,
+            exchange=info.exchange,
+            name=info.name,
+            news_queries=[f'"{info.name}" OR "{ticker}"'],
+            research_priority=priority,
+        )
+
+        # Save after each ticker so progress isn't lost
+        save_yaml(universe_path, universe_cfg.model_dump())
+        save_yaml(registry_path, registry_cfg.model_dump(exclude_none=True))
+
+        # Run data ingestion
+        click.echo(f"  Ingesting data...")
+        result = run_ingestion(ticker, info.cik, s3)
+        click.echo(f"  Filings: {result.filings_count} | Fundamentals: {result.fundamentals_source or 'N/A'} | Transcripts: {result.transcripts_count}")
+        if result.warnings:
+            for w in result.warnings:
+                click.echo(f"    ⚠ {w}")
+
+        added.append(ticker)
+
+    # Sync config once at the end
+    if added:
+        click.echo(f"\n{'='*40}")
+        uploaded = upload_directory(s3, config_dir, "config")
+        click.echo(f"Synced config to S3. Added {len(added)} ticker(s): {', '.join(added)}")
 
 @universe.command("remove")
 @click.argument("ticker")
