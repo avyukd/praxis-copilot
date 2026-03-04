@@ -1,0 +1,13 @@
+id: agm-infrastructure-portfolio-share
+type: filing
+tickers:
+- AGM
+description: Monitor infrastructure segments (renewable energy, broadband, utilities)
+  as percentage of total outstanding business volume from 10-Q/10-K filings.
+extract: Monitor infrastructure segments (renewable energy, broadband, utilities)
+  as percentage of total outstanding business volume from 10-Q/10-K filings.
+threshold: Alert if infrastructure share exceeds 50% (re-rating catalyst) or growth
+  declines below 10% YoY
+filing_types:
+- 10-K
+- 10-Q

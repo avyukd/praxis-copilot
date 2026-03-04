@@ -6,6 +6,7 @@ dist/
 build/
 .venv/
 .env
+.env.deploy
 .pytest_cache/
 workspace/
 .claude/
