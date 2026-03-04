@@ -281,15 +281,53 @@ dependencies:
 ```
 
 - `draft_monitors.yaml` — Proposed monitoring signals for ongoing tracking. These are suggestions
-  for the human to review, NOT auto-applied config:
+  for the human to review and approve via `praxis monitor approve {ticker}`.
+
+  Three monitor types are supported:
+
+  **filing** — triggers when a subscribed SEC filing lands (10-K, 10-Q, 8-K, etc.)
+  **search** — daily cron, runs search queries and analyzes results
+  **scraper** — daily cron, runs a custom scraper script with delta detection
 
 ```yaml
 monitors:
   - name: "<descriptive name>"
-    type: "<scraper|agent>"
-    description: "<what to monitor and why>"
-    threshold: "<what triggers an alert>"
+    type: "<filing|search|scraper>"
+    description: "<what to monitor and why — be specific about the data source>"
+    threshold: "<what triggers an alert — quantitative when possible>"
+    # For filing type: specify which filings trigger this monitor
+    filing_types: ["10-K", "10-Q"]  # optional, for type=filing
+    # For search type: specify search queries
+    queries: ['"exact phrase"', 'keyword search']  # optional, for type=search
+    # For scraper type: specify the URL to scrape
+    source_url: "https://..."  # optional, for type=scraper
 ```
+
+  **Cost hierarchy (prefer cheaper types):**
+  - `filing` — **cheapest**. Reactive: only runs when a filing actually lands. One Sonnet
+    call on already-extracted text. No daily cost. Default for anything answerable from
+    SEC filings.
+  - `scraper` — **cheap**. Runs a script on cron, compares output to previous run.
+    Sonnet only called when data actually changes (delta detection). Good for structured
+    data sources with known update schedules (TSMC monthly revenue, USDA data, Fed
+    surveys, government portals).
+  - `search` — **most expensive**. Daily search API call + Sonnet analysis every run,
+    even when nothing has changed. Use sparingly for signals that can't be captured by
+    filing or scraper.
+
+  **Guidelines:**
+  - **Default to `filing`**. Most investment-relevant data eventually shows up in SEC
+    filings. Financial metrics, segment data, risk factors, management changes,
+    delinquency rates, compensation, debt covenants — all filing monitors.
+  - Use `scraper` for specific external data sources with structured, regularly updated
+    pages (monthly revenue disclosures, government statistical releases, central bank
+    surveys). These are cheap because Sonnet only runs on changes.
+  - Use `search` only for diffuse, unpredictable signals that have no single data source:
+    legislative/regulatory activity, trade policy shifts, competitor announcements where
+    you don't know which site will break the news.
+  - A good monitor set is ~60% filing, ~25% scraper, ~15% search.
+  - Thresholds should be quantitative when possible ("spread below 2%", "growth < 5% YoY").
+  - Description should say WHERE the data comes from, not just what to track.
 
 ---
 
