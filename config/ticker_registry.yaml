@@ -9,10 +9,9 @@ tickers:
   TSM:
     cik: 0001046179
     exchange: NYSE
-    name: Taiwan Semiconductor Manufacturing
+    name: TAIWAN SEMICONDUCTOR MANUFACTURING CO LTD
     news_queries:
-    - '"TSMC" OR "Taiwan Semiconductor"'
-    universe_status: external
+    - '"TAIWAN SEMICONDUCTOR MANUFACTURING CO LTD" OR "TSM"'
     research_priority: 5
   AAOI:
     cik: 0001158114
@@ -41,4 +40,431 @@ tickers:
     name: AEHR TEST SYSTEMS
     news_queries:
     - '"AEHR TEST SYSTEMS" OR "AEHR"'
+    research_priority: 5
+  AES:
+    cik: 0000874761
+    exchange: NYSE
+    name: AES CORP
+    news_queries:
+    - '"AES CORP" OR "AES"'
+    research_priority: 5
+  AGM:
+    cik: 0000845877
+    exchange: NYSE
+    name: FEDERAL AGRICULTURAL MORTGAGE CORP
+    news_queries:
+    - '"FEDERAL AGRICULTURAL MORTGAGE CORP" OR "AGM"'
+    research_priority: 5
+  AII:
+    cik: 0002007587
+    exchange: NYSE
+    name: American Integrity Insurance Group, Inc.
+    news_queries:
+    - '"American Integrity Insurance Group, Inc." OR "AII"'
+    research_priority: 5
+  APP:
+    cik: 0001751008
+    exchange: Nasdaq
+    name: AppLovin Corp
+    news_queries:
+    - '"AppLovin Corp" OR "APP"'
+    research_priority: 5
+  ASIC:
+    cik: 0002040491
+    exchange: NYSE
+    name: Ategrity Specialty Insurance Co Holdings
+    news_queries:
+    - '"Ategrity Specialty Insurance Co Holdings" OR "ASIC"'
+    research_priority: 5
+  ASIX:
+    cik: 0001673985
+    exchange: NYSE
+    name: AdvanSix Inc.
+    news_queries:
+    - '"AdvanSix Inc." OR "ASIX"'
+    research_priority: 5
+  ASML:
+    cik: 0000937966
+    exchange: Nasdaq
+    name: ASML HOLDING NV
+    news_queries:
+    - '"ASML HOLDING NV" OR "ASML"'
+    research_priority: 5
+  BLNE:
+    cik: 0001534708
+    exchange: Nasdaq
+    name: Beeline Holdings, Inc.
+    news_queries:
+    - '"Beeline Holdings, Inc." OR "BLNE"'
+    research_priority: 5
+  CBLL:
+    cik: 0001861107
+    exchange: Nasdaq
+    name: Ceribell, Inc.
+    news_queries:
+    - '"Ceribell, Inc." OR "CBLL"'
+    research_priority: 5
+  CBNA:
+    cik: 0001392272
+    exchange: NYSE
+    name: CHAIN BRIDGE BANCORP INC
+    news_queries:
+    - '"CHAIN BRIDGE BANCORP INC" OR "CBNA"'
+    research_priority: 5
+  CCLD:
+    cik: 0001582982
+    exchange: Nasdaq
+    name: CareCloud, Inc.
+    news_queries:
+    - '"CareCloud, Inc." OR "CCLD"'
+    research_priority: 5
+  CFNB:
+    cik: 0000803016
+    exchange: OTC
+    name: CALIFORNIA FIRST LEASING CORP
+    news_queries:
+    - '"CALIFORNIA FIRST LEASING CORP" OR "CFNB"'
+    research_priority: 5
+  COUR:
+    cik: '0001651562'
+    exchange: NYSE
+    name: Coursera, Inc.
+    news_queries:
+    - '"Coursera, Inc." OR "COUR"'
+    research_priority: 5
+  CRDF:
+    cik: '0001213037'
+    exchange: Nasdaq
+    name: Cardiff Oncology, Inc.
+    news_queries:
+    - '"Cardiff Oncology, Inc." OR "CRDF"'
+    research_priority: 5
+  CRDO:
+    cik: 0001807794
+    exchange: Nasdaq
+    name: Credo Technology Group Holding Ltd
+    news_queries:
+    - '"Credo Technology Group Holding Ltd" OR "CRDO"'
+    research_priority: 5
+  DOCU:
+    cik: '0001261333'
+    exchange: Nasdaq
+    name: DOCUSIGN, INC.
+    news_queries:
+    - '"DOCUSIGN, INC." OR "DOCU"'
+    research_priority: 5
+  EDSA:
+    cik: 0001540159
+    exchange: Nasdaq
+    name: Edesa Biotech, Inc.
+    news_queries:
+    - '"Edesa Biotech, Inc." OR "EDSA"'
+    research_priority: 5
+  FICO:
+    cik: 0000814547
+    exchange: NYSE
+    name: FAIR ISAAC CORP
+    news_queries:
+    - '"FAIR ISAAC CORP" OR "FICO"'
+    research_priority: 5
+  FLYW:
+    cik: 0001580560
+    exchange: Nasdaq
+    name: Flywire Corp
+    news_queries:
+    - '"Flywire Corp" OR "FLYW"'
+    research_priority: 5
+  FRO:
+    cik: 0000913290
+    exchange: NYSE
+    name: Frontline plc
+    news_queries:
+    - '"Frontline plc" OR "FRO"'
+    research_priority: 5
+  HRTG:
+    cik: 0001598665
+    exchange: NYSE
+    name: Heritage Insurance Holdings, Inc.
+    news_queries:
+    - '"Heritage Insurance Holdings, Inc." OR "HRTG"'
+    research_priority: 5
+  HYNE:
+    cik: '0002073153'
+    exchange: Nasdaq
+    name: Hoyne Bancorp, Inc.
+    news_queries:
+    - '"Hoyne Bancorp, Inc." OR "HYNE"'
+    research_priority: 5
+  ICE:
+    cik: 0001571949
+    exchange: NYSE
+    name: Intercontinental Exchange, Inc.
+    news_queries:
+    - '"Intercontinental Exchange, Inc." OR "ICE"'
+    research_priority: 5
+  IESC:
+    cik: 0001048268
+    exchange: Nasdaq
+    name: IES Holdings, Inc.
+    news_queries:
+    - '"IES Holdings, Inc." OR "IESC"'
+    research_priority: 5
+  IVFH:
+    cik: '0000312257'
+    exchange: OTC
+    name: INNOVATIVE FOOD HOLDINGS INC
+    news_queries:
+    - '"INNOVATIVE FOOD HOLDINGS INC" OR "IVFH"'
+    research_priority: 5
+  JMIA:
+    cik: 0001756708
+    exchange: NYSE
+    name: Jumia Technologies AG
+    news_queries:
+    - '"Jumia Technologies AG" OR "JMIA"'
+    research_priority: 5
+  LB:
+    cik: 0001995807
+    exchange: NYSE
+    name: LandBridge Co LLC
+    news_queries:
+    - '"LandBridge Co LLC" OR "LB"'
+    research_priority: 5
+  MIAX:
+    cik: 0001438472
+    exchange: NYSE
+    name: MIAMI INTERNATIONAL HOLDINGS, INC.
+    news_queries:
+    - '"MIAMI INTERNATIONAL HOLDINGS, INC." OR "MIAX"'
+    research_priority: 5
+  MICC:
+    cik: 0002071668
+    exchange: NYSE
+    name: Magnum Ice Cream Co N.V.
+    news_queries:
+    - '"Magnum Ice Cream Co N.V." OR "MICC"'
+    research_priority: 5
+  MKL:
+    cik: 0001096343
+    exchange: NYSE
+    name: MARKEL GROUP INC.
+    news_queries:
+    - '"MARKEL GROUP INC." OR "MKL"'
+    research_priority: 5
+  MLP:
+    cik: '0000063330'
+    exchange: NYSE
+    name: MAUI LAND & PINEAPPLE CO INC
+    news_queries:
+    - '"MAUI LAND & PINEAPPLE CO INC" OR "MLP"'
+    research_priority: 5
+  MNTN:
+    cik: 0001891027
+    exchange: NYSE
+    name: MNTN, Inc.
+    news_queries:
+    - '"MNTN, Inc." OR "MNTN"'
+    research_priority: 5
+  MRX:
+    cik: 0001997464
+    exchange: Nasdaq
+    name: Marex Group plc
+    news_queries:
+    - '"Marex Group plc" OR "MRX"'
+    research_priority: 5
+  NN:
+    cik: 0001865631
+    exchange: Nasdaq
+    name: NEXTNAV INC.
+    news_queries:
+    - '"NEXTNAV INC." OR "NN"'
+    research_priority: 5
+  NVTS:
+    cik: 0001821769
+    exchange: Nasdaq
+    name: Navitas Semiconductor Corp
+    news_queries:
+    - '"Navitas Semiconductor Corp" OR "NVTS"'
+    research_priority: 5
+  NWSA:
+    cik: 0001564708
+    exchange: Nasdaq
+    name: NEWS CORP
+    news_queries:
+    - '"NEWS CORP" OR "NWSA"'
+    research_priority: 5
+  OMAB:
+    cik: 0001378239
+    exchange: Nasdaq
+    name: Central North Airport Group
+    news_queries:
+    - '"Central North Airport Group" OR "OMAB"'
+    research_priority: 5
+  OPY:
+    cik: 0000791963
+    exchange: NYSE
+    name: OPPENHEIMER HOLDINGS INC
+    news_queries:
+    - '"OPPENHEIMER HOLDINGS INC" OR "OPY"'
+    research_priority: 5
+  PFSB:
+    cik: 0001967656
+    exchange: OTC
+    name: PFS Bancorp, Inc.
+    news_queries:
+    - '"PFS Bancorp, Inc." OR "PFSB"'
+    research_priority: 5
+  PKBK:
+    cik: 0001315399
+    exchange: Nasdaq
+    name: PARKE BANCORP, INC.
+    news_queries:
+    - '"PARKE BANCORP, INC." OR "PKBK"'
+    research_priority: 5
+  PLBY:
+    cik: 0001803914
+    exchange: Nasdaq
+    name: Playboy, Inc.
+    news_queries:
+    - '"Playboy, Inc." OR "PLBY"'
+    research_priority: 5
+  SATS:
+    cik: '0001415404'
+    exchange: Nasdaq
+    name: EchoStar CORP
+    news_queries:
+    - '"EchoStar CORP" OR "SATS"'
+    research_priority: 5
+  SBMW:
+    cik: '0002036060'
+    exchange: OTC
+    name: Security Midwest Bancorp, Inc.
+    news_queries:
+    - '"Security Midwest Bancorp, Inc." OR "SBMW"'
+    research_priority: 5
+  SHLS:
+    cik: 0001831651
+    exchange: Nasdaq
+    name: Shoals Technologies Group, Inc.
+    news_queries:
+    - '"Shoals Technologies Group, Inc." OR "SHLS"'
+    research_priority: 5
+  SHMD:
+    cik: 0001987240
+    exchange: Nasdaq
+    name: SCHMID Group N.V.
+    news_queries:
+    - '"SCHMID Group N.V." OR "SHMD"'
+    research_priority: 5
+  SNBR:
+    cik: 0000827187
+    exchange: Nasdaq
+    name: Sleep Number Corp
+    news_queries:
+    - '"Sleep Number Corp" OR "SNBR"'
+    research_priority: 5
+  SNAP:
+    cik: 0001564408
+    exchange: NYSE
+    name: Snap Inc
+    news_queries:
+    - '"Snap Inc" OR "SNAP"'
+    research_priority: 5
+  SNWV:
+    cik: '0001417663'
+    exchange: Nasdaq
+    name: SANUWAVE Health, Inc.
+    news_queries:
+    - '"SANUWAVE Health, Inc." OR "SNWV"'
+    research_priority: 5
+  SOLS:
+    cik: 0002064953
+    exchange: Nasdaq
+    name: Solstice Advanced Materials Inc.
+    news_queries:
+    - '"Solstice Advanced Materials Inc." OR "SOLS"'
+    research_priority: 5
+  TIC:
+    cik: 0002032966
+    exchange: NYSE
+    name: TIC Solutions, Inc.
+    news_queries:
+    - '"TIC Solutions, Inc." OR "TIC"'
+    research_priority: 5
+  TPB:
+    cik: 0001290677
+    exchange: NYSE
+    name: Turning Point Brands, Inc.
+    news_queries:
+    - '"Turning Point Brands, Inc." OR "TPB"'
+    research_priority: 5
+  TWST:
+    cik: 0001581280
+    exchange: Nasdaq
+    name: Twist Bioscience Corp
+    news_queries:
+    - '"Twist Bioscience Corp" OR "TWST"'
+    research_priority: 5
+  UMC:
+    cik: '0001033767'
+    exchange: NYSE
+    name: UNITED MICROELECTRONICS CORP
+    news_queries:
+    - '"UNITED MICROELECTRONICS CORP" OR "UMC"'
+    research_priority: 5
+  UVE:
+    cik: 0000891166
+    exchange: NYSE
+    name: UNIVERSAL INSURANCE HOLDINGS, INC.
+    news_queries:
+    - '"UNIVERSAL INSURANCE HOLDINGS, INC." OR "UVE"'
+    research_priority: 5
+  VNDA:
+    cik: 0001347178
+    exchange: Nasdaq
+    name: Vanda Pharmaceuticals Inc.
+    news_queries:
+    - '"Vanda Pharmaceuticals Inc." OR "VNDA"'
+    research_priority: 5
+  VOD:
+    cik: 0000839923
+    exchange: Nasdaq
+    name: VODAFONE GROUP PUBLIC LTD CO
+    news_queries:
+    - '"VODAFONE GROUP PUBLIC LTD CO" OR "VOD"'
+    research_priority: 5
+  VRME:
+    cik: 0001104038
+    exchange: Nasdaq
+    name: VerifyMe, Inc.
+    news_queries:
+    - '"VerifyMe, Inc." OR "VRME"'
+    research_priority: 5
+  WBI:
+    cik: 0002064947
+    exchange: NYSE
+    name: WaterBridge Infrastructure LLC
+    news_queries:
+    - '"WaterBridge Infrastructure LLC" OR "WBI"'
+    research_priority: 5
+  ZM:
+    cik: 0001585521
+    exchange: Nasdaq
+    name: Zoom Communications, Inc.
+    news_queries:
+    - '"Zoom Communications, Inc." OR "ZM"'
+    research_priority: 5
+  WSBF:
+    cik: 0001569994
+    exchange: Nasdaq
+    name: Waterstone Financial, Inc.
+    news_queries:
+    - '"Waterstone Financial, Inc." OR "WSBF"'
+    research_priority: 5
+  VTRS:
+    cik: 0001792044
+    exchange: Nasdaq
+    name: Viatris Inc
+    news_queries:
+    - '"Viatris Inc" OR "VTRS"'
     research_priority: 5
