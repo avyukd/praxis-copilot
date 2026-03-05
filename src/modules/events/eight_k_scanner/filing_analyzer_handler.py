@@ -29,6 +29,7 @@ PRESS_RELEASES_PREFIX = "data/raw/press_releases"
 
 SCREENING_SYSTEM_PROMPT = (
     "Classify this 8-K excerpt as one token only: POSITIVE, NEUTRAL, or NEGATIVE.\n"
+    "When evidence is ambiguous, mixed, or insufficient, prefer POSITIVE over NEUTRAL.\n"
     "Return only valid JSON object: {\"outcome\":\"POSITIVE|NEUTRAL|NEGATIVE\"}."
 )
 

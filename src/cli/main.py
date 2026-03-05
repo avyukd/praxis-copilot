@@ -550,7 +550,17 @@ def pipeline(
     log_lines: int,
     since_minutes: int,
 ):
-    """Show day summary or deep trace for a single filing/release id."""
+    """Show day summary or deep trace for a single filing/release id.
+
+    Stage definitions:
+      arrived: index.json exists, waiting for extraction
+      extracted: extracted.json exists, waiting for analysis/screening decision
+      screened_out: screening.json exists and full analysis was skipped
+      analyzed: analysis.json exists, alert not sent
+      alerted: analysis.json exists and index.alert_sent_at is set
+      stuck_extract: still arrived beyond --stuck-minutes
+      stuck_analyze: still extracted beyond --stuck-minutes
+    """
     s3 = get_s3_client()
 
     if item_id:
@@ -776,22 +786,23 @@ def _fetch_pipeline_logs(item_id: str, key_prefixes: list[str], max_lines: int, 
 
 def _print_trace_file_contents(s3_client, key_prefix: str, files: list[str]) -> None:
     """Print full contents for derived pipeline JSON artifacts only."""
-    derived_json = {"extracted.json", "screening.json", "analysis.json"}
-    selected = [name for name in files if name in derived_json]
-    if not selected:
-        click.echo("\n(no derived JSON artifacts found)")
-        return
-
-    for name in selected:
+    desired = ["extracted.json", "screening.json", "analysis.json"]
+    printed = 0
+    for name in desired:
         key = f"{key_prefix}/{name}"
-        click.echo("\n" + "-" * 60)
-        click.echo(f"{name}:")
         try:
             raw = download_file(s3_client, key)
-            text = raw.decode("utf-8", errors="replace")
-            click.echo(text)
-        except Exception as exc:
-            click.echo(f"[error reading file: {exc}]")
+        except Exception:
+            continue
+
+        printed += 1
+        text = raw.decode("utf-8", errors="replace")
+        click.echo("\n" + "-" * 60)
+        click.echo(f"{name}:")
+        click.echo(text)
+
+    if printed == 0:
+        click.echo("\n(no derived JSON artifacts found)")
 
 # ---------------------------------------------------------------------------
 # praxis research
