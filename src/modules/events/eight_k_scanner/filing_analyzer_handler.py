@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
+
+from litellm import completion
+from pydantic import BaseModel
 
 from src.modules.events.eight_k_scanner.analyze.llm import analyze_filing_with_usage
 from src.modules.events.eight_k_scanner.config import (
     DISABLE_LLM_ANALYSIS,
     FILING_ANALYZER_ENABLED_FORMS,
+    ENABLE_8K_HAIKU_SCREEN,
+    HAIKU_PRESCREEN_MODEL,
     S3_BUCKET,
     SCANNER_MIN_ADTV,
     SCANNER_STRATEGY,
@@ -19,6 +25,15 @@ from src.modules.events.eight_k_scanner.storage.s3 import et_now_iso, read_json_
 logger = logging.getLogger(__name__)
 
 FILINGS_PREFIX = "data/raw/filings"
+
+SCREENING_SYSTEM_PROMPT = (
+    "Classify this 8-K excerpt as one token only: POSITIVE, NEUTRAL, or NEGATIVE.\n"
+    "Return only valid JSON object: {\"outcome\":\"POSITIVE|NEUTRAL|NEGATIVE\"}."
+)
+
+
+class PrescreenResult(BaseModel):
+    outcome: Literal["POSITIVE", "NEUTRAL", "NEGATIVE"]
 
 
 def lambda_handler(event, context=None):
@@ -90,6 +105,31 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
         else:
             logger.info("%s (%s): matched items %s", ticker, accession, matched_items)
 
+        is_8k = form_type in ("8-K", "8-K/A")
+
+        # Optional 8-K Haiku screen on truncated extracted content.
+        if ENABLE_8K_HAIKU_SCREEN and is_8k:
+            screening: PrescreenResult | None = None
+            screening_error: str | None = None
+            try:
+                screening = _run_8k_prescreen(extracted)
+            except Exception as exc:
+                logger.warning("8-K Haiku prescreen failed for %s/%s: %s", ticker, accession, exc)
+                screening_error = exc.__class__.__name__
+            screening_data = {"outcome": screening.outcome if screening else "ERROR"}
+            if screening_error:
+                screening_data["error"] = screening_error
+            write_json_to_s3(bucket, f"{prefix}/screening.json", screening_data)
+            if screening:
+                status["screening_outcome"] = screening.outcome
+            if screening and screening.outcome in ("NEGATIVE", "NEUTRAL"):
+                return {
+                    **status,
+                    "action": "screened_out",
+                    "reason": f"haiku_outcome={screening.outcome}",
+                    "warnings": warnings,
+                }
+
     analysis_key = f"{prefix}/analysis.json"
     try:
         existing = read_json_from_s3(bucket, analysis_key)
@@ -131,3 +171,31 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
         "magnitude": analysis_data.get("magnitude", 0.0),
         "warnings": warnings,
     }
+
+
+def _run_8k_prescreen(extracted: ExtractedFiling) -> PrescreenResult:
+    """Haiku prescreen for 8-K using first half of extracted content."""
+    excerpt = _build_8k_screen_text(extracted)
+    response = completion(
+        model=HAIKU_PRESCREEN_MODEL,
+        messages=[
+            {"role": "system", "content": SCREENING_SYSTEM_PROMPT},
+            {"role": "user", "content": excerpt},
+        ],
+        response_format=PrescreenResult,
+    )
+    content = response.choices[0].message.content
+    return PrescreenResult.model_validate_json(content)
+
+
+def _build_8k_screen_text(extracted: ExtractedFiling) -> str:
+    parts: list[str] = []
+    for item_num, text in extracted.items.items():
+        parts.append(f"Item {item_num}\n{text}")
+    if not parts and extracted.text:
+        parts.append(extracted.text)
+    raw = "\n\n".join(parts).strip()
+    if not raw:
+        return ""
+    half = max(1, len(raw) // 2)
+    return raw[:half]

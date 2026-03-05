@@ -121,3 +121,10 @@ FILING_ANALYZER_ENABLED_FORMS: list[str] = [
     )
     if form.strip()
 ]
+
+# 8-K cost saver: optional Haiku prescreen before Sonnet deep analysis.
+ENABLE_8K_HAIKU_SCREEN = os.environ.get("ENABLE_8K_HAIKU_SCREEN", "1") in {"1", "true", "TRUE"}
+HAIKU_PRESCREEN_MODEL = os.environ.get(
+    "HAIKU_PRESCREEN_MODEL",
+    "anthropic/claude-3-haiku-20240307",
+)
