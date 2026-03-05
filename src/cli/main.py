@@ -501,16 +501,10 @@ def events(ticker: str, limit: int):
 
 
 # ---------------------------------------------------------------------------
-# praxis pipeline day
+# praxis pipeline
 # ---------------------------------------------------------------------------
 
-@cli.group()
-def pipeline():
-    """Pipeline observability commands."""
-    pass
-
-
-@pipeline.command("day")
+@cli.command("pipeline")
 @click.option("--date", "date_str", default=None, help="ET day in YYYY-MM-DD (default: today ET)")
 @click.option(
     "--source",
@@ -528,7 +522,7 @@ def pipeline():
 )
 @click.option("-v", "--verbose", is_flag=True, help="Show per-item details")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON output")
-def pipeline_day(date_str: str | None, source: str, stuck_minutes: int, verbose: bool, as_json: bool):
+def pipeline(date_str: str | None, source: str, stuck_minutes: int, verbose: bool, as_json: bool):
     """Show filings/press releases that arrived on a given ET day and their stage."""
     s3 = get_s3_client()
     day_start_utc, day_end_utc, target_day = parse_day_window(date_str)
