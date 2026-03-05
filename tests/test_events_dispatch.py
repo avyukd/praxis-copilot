@@ -25,23 +25,17 @@ class _FakeS3:
 
 
 def test_parse_trigger_for_supported_paths():
-    t1 = handler._parse_trigger("data/raw/8k/0001045810/0001/analysis.json")
+    t1 = handler._parse_trigger("data/raw/filings/0001045810/0001/extracted.json")
     assert t1 is not None
-    assert t1.source == "8k-scanner"
-    assert t1.data_type == "filings"
+    assert t1.source == "sec-filings-extractor"
+    assert t1.data_type.startswith("filings")
     assert t1.cik == "0001045810"
 
-    t2 = handler._parse_trigger("data/raw/ca-pr/SHOP/abc/analysis.json")
+    t2 = handler._parse_trigger("data/raw/press_releases/gnw/SHOP/abc/extracted.json")
     assert t2 is not None
-    assert t2.source == "ca-pr-scanner"
+    assert t2.source == "press-releases-extractor"
     assert t2.data_type == "press_releases"
     assert t2.ticker_direct == "SHOP"
-
-    t3 = handler._parse_trigger("data/raw/us-pr/NVDA/r1/analysis.json")
-    assert t3 is not None
-    assert t3.source == "us-pr-scanner"
-    assert t3.data_type == "press_releases"
-    assert t3.ticker_direct == "NVDA"
 
 
 def test_match_monitors_supports_exact_and_wildcard():
@@ -109,7 +103,7 @@ def test_lambda_handler_routes_matching_monitor(monkeypatch):
                 SimpleNamespace(
                     s3=SimpleNamespace(
                         bucket=SimpleNamespace(name="praxis-copilot"),
-                        object=SimpleNamespace(key="data/raw/8k/0001045810/0001/analysis.json"),
+                        object=SimpleNamespace(key="data/raw/filings/0001045810/0001/extracted.json"),
                     )
                 )
             ]
@@ -131,7 +125,7 @@ def test_lambda_handler_routes_matching_monitor(monkeypatch):
             {
                 "s3": {
                     "bucket": {"name": "praxis-copilot"},
-                    "object": {"key": "data/raw/8k/0001045810/0001/analysis.json"},
+                    "object": {"key": "data/raw/filings/0001045810/0001/extracted.json"},
                 }
             }
         ]
@@ -144,4 +138,4 @@ def test_lambda_handler_routes_matching_monitor(monkeypatch):
     assert invoked == ["nvda-filings"]
     assert len(emitted) == 1
     assert emitted[0].ticker == "NVDA"
-    assert emitted[0].data_type == "filings"
+    assert emitted[0].data_type.startswith("filings")

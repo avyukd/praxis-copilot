@@ -5,14 +5,13 @@ REGION="${REGION:-us-east-2}"
 S3_BUCKET="${S3_BUCKET:-praxis-copilot}"
 
 FUNCS=(
-  "8k-scanner-poller"
-  "8k-scanner-extractor"
-  "8k-scanner-analyzer"
-  "8k-scanner-ca-poller"
-  "8k-scanner-ca-analyzer"
-  "8k-scanner-us-gnw-poller"
-  "8k-scanner-us-gnw-analyzer"
-  "8k-scanner-dispatch"
+  "sec-filings-poller"
+  "press-releases-poller"
+  "filings-extractor"
+  "filing-analyzer"
+  "filing-alerts"
+  "event-dispatch"
+  "praxis-monitor-evaluator"
 )
 
 echo "## Lambda state"
@@ -40,6 +39,6 @@ aws s3api get-bucket-notification-configuration --region "$REGION" --bucket "$S3
 echo
 
 echo "## EventBridge rules"
-for r in 8k-scanner-poller-cron 8k-scanner-ca-poller-cron 8k-scanner-us-gnw-poller-cron; do
+for r in sec-filings-poller-cron press-releases-poller-cron praxis-monitor-daily; do
   aws events describe-rule --region "$REGION" --name "$r" --query '{Name:Name,State:State,ScheduleExpression:ScheduleExpression}'
 done
