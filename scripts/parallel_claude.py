@@ -82,7 +82,7 @@ def main() -> None:
     sessions = {ticker: str(uuid.uuid4()) for ticker in args.tickers}
 
     # Print session IDs upfront for resumability
-    print(f"Launching {len(args.tickers)} sessions (max {args.max_parallel} parallel)\n")
+    print(f"Queued {len(args.tickers)} sessions, running {args.max_parallel} at a time\n")
     for ticker, sid in sessions.items():
         print(f"  {ticker}: {sid}")
     print()

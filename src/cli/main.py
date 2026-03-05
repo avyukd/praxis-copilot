@@ -593,11 +593,26 @@ def research_pull(ticker: str):
 
 
 @research.command("sync")
-@click.argument("tickers", nargs=-1, required=True)
+@click.argument("tickers", nargs=-1)
 def research_sync(tickers: tuple[str, ...]):
-    """Sync local research artifacts for TICKER(s) to S3 and clean up workspace."""
+    """Sync local research artifacts for TICKER(s) to S3 and clean up workspace.
+
+    If no tickers are given, syncs all workspaces that exist locally.
+    """
     repo_root = find_repo_root()
     s3 = get_s3_client()
+
+    if not tickers:
+        workspace_root = repo_root / "workspace"
+        tickers = tuple(
+            d.name
+            for d in sorted(workspace_root.iterdir())
+            if d.is_dir() and d.name != "macro"
+        )
+        if not tickers:
+            click.echo("No workspaces found to sync.")
+            return
+        click.echo(f"Syncing all {len(tickers)} workspace(s): {', '.join(tickers)}\n")
 
     for ticker in tickers:
         ticker = ticker.upper()
