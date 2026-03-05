@@ -1,6 +1,7 @@
 """Praxis CLI — management tool for the Praxis Copilot system."""
 
 import json
+import os
 import re
 import shutil
 import sys
@@ -11,7 +12,7 @@ from zoneinfo import ZoneInfo
 import boto3
 import click
 import yaml
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoRegionError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -604,11 +605,17 @@ def pipeline(
 
         logs_payload = []
         if logs:
+            logs_region = (
+                s3.meta.region_name
+                or os.environ.get("AWS_REGION")
+                or os.environ.get("AWS_DEFAULT_REGION")
+            )
             logs_payload = _fetch_pipeline_logs(
                 item_id=item_id,
                 key_prefixes=[trace.key_prefix for trace in traces],
                 max_lines=log_lines,
                 since_minutes=since_minutes,
+                region_name=logs_region,
             )
 
         if as_json:
@@ -732,7 +739,13 @@ def pipeline(
             )
 
 
-def _fetch_pipeline_logs(item_id: str, key_prefixes: list[str], max_lines: int, since_minutes: int) -> list[dict]:
+def _fetch_pipeline_logs(
+    item_id: str,
+    key_prefixes: list[str],
+    max_lines: int,
+    since_minutes: int,
+    region_name: str | None = None,
+) -> list[dict]:
     """Best-effort CloudWatch lookup across event pipeline lambdas."""
     functions = [
         "sec-filings-poller",
@@ -743,7 +756,10 @@ def _fetch_pipeline_logs(item_id: str, key_prefixes: list[str], max_lines: int, 
     ]
     patterns = [item_id] + key_prefixes
     start_ms = int((datetime.now().timestamp() - since_minutes * 60) * 1000)
-    logs_client = boto3.client("logs")
+    try:
+        logs_client = boto3.client("logs", region_name=region_name) if region_name else boto3.client("logs")
+    except NoRegionError:
+        return []
     results = []
 
     for fn in functions:
