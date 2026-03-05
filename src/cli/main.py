@@ -31,6 +31,7 @@ from cli.s3 import (
     key_exists,
     list_prefix,
     upload_directory,
+    upload_file,
 )
 
 
@@ -648,7 +649,11 @@ def research_sync(tickers: tuple[str, ...]):
         s3_prefix = f"data/research/{ticker}"
         click.echo(f"\nUploading to s3://{BUCKET}/{s3_prefix}/ ...")
 
-        uploaded = upload_directory(s3, local_dir, s3_prefix)
+        uploaded = []
+        for rel in found:
+            s3_key = f"{s3_prefix}/{rel}"
+            upload_file(s3, local_dir / rel, s3_key)
+            uploaded.append(s3_key)
         click.echo(f"Synced {len(uploaded)} file(s):")
         for key in uploaded:
             click.echo(f"  {key}")
