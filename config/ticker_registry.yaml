@@ -517,3 +517,10 @@ tickers:
     news_queries:
     - '"AIR T INC" OR "AIRT"'
     research_priority: 5
+  ALTO:
+    cik: 0000778164
+    exchange: Nasdaq
+    name: Alto Ingredients, Inc.
+    news_queries:
+    - '"Alto Ingredients, Inc." OR "ALTO"'
+    research_priority: 5
