@@ -1,9 +1,8 @@
-"""Poller Lambda: EventBridge cron -> poll EDGAR EFTS -> fetch -> store to S3.
+"""SEC filings poller: EventBridge cron -> poll EDGAR -> fetch -> store to S3.
 
 Triggered by EventBridge cron during market hours.
-Stores raw docs to:
-  - s3://praxis-copilot/data/raw/8k/{cik}/{accession}/  (8-K universe filings)
-  - s3://praxis-copilot/data/raw/filings/{cik}/{accession}/  (monitor-subscribed filings)
+Stores all SEC filings to:
+  - s3://.../data/raw/filings/{cik}/{accession}/
 """
 from __future__ import annotations
 
@@ -20,19 +19,17 @@ from src.modules.events.eight_k_scanner.universe.builder import is_in_universe
 from src.modules.events.eight_k_scanner.config import (
     S3_BUCKET,
     SCANNER_LOOKBACK_MINUTES,
+    S3_FILINGS_RAW_PREFIX,
 )
-from src.modules.events.eight_k_scanner.storage.s3 import store_filing, filing_exists
+from src.modules.events.eight_k_scanner.storage.s3 import filing_exists
 
 logger = logging.getLogger(__name__)
 
-FILINGS_RAW_PREFIX = "data/raw/filings"
+FILINGS_RAW_PREFIX = S3_FILINGS_RAW_PREFIX
 
 
 def lambda_handler(event=None, context=None):
-    """Lambda entry point: poll -> filter by universe -> fetch -> store.
-
-    Now also polls for non-8-K form types subscribed by filing monitors.
-    """
+    """Lambda entry point: poll -> filter -> fetch -> store under unified filings path."""
     logging.getLogger().setLevel(logging.INFO)
 
     # Build the set of form types to poll from monitor subscriptions
@@ -71,16 +68,10 @@ def lambda_handler(event=None, context=None):
             filtered_out += 1
             continue
 
-        # Determine storage path
-        if is_8k and in_universe:
-            # Legacy 8-K path for universe filings
-            if filing_exists(cik, accession):
-                skipped += 1
-                continue
-            store_prefix = None  # use default (data/raw/8k/)
-        else:
-            # Unified filings path for monitor-subscribed filings
-            store_prefix = FILINGS_RAW_PREFIX
+        # All SEC filings now use the unified filings path.
+        if _filing_exists_unified(cik, accession):
+            skipped += 1
+            continue
 
         try:
             result = fetch_filing(cik, accession)
@@ -102,10 +93,7 @@ def lambda_handler(event=None, context=None):
             index_data = meta.model_dump()
             index_data["form_type"] = form_type
 
-            if store_prefix:
-                _store_filing_unified(cik, accession, index_data, result.documents)
-            else:
-                store_filing(cik, accession, index_data, result.documents)
+            _store_filing_unified(cik, accession, index_data, result.documents)
             stored += 1
 
         except Exception:
@@ -221,3 +209,23 @@ def _store_filing_unified(
         )
 
     logger.info(f"Stored filing {accession} at {prefix}/ ({len(documents)} docs)")
+
+
+def _filing_exists_unified(cik: str, accession: str) -> bool:
+    """Check if filing already exists under canonical filings path.
+
+    Falls back to legacy 8-K existence check for safety during cutover.
+    """
+    s3 = boto3.client("s3")
+    key = f"{FILINGS_RAW_PREFIX}/{cik}/{accession}/index.json"
+    try:
+        s3.head_object(Bucket=S3_BUCKET, Key=key)
+        return True
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code not in ("404", "NoSuchKey", "NotFound"):
+            logger.warning(f"head_object failed for {key}: {code}")
+    except Exception:
+        logger.warning(f"Unexpected error checking {key}", exc_info=True)
+
+    return filing_exists(cik, accession)

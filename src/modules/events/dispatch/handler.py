@@ -1,10 +1,8 @@
 """Event Dispatch Lambda: routes data from event-stage pipelines to monitors.
 
 Triggered by S3 PUTs on:
-  - data/raw/8k/{cik}/{accession}/analysis.json
-  - data/raw/filings/{cik}/{accession}/extracted.json  (unified filing path)
-  - data/raw/ca-pr/{ticker}/{release_id}/analysis.json
-  - data/raw/us-pr/{ticker}/{release_id}/analysis.json
+  - data/raw/filings/{cik}/{accession}/extracted.json
+  - data/raw/press_releases/{source}/{ticker}/{release_id}/extracted.json
   - data/news/{date}/digest/{hour}.yaml
 
 Pure routing -- deterministic, no LLM.
@@ -38,6 +36,7 @@ S3_CONFIG_PREFIX = "config"
 S3_DATA_PREFIX = "data"
 
 MONITOR_EVALUATOR_LAMBDA = os.environ.get("MONITOR_EVALUATOR_LAMBDA", "praxis-monitor-evaluator")
+FILING_ANALYZER_LAMBDA = os.environ.get("FILING_ANALYZER_LAMBDA", "filing-analyzer")
 
 _s3_client = None
 _lambda_client = None
@@ -74,6 +73,10 @@ def lambda_handler(event: dict, context=None) -> dict:
             logger.debug(f"Ignoring unrecognized key: {key}")
             skipped += 1
             continue
+
+        # For canonical filings extracted events, trigger analyzer asynchronously.
+        if parsed.source == "sec-filings-extractor":
+            _invoke_filing_analyzer(bucket, key)
 
         tickers = _resolve_tickers(bucket, key, parsed)
 
@@ -120,12 +123,12 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
     """Parse an S3 key to determine source, data type, and identifiers."""
     parts = key.split("/")
 
-    # Unified filing path: data/raw/filings/{cik}/{accession}/extracted.json
+    # Canonical filing path: data/raw/filings/{cik}/{accession}/extracted.json
     if key.startswith("data/raw/filings/") and key.endswith("/extracted.json"):
         try:
             form_type = _read_form_type_from_extracted(key)
             return ParsedTrigger(
-                source="filing-extractor",
+                source="sec-filings-extractor",
                 data_type=f"filings:{form_type}" if form_type else "filings",
                 cik=parts[3],
                 accession=parts[4],
@@ -134,20 +137,19 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
         except IndexError:
             return None
 
-    # Legacy 8-K path: data/raw/8k/{cik}/{accession}/analysis.json
-    if key.startswith("data/raw/8k/") and key.endswith("/analysis.json"):
+    # Canonical press releases path: data/raw/press_releases/{source}/{ticker}/{release_id}/extracted.json
+    if key.startswith("data/raw/press_releases/") and key.endswith("/extracted.json"):
         try:
             return ParsedTrigger(
-                source="8k-scanner",
-                data_type="filings",
-                cik=parts[3],
-                accession=parts[4],
-                form_type="8-K",
+                source="press-releases-extractor",
+                data_type="press_releases",
+                ticker_direct=parts[4],
+                release_id=parts[5],
             )
         except IndexError:
             return None
 
-    # Legacy 8-K extracted.json trigger (for filing monitors)
+    # Legacy 8-K extracted trigger compatibility
     if key.startswith("data/raw/8k/") and key.endswith("/extracted.json"):
         try:
             return ParsedTrigger(
@@ -160,7 +162,7 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
         except IndexError:
             return None
 
-    # data/raw/ca-pr/{ticker}/{release_id}/analysis.json
+    # Legacy CA PR compatibility
     if key.startswith("data/raw/ca-pr/") and key.endswith("/analysis.json"):
         try:
             return ParsedTrigger(
@@ -172,7 +174,7 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
         except IndexError:
             return None
 
-    # data/raw/us-pr/{ticker}/{release_id}/analysis.json
+    # Legacy US PR compatibility
     if key.startswith("data/raw/us-pr/") and key.endswith("/analysis.json"):
         try:
             return ParsedTrigger(
@@ -430,6 +432,31 @@ def _invoke_monitor_collector(
         logger.info(f"Invoked collector {function_name} for monitor {monitor.id}")
     except Exception:
         logger.exception(f"Failed to invoke collector for monitor {monitor.id}")
+
+
+def _invoke_filing_analyzer(bucket: str, key: str) -> None:
+    """Invoke the filing analyzer for canonical filings extracted events."""
+    if not FILING_ANALYZER_LAMBDA:
+        return
+    payload = {
+        "Records": [
+            {
+                "s3": {
+                    "bucket": {"name": bucket},
+                    "object": {"key": key},
+                }
+            }
+        ]
+    }
+    try:
+        _get_lambda_client().invoke(
+            FunctionName=FILING_ANALYZER_LAMBDA,
+            InvocationType="Event",
+            Payload=json.dumps(payload),
+        )
+        logger.info(f"Invoked filing analyzer {FILING_ANALYZER_LAMBDA} for {key}")
+    except Exception:
+        logger.exception(f"Failed to invoke filing analyzer for {key}")
 
 
 def _read_json(bucket: str, key: str) -> dict:

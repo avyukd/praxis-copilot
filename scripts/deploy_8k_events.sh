@@ -25,30 +25,44 @@ ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
 
 S3_BUCKET="${S3_BUCKET:-praxis-copilot}"
 SNS_TOPIC_ARN="${SNS_TOPIC_ARN:?Set SNS_TOPIC_ARN}"
-
 SEC_USER_AGENT="${SEC_USER_AGENT:?Set SEC_USER_AGENT}"
+ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY}"
 FMP_API_KEY="${FMP_API_KEY:-}"
 EODHD_API_KEY="${EODHD_API_KEY:-}"
-ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY}"
 DISABLE_LLM_ANALYSIS="${DISABLE_LLM_ANALYSIS:-0}"
 MARKET_CAP_THRESHOLD="${MARKET_CAP_THRESHOLD:-500000000}"
 CA_MARKET_CAP_THRESHOLD="${CA_MARKET_CAP_THRESHOLD:-500000000}"
+FILING_ANALYZER_ENABLED_FORMS="${FILING_ANALYZER_ENABLED_FORMS:-8-K;8-K/A}"
 
 SCANNER_CRON="${SCANNER_CRON:-cron(* 11-23,0-2 ? * MON-FRI *)}"
 
-POLLER_FUNCTION="${POLLER_FUNCTION:-8k-scanner-poller}"
-EXTRACTOR_FUNCTION="${EXTRACTOR_FUNCTION:-8k-scanner-extractor}"
-ANALYZER_FUNCTION="${ANALYZER_FUNCTION:-8k-scanner-analyzer}"
-CA_POLLER_FUNCTION="${CA_POLLER_FUNCTION:-8k-scanner-ca-poller}"
-CA_ANALYZER_FUNCTION="${CA_ANALYZER_FUNCTION:-8k-scanner-ca-analyzer}"
-US_GNW_POLLER_FUNCTION="${US_GNW_POLLER_FUNCTION:-8k-scanner-us-gnw-poller}"
-US_GNW_ANALYZER_FUNCTION="${US_GNW_ANALYZER_FUNCTION:-8k-scanner-us-gnw-analyzer}"
-DISPATCH_FUNCTION="${DISPATCH_FUNCTION:-8k-scanner-dispatch}"
+SEC_POLLER_FUNCTION="${SEC_POLLER_FUNCTION:-sec-filings-poller}"
+PRESS_POLLER_FUNCTION="${PRESS_POLLER_FUNCTION:-press-releases-poller}"
+EXTRACTOR_FUNCTION="${EXTRACTOR_FUNCTION:-filings-extractor}"
+ANALYZER_FUNCTION="${ANALYZER_FUNCTION:-filing-analyzer}"
+ALERTS_FUNCTION="${ALERTS_FUNCTION:-filing-alerts}"
+DISPATCH_FUNCTION="${DISPATCH_FUNCTION:-event-dispatch}"
 MONITOR_EVALUATOR_FUNCTION="${MONITOR_EVALUATOR_FUNCTION:-praxis-monitor-evaluator}"
 
-POLLER_RULE="${POLLER_RULE:-8k-scanner-poller-cron}"
-CA_POLLER_RULE="${CA_POLLER_RULE:-8k-scanner-ca-poller-cron}"
-US_GNW_POLLER_RULE="${US_GNW_POLLER_RULE:-8k-scanner-us-gnw-poller-cron}"
+SEC_POLLER_RULE="${SEC_POLLER_RULE:-sec-filings-poller-cron}"
+PRESS_POLLER_RULE="${PRESS_POLLER_RULE:-press-releases-poller-cron}"
+
+LEGACY_FUNCTIONS=(
+  "8k-scanner-poller"
+  "8k-scanner-extractor"
+  "8k-scanner-analyzer"
+  "8k-scanner-ca-poller"
+  "8k-scanner-ca-analyzer"
+  "8k-scanner-us-gnw-poller"
+  "8k-scanner-us-gnw-analyzer"
+  "8k-scanner-dispatch"
+)
+
+LEGACY_RULES=(
+  "8k-scanner-poller-cron"
+  "8k-scanner-ca-poller-cron"
+  "8k-scanner-us-gnw-poller-cron"
+)
 
 echo "=== Account: ${ACCOUNT_ID}, Region: ${REGION}, Bucket: ${S3_BUCKET} ==="
 
@@ -91,7 +105,6 @@ if ! aws iam get-role --role-name "${ROLE_NAME}" >/dev/null 2>&1; then
   sleep 10
 fi
 
-# Allow dispatch Lambda (running under ROLE_NAME) to invoke the monitor evaluator.
 if ! aws iam put-role-policy \
   --role-name "${ROLE_NAME}" \
   --policy-name "AllowInvokeMonitorEvaluator" \
@@ -105,20 +118,16 @@ if ! aws iam put-role-policy \
       }
     ]
   }" >/dev/null; then
-  echo "WARN: could not attach inline IAM invoke policy to ${ROLE_NAME}."
-  echo "      If dispatch cannot invoke ${MONITOR_EVALUATOR_FUNCTION}, add a Lambda resource policy"
-  echo "      via aws lambda add-permission on ${MONITOR_EVALUATOR_FUNCTION} for role ${ROLE_NAME}."
+  echo "WARN: could not attach IAM inline invoke policy to ${ROLE_NAME}."
 fi
 
 COMMON_VARS="S3_BUCKET=${S3_BUCKET},SEC_USER_AGENT=${SEC_USER_AGENT},FMP_API_KEY=${FMP_API_KEY},EODHD_API_KEY=${EODHD_API_KEY},MARKET_CAP_THRESHOLD=${MARKET_CAP_THRESHOLD},CA_MARKET_CAP_THRESHOLD=${CA_MARKET_CAP_THRESHOLD}"
-POLLER_ENV="{${COMMON_VARS}}"
+SEC_POLLER_ENV="{${COMMON_VARS}}"
+PRESS_POLLER_ENV="{${COMMON_VARS}}"
 EXTRACTOR_ENV="{${COMMON_VARS}}"
-ANALYZER_ENV="{${COMMON_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},DISABLE_LLM_ANALYSIS=${DISABLE_LLM_ANALYSIS}}"
-CA_POLLER_ENV="{${COMMON_VARS}}"
-CA_ANALYZER_ENV="{${COMMON_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},DISABLE_LLM_ANALYSIS=${DISABLE_LLM_ANALYSIS}}"
-US_GNW_POLLER_ENV="{${COMMON_VARS}}"
-US_GNW_ANALYZER_ENV="{${COMMON_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},DISABLE_LLM_ANALYSIS=${DISABLE_LLM_ANALYSIS}}"
-DISPATCH_ENV="{S3_BUCKET=${S3_BUCKET}}"
+ANALYZER_ENV="{${COMMON_VARS},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},DISABLE_LLM_ANALYSIS=${DISABLE_LLM_ANALYSIS},FILING_ANALYZER_ENABLED_FORMS=${FILING_ANALYZER_ENABLED_FORMS}}"
+ALERTS_ENV="{${COMMON_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},FILING_ANALYZER_ENABLED_FORMS=${FILING_ANALYZER_ENABLED_FORMS}}"
+DISPATCH_ENV="{S3_BUCKET=${S3_BUCKET},MONITOR_EVALUATOR_LAMBDA=${MONITOR_EVALUATOR_FUNCTION},FILING_ANALYZER_LAMBDA=${ANALYZER_FUNCTION}}"
 
 create_or_update_lambda() {
   local func_name="$1"
@@ -157,13 +166,11 @@ create_or_update_lambda() {
   aws lambda wait function-active-v2 --function-name "${func_name}" --region "${REGION}"
 }
 
-create_or_update_lambda "${POLLER_FUNCTION}" "src.modules.events.eight_k_scanner.poller_handler.lambda_handler" "${POLLER_ENV}"
+create_or_update_lambda "${SEC_POLLER_FUNCTION}" "src.modules.events.eight_k_scanner.poller_handler.lambda_handler" "${SEC_POLLER_ENV}"
+create_or_update_lambda "${PRESS_POLLER_FUNCTION}" "src.modules.events.eight_k_scanner.press_releases_poller_handler.lambda_handler" "${PRESS_POLLER_ENV}"
 create_or_update_lambda "${EXTRACTOR_FUNCTION}" "src.modules.events.eight_k_scanner.extractor_handler.lambda_handler" "${EXTRACTOR_ENV}"
-create_or_update_lambda "${ANALYZER_FUNCTION}" "src.modules.events.eight_k_scanner.analyzer_handler.lambda_handler" "${ANALYZER_ENV}"
-create_or_update_lambda "${CA_POLLER_FUNCTION}" "src.modules.events.eight_k_scanner.ca_handler.lambda_handler" "${CA_POLLER_ENV}"
-create_or_update_lambda "${CA_ANALYZER_FUNCTION}" "src.modules.events.eight_k_scanner.ca_analyzer_handler.lambda_handler" "${CA_ANALYZER_ENV}"
-create_or_update_lambda "${US_GNW_POLLER_FUNCTION}" "src.modules.events.eight_k_scanner.us_gnw_handler.lambda_handler" "${US_GNW_POLLER_ENV}"
-create_or_update_lambda "${US_GNW_ANALYZER_FUNCTION}" "src.modules.events.eight_k_scanner.us_gnw_analyzer_handler.lambda_handler" "${US_GNW_ANALYZER_ENV}"
+create_or_update_lambda "${ANALYZER_FUNCTION}" "src.modules.events.eight_k_scanner.filing_analyzer_handler.lambda_handler" "${ANALYZER_ENV}"
+create_or_update_lambda "${ALERTS_FUNCTION}" "src.modules.events.eight_k_scanner.filing_alerts_handler.lambda_handler" "${ALERTS_ENV}"
 create_or_update_lambda "${DISPATCH_FUNCTION}" "src.modules.events.dispatch.handler.lambda_handler" "${DISPATCH_ENV}"
 
 ensure_rule_target() {
@@ -195,14 +202,12 @@ ensure_rule_target() {
 }
 
 echo "--- EventBridge cron rules ---"
-ensure_rule_target "${POLLER_RULE}" "${POLLER_FUNCTION}" "eventbridge-cron"
-ensure_rule_target "${CA_POLLER_RULE}" "${CA_POLLER_FUNCTION}" "eventbridge-cron-ca"
-ensure_rule_target "${US_GNW_POLLER_RULE}" "${US_GNW_POLLER_FUNCTION}" "eventbridge-cron-us-gnw"
+ensure_rule_target "${SEC_POLLER_RULE}" "${SEC_POLLER_FUNCTION}" "eventbridge-sec-filings-cron"
+ensure_rule_target "${PRESS_POLLER_RULE}" "${PRESS_POLLER_FUNCTION}" "eventbridge-press-releases-cron"
 
 extractor_arn=$(aws lambda get-function --function-name "${EXTRACTOR_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 analyzer_arn=$(aws lambda get-function --function-name "${ANALYZER_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
-ca_analyzer_arn=$(aws lambda get-function --function-name "${CA_ANALYZER_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
-us_gnw_analyzer_arn=$(aws lambda get-function --function-name "${US_GNW_ANALYZER_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
+alerts_arn=$(aws lambda get-function --function-name "${ALERTS_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 dispatch_arn=$(aws lambda get-function --function-name "${DISPATCH_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 
 add_s3_permission() {
@@ -217,11 +222,10 @@ add_s3_permission() {
     --region "${REGION}" >/dev/null 2>&1 || true
 }
 
-add_s3_permission "${EXTRACTOR_FUNCTION}" "s3-trigger-extractor"
-add_s3_permission "${ANALYZER_FUNCTION}" "s3-trigger-analyzer"
-add_s3_permission "${CA_ANALYZER_FUNCTION}" "s3-trigger-ca-analyzer"
-add_s3_permission "${US_GNW_ANALYZER_FUNCTION}" "s3-trigger-us-gnw-analyzer"
-add_s3_permission "${DISPATCH_FUNCTION}" "s3-trigger-dispatch"
+add_s3_permission "${EXTRACTOR_FUNCTION}" "s3-trigger-filings-extractor"
+add_s3_permission "${ANALYZER_FUNCTION}" "s3-trigger-filing-analyzer"
+add_s3_permission "${ALERTS_FUNCTION}" "s3-trigger-filing-alerts"
+add_s3_permission "${DISPATCH_FUNCTION}" "s3-trigger-event-dispatch"
 
 echo "--- S3 notification wiring (${S3_BUCKET}) ---"
 aws s3api put-bucket-notification-configuration \
@@ -229,15 +233,6 @@ aws s3api put-bucket-notification-configuration \
   --region "${REGION}" \
   --notification-configuration "{
     \"LambdaFunctionConfigurations\": [
-      {
-        \"Id\": \"8k-extractor-index\",
-        \"LambdaFunctionArn\": \"${extractor_arn}\",
-        \"Events\": [\"s3:ObjectCreated:*\"],
-        \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/8k/\"},
-          {\"Name\": \"Suffix\", \"Value\": \"index.json\"}
-        ]}}
-      },
       {
         \"Id\": \"filings-extractor-index\",
         \"LambdaFunctionArn\": \"${extractor_arn}\",
@@ -248,38 +243,20 @@ aws s3api put-bucket-notification-configuration \
         ]}}
       },
       {
-        \"Id\": \"8k-analyzer-extracted\",
-        \"LambdaFunctionArn\": \"${analyzer_arn}\",
+        \"Id\": \"press-releases-extractor-index\",
+        \"LambdaFunctionArn\": \"${extractor_arn}\",
         \"Events\": [\"s3:ObjectCreated:*\"],
         \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/8k/\"},
-          {\"Name\": \"Suffix\", \"Value\": \"extracted.json\"}
-        ]}}
-      },
-      {
-        \"Id\": \"ca-analyzer-index\",
-        \"LambdaFunctionArn\": \"${ca_analyzer_arn}\",
-        \"Events\": [\"s3:ObjectCreated:*\"],
-        \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/ca-pr/\"},
+          {\"Name\": \"Prefix\", \"Value\": \"data/raw/press_releases/\"},
           {\"Name\": \"Suffix\", \"Value\": \"index.json\"}
         ]}}
       },
       {
-        \"Id\": \"us-gnw-analyzer-index\",
-        \"LambdaFunctionArn\": \"${us_gnw_analyzer_arn}\",
+        \"Id\": \"filing-alerts-analysis\",
+        \"LambdaFunctionArn\": \"${alerts_arn}\",
         \"Events\": [\"s3:ObjectCreated:*\"],
         \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/us-pr/\"},
-          {\"Name\": \"Suffix\", \"Value\": \"index.json\"}
-        ]}}
-      },
-      {
-        \"Id\": \"dispatch-8k-analysis\",
-        \"LambdaFunctionArn\": \"${dispatch_arn}\",
-        \"Events\": [\"s3:ObjectCreated:*\"],
-        \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/8k/\"},
+          {\"Name\": \"Prefix\", \"Value\": \"data/raw/filings/\"},
           {\"Name\": \"Suffix\", \"Value\": \"analysis.json\"}
         ]}}
       },
@@ -293,25 +270,44 @@ aws s3api put-bucket-notification-configuration \
         ]}}
       },
       {
-        \"Id\": \"dispatch-ca-analysis\",
+        \"Id\": \"dispatch-press-releases-extracted\",
         \"LambdaFunctionArn\": \"${dispatch_arn}\",
         \"Events\": [\"s3:ObjectCreated:*\"],
         \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/ca-pr/\"},
-          {\"Name\": \"Suffix\", \"Value\": \"analysis.json\"}
-        ]}}
-      },
-      {
-        \"Id\": \"dispatch-us-analysis\",
-        \"LambdaFunctionArn\": \"${dispatch_arn}\",
-        \"Events\": [\"s3:ObjectCreated:*\"],
-        \"Filter\": {\"Key\": {\"FilterRules\": [
-          {\"Name\": \"Prefix\", \"Value\": \"data/raw/us-pr/\"},
-          {\"Name\": \"Suffix\", \"Value\": \"analysis.json\"}
+          {\"Name\": \"Prefix\", \"Value\": \"data/raw/press_releases/\"},
+          {\"Name\": \"Suffix\", \"Value\": \"extracted.json\"}
         ]}}
       }
     ]
   }"
 
+# If IAM policy edit was not permitted, this lambda resource policy still enables invoke.
+aws lambda add-permission \
+  --function-name "${MONITOR_EVALUATOR_FUNCTION}" \
+  --statement-id "allow-dispatch-role-invoke" \
+  --action lambda:InvokeFunction \
+  --principal "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}" \
+  --region "${REGION}" >/dev/null 2>&1 || true
+
+aws lambda add-permission \
+  --function-name "${ANALYZER_FUNCTION}" \
+  --statement-id "allow-dispatch-role-invoke-analyzer" \
+  --action lambda:InvokeFunction \
+  --principal "arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}" \
+  --region "${REGION}" >/dev/null 2>&1 || true
+
+echo "--- Removing legacy EventBridge rules (best effort) ---"
+for rule in "${LEGACY_RULES[@]}"; do
+  aws events remove-targets --rule "$rule" --ids "$rule" --region "$REGION" >/dev/null 2>&1 || true
+  aws events delete-rule --name "$rule" --region "$REGION" >/dev/null 2>&1 || true
+done
+
+echo "--- Removing legacy Lambdas (best effort) ---"
+for f in "${LEGACY_FUNCTIONS[@]}"; do
+  aws lambda delete-function --function-name "$f" --region "$REGION" >/dev/null 2>&1 || true
+done
+
 echo "=== Deploy complete ==="
+echo "Functions: ${SEC_POLLER_FUNCTION}, ${PRESS_POLLER_FUNCTION}, ${EXTRACTOR_FUNCTION}, ${ANALYZER_FUNCTION}, ${ALERTS_FUNCTION}, ${DISPATCH_FUNCTION}"
+echo "Rules: ${SEC_POLLER_RULE}, ${PRESS_POLLER_RULE}"
 echo "Next: run scripts/release_smoke_check.sh"

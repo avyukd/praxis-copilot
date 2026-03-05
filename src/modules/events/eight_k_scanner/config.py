@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -23,6 +24,8 @@ S3_DATA_PREFIX = "data"
 
 # S3 paths (praxis-copilot layout)
 S3_RAW_PREFIX = f"{S3_DATA_PREFIX}/raw/8k"
+S3_FILINGS_RAW_PREFIX = f"{S3_DATA_PREFIX}/raw/filings"
+S3_PRESS_RELEASES_RAW_PREFIX = f"{S3_DATA_PREFIX}/raw/press_releases"
 S3_CA_RAW_PREFIX = f"{S3_DATA_PREFIX}/raw/ca-pr"
 S3_US_PR_RAW_PREFIX = f"{S3_DATA_PREFIX}/raw/us-pr"
 S3_POLLER_STATE_KEY = f"{S3_DATA_PREFIX}/state/poller_last_seen.json"
@@ -108,3 +111,13 @@ PRICE_SOURCES: list[str] = [
 ]
 
 SCANNER_POLLER_SEEN_TTL_DAYS = int(os.environ.get("SCANNER_POLLER_SEEN_TTL_DAYS", "7"))
+
+# Generic filing analyzer policy
+FILING_ANALYZER_ENABLED_FORMS: list[str] = [
+    form.strip()
+    for form in re.split(
+        r"[;,]",
+        os.environ.get("FILING_ANALYZER_ENABLED_FORMS", "8-K;8-K/A"),
+    )
+    if form.strip()
+]

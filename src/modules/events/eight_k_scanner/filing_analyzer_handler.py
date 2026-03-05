@@ -1,0 +1,133 @@
+"""Generic filing analyzer: extracted.json -> analysis.json for enabled forms."""
+from __future__ import annotations
+
+import logging
+
+from src.modules.events.eight_k_scanner.analyze.llm import analyze_filing_with_usage
+from src.modules.events.eight_k_scanner.config import (
+    DISABLE_LLM_ANALYSIS,
+    FILING_ANALYZER_ENABLED_FORMS,
+    S3_BUCKET,
+    SCANNER_MIN_ADTV,
+    SCANNER_STRATEGY,
+)
+from src.modules.events.eight_k_scanner.extract.filter import filter_filing
+from src.modules.events.eight_k_scanner.financials import get_financial_snapshot, lookup_adtv
+from src.modules.events.eight_k_scanner.models import ExtractedFiling
+from src.modules.events.eight_k_scanner.storage.s3 import et_now_iso, read_json_from_s3, write_json_to_s3
+
+logger = logging.getLogger(__name__)
+
+FILINGS_PREFIX = "data/raw/filings"
+
+
+def lambda_handler(event, context=None):
+    """Handle extracted filing objects from canonical filings path."""
+    logging.basicConfig(level=logging.INFO)
+    records = event.get("Records", [])
+    results = []
+
+    for record in records:
+        s3_info = record.get("s3", {})
+        bucket = s3_info.get("bucket", {}).get("name", S3_BUCKET)
+        key = s3_info.get("object", {}).get("key", "")
+        if not (key.startswith(f"{FILINGS_PREFIX}/") and key.endswith("/extracted.json")):
+            continue
+
+        parts = key.split("/")
+        try:
+            raw_idx = parts.index("filings")
+            cik = parts[raw_idx + 1]
+            accession = parts[raw_idx + 2]
+        except (ValueError, IndexError):
+            logger.warning("Cannot parse cik/accession from key: %s", key)
+            continue
+        results.append(_analyze_one(bucket, cik, accession))
+
+    return {"processed": len(results), "results": results}
+
+
+def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
+    prefix = f"{FILINGS_PREFIX}/{cik}/{accession}"
+    status: dict = {"cik": cik, "accession": accession, "action": "skipped"}
+
+    try:
+        index_data = read_json_from_s3(bucket, f"{prefix}/index.json")
+    except Exception:
+        logger.exception("Cannot read index.json for %s", accession)
+        return {**status, "action": "error", "reason": "missing index.json"}
+
+    ticker = index_data.get("ticker", "")
+    form_type = (index_data.get("form_type") or "").upper()
+    if not ticker:
+        return {**status, "action": "error", "reason": "no ticker"}
+
+    status["ticker"] = ticker
+    status["form_type"] = form_type
+
+    # Policy gate: analyzer is generic, enabled forms are currently 8-K only.
+    enabled_forms = {f.upper() for f in FILING_ANALYZER_ENABLED_FORMS}
+    if form_type not in enabled_forms:
+        return {**status, "action": "skipped", "reason": f"form {form_type} not enabled"}
+
+    warnings: list[str] = []
+    adtv = lookup_adtv(ticker)
+    if adtv is not None and adtv < SCANNER_MIN_ADTV:
+        warnings.append(f"ADTV ${adtv:,.0f} below ${SCANNER_MIN_ADTV:,.0f} threshold")
+    elif adtv is None:
+        warnings.append("ADTV unavailable")
+
+    try:
+        extracted = ExtractedFiling.model_validate(read_json_from_s3(bucket, f"{prefix}/extracted.json"))
+    except Exception:
+        return {**status, "action": "error", "reason": "missing extracted.json"}
+
+    items_detected = list(extracted.items.keys())
+    if form_type.startswith("8-K"):
+        passes, matched_items = filter_filing(items_detected, strategy=SCANNER_STRATEGY)
+        if not passes:
+            warnings.append(f"Items {items_detected or ['?']} don't match strategy={SCANNER_STRATEGY}")
+        else:
+            logger.info("%s (%s): matched items %s", ticker, accession, matched_items)
+
+    analysis_key = f"{prefix}/analysis.json"
+    try:
+        existing = read_json_from_s3(bucket, analysis_key)
+        return {
+            **status,
+            "action": "already_analyzed",
+            "classification": existing.get("classification", "NEUTRAL"),
+            "magnitude": existing.get("magnitude", 0.0),
+            "warnings": warnings,
+        }
+    except Exception:
+        pass
+
+    if DISABLE_LLM_ANALYSIS:
+        return {
+            **status,
+            "action": "analysis_skipped",
+            "reason": "LLM disabled via DISABLE_LLM_ANALYSIS",
+            "warnings": warnings,
+        }
+
+    snapshot = get_financial_snapshot(ticker)
+    try:
+        result = analyze_filing_with_usage(extracted, snapshot, ticker)
+        analysis_data = result.analysis.model_dump()
+        analysis_data["token_usage"] = result.token_usage.model_dump()
+        analysis_data["analyzed_at"] = et_now_iso()
+        analysis_data["source_type"] = "filings"
+        analysis_data["form_type"] = form_type
+        write_json_to_s3(bucket, analysis_key, analysis_data)
+    except Exception:
+        logger.exception("LLM analysis failed for %s (%s)", ticker, accession)
+        return {**status, "action": "error", "reason": "llm failed"}
+
+    return {
+        **status,
+        "action": "analyzed",
+        "classification": analysis_data.get("classification", "NEUTRAL"),
+        "magnitude": analysis_data.get("magnitude", 0.0),
+        "warnings": warnings,
+    }
