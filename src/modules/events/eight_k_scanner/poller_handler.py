@@ -64,9 +64,15 @@ def lambda_handler(event=None, context=None):
         is_8k = form_type in ("8-K", "8-K/A")
         is_monitor_sub = _matches_monitor_subscription(cik, form_type, monitor_subs)
 
-        if not in_universe and not is_monitor_sub:
-            filtered_out += 1
-            continue
+        if is_8k:
+            if not in_universe and not is_monitor_sub:
+                filtered_out += 1
+                continue
+        else:
+            # Non-8-K forms are opt-in only via filing monitor subscriptions.
+            if not is_monitor_sub:
+                filtered_out += 1
+                continue
 
         # All SEC filings now use the unified filings path.
         if _filing_exists_unified(cik, accession):
