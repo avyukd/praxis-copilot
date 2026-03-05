@@ -10,8 +10,8 @@ from pydantic import BaseModel
 from src.modules.events.eight_k_scanner.analyze.llm import analyze_filing_with_usage
 from src.modules.events.eight_k_scanner.config import (
     DISABLE_LLM_ANALYSIS,
-    FILING_ANALYZER_ENABLED_FORMS,
     ENABLE_8K_HAIKU_SCREEN,
+    FILING_ANALYZER_ENABLED_FORMS,
     HAIKU_PRESCREEN_MODEL,
     S3_BUCKET,
     SCANNER_MIN_ADTV,
@@ -105,10 +105,8 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
         else:
             logger.info("%s (%s): matched items %s", ticker, accession, matched_items)
 
-        is_8k = form_type in ("8-K", "8-K/A")
-
         # Optional 8-K Haiku screen on truncated extracted content.
-        if ENABLE_8K_HAIKU_SCREEN and is_8k:
+        if ENABLE_8K_HAIKU_SCREEN and form_type in ("8-K", "8-K/A"):
             screening: PrescreenResult | None = None
             screening_error: str | None = None
             try:
@@ -116,10 +114,12 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
             except Exception as exc:
                 logger.warning("8-K Haiku prescreen failed for %s/%s: %s", ticker, accession, exc)
                 screening_error = exc.__class__.__name__
+
             screening_data = {"outcome": screening.outcome if screening else "ERROR"}
             if screening_error:
                 screening_data["error"] = screening_error
             write_json_to_s3(bucket, f"{prefix}/screening.json", screening_data)
+
             if screening:
                 status["screening_outcome"] = screening.outcome
             if screening and screening.outcome in ("NEGATIVE", "NEUTRAL"):

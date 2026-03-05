@@ -21,6 +21,7 @@ def test_analyzer_skips_non_enabled_forms(monkeypatch):
 def test_analyzer_processes_enabled_forms(monkeypatch):
     monkeypatch.setattr(analyzer, "FILING_ANALYZER_ENABLED_FORMS", ["8-K", "8-K/A"])
     monkeypatch.setattr(analyzer, "ENABLE_8K_HAIKU_SCREEN", False)
+
     def _read(bucket, key):
         if key.endswith("/index.json"):
             return {"ticker": "NVDA", "form_type": "8-K"}
