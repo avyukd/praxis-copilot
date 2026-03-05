@@ -533,7 +533,7 @@ def events(ticker: str, limit: int):
     "-v",
     "--verbose",
     is_flag=True,
-    help="For ITEM_ID mode, also print full contents of each artifact file",
+    help="For ITEM_ID mode, print full derived JSON outputs (extracted/screening/analysis)",
 )
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON output")
 @click.option("--logs", is_flag=True, help="Include CloudWatch logs (best effort)")
@@ -775,8 +775,14 @@ def _fetch_pipeline_logs(item_id: str, key_prefixes: list[str], max_lines: int, 
 
 
 def _print_trace_file_contents(s3_client, key_prefix: str, files: list[str]) -> None:
-    """Print full file contents for pipeline trace artifact files."""
-    for name in files:
+    """Print full contents for derived pipeline JSON artifacts only."""
+    derived_json = {"extracted.json", "screening.json", "analysis.json"}
+    selected = [name for name in files if name in derived_json]
+    if not selected:
+        click.echo("\n(no derived JSON artifacts found)")
+        return
+
+    for name in selected:
         key = f"{key_prefix}/{name}"
         click.echo("\n" + "-" * 60)
         click.echo(f"{name}:")
