@@ -8,8 +8,10 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import boto3
 import click
 import yaml
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,7 +26,13 @@ from cli.macro import (
 )
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
 from cli.monitors import monitor
-from cli.pipeline_status import collect_pipeline_items, parse_day_window, summarize_pipeline_items
+from cli.pipeline_status import (
+    build_pipeline_trace,
+    collect_pipeline_items,
+    find_prefixes_by_item_id,
+    parse_day_window,
+    summarize_pipeline_items,
+)
 from cli.research_prompt import ResearchBudget, generate_research_prompt
 from cli.s3 import (
     BUCKET,
@@ -505,6 +513,7 @@ def events(ticker: str, limit: int):
 # ---------------------------------------------------------------------------
 
 @cli.command("pipeline")
+@click.argument("item_id", required=False)
 @click.option("--date", "date_str", default=None, help="ET day in YYYY-MM-DD (default: today ET)")
 @click.option(
     "--source",
@@ -522,9 +531,118 @@ def events(ticker: str, limit: int):
 )
 @click.option("-v", "--verbose", is_flag=True, help="Show per-item details")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON output")
-def pipeline(date_str: str | None, source: str, stuck_minutes: int, verbose: bool, as_json: bool):
-    """Show filings/press releases that arrived on a given ET day and their stage."""
+@click.option("--logs", is_flag=True, help="Include CloudWatch logs (best effort)")
+@click.option("--log-lines", type=click.IntRange(1, 200), default=20, show_default=True, help="Max lines per Lambda")
+@click.option("--since-minutes", type=click.IntRange(1, 24 * 60), default=240, show_default=True, help="Log lookback window")
+def pipeline(
+    item_id: str | None,
+    date_str: str | None,
+    source: str,
+    stuck_minutes: int,
+    verbose: bool,
+    as_json: bool,
+    logs: bool,
+    log_lines: int,
+    since_minutes: int,
+):
+    """Show day summary or deep trace for a single filing/release id."""
     s3 = get_s3_client()
+
+    if item_id:
+        matches = find_prefixes_by_item_id(s3, item_id=item_id, source=source)
+        if not matches:
+            click.echo(
+                f"No item found for id '{item_id}' under source={source}. "
+                "Try --source all if not already set."
+            )
+            return
+
+        traces = [build_pipeline_trace(s3, source_type=src_type, key_prefix=prefix) for src_type, prefix in matches]
+        traces_payload = [
+            {
+                "source_type": trace.source_type,
+                "key_prefix": trace.key_prefix,
+                "item_id": trace.item_id,
+                "ticker": trace.ticker,
+                "cik": trace.cik,
+                "form_type": trace.form_type,
+                "source": trace.source,
+                "stage": trace.stage,
+                "files": trace.files,
+                "arrived_at": trace.arrived_at,
+                "extracted_at": trace.extracted_at,
+                "analyzed_at": trace.analyzed_at,
+                "screening_at": trace.screening_at,
+                "alert_sent_at": trace.alert_sent_at,
+                "analysis": {
+                    "classification": trace.analysis_classification,
+                    "magnitude": trace.analysis_magnitude,
+                    "summary": trace.analysis_summary,
+                },
+                "extracted": {
+                    "total_chars": trace.extracted_total_chars,
+                    "items": trace.extracted_items,
+                },
+            }
+            for trace in traces
+        ]
+
+        logs_payload = []
+        if logs:
+            logs_payload = _fetch_pipeline_logs(
+                item_id=item_id,
+                key_prefixes=[trace.key_prefix for trace in traces],
+                max_lines=log_lines,
+                since_minutes=since_minutes,
+            )
+
+        if as_json:
+            click.echo(json.dumps({"item_id": item_id, "matches": traces_payload, "logs": logs_payload}, indent=2))
+            return
+
+        click.echo(f"Pipeline trace for id={item_id} (matches={len(traces)})")
+        for trace in traces:
+            click.echo("\n" + "=" * 60)
+            click.echo(f"source_type={trace.source_type}  stage={trace.stage}")
+            click.echo(f"key_prefix={trace.key_prefix}")
+            click.echo(
+                f"ticker={trace.ticker or '-'}  cik={trace.cik or '-'}  "
+                f"form={trace.form_type or '-'}  source={trace.source or '-'}"
+            )
+            click.echo(
+                f"arrived_at={trace.arrived_at or '-'}  extracted_at={trace.extracted_at or '-'}  "
+                f"analyzed_at={trace.analyzed_at or '-'}  screening_at={trace.screening_at or '-'}"
+            )
+            click.echo(f"alert_sent_at={trace.alert_sent_at or '-'}")
+            if trace.analysis_classification or trace.analysis_magnitude is not None or trace.analysis_summary:
+                click.echo(
+                    f"analysis: class={trace.analysis_classification or '-'}  "
+                    f"mag={trace.analysis_magnitude if trace.analysis_magnitude is not None else '-'}"
+                )
+                if trace.analysis_summary:
+                    click.echo(f"analysis_summary: {trace.analysis_summary[:240]}")
+            if trace.extracted_total_chars is not None or trace.extracted_items:
+                click.echo(
+                    f"extracted: total_chars={trace.extracted_total_chars if trace.extracted_total_chars is not None else '-'}  "
+                    f"items={','.join(trace.extracted_items) if trace.extracted_items else '-'}"
+                )
+            if verbose:
+                click.echo("files:")
+                for name in trace.files:
+                    click.echo(f"  {name}")
+
+        if logs:
+            if logs_payload:
+                click.echo("\n" + "=" * 60)
+                click.echo("CloudWatch logs:")
+                for row in logs_payload:
+                    click.echo(f"\n[{row['function']}]")
+                    for line in row["lines"]:
+                        click.echo(f"  {line}")
+            else:
+                click.echo("\nNo matching logs found (or access unavailable).")
+        return
+
     day_start_utc, day_end_utc, target_day = parse_day_window(date_str)
     items = collect_pipeline_items(
         s3,
@@ -596,6 +714,58 @@ def pipeline(date_str: str | None, source: str, stuck_minutes: int, verbose: boo
                 f"  {item.stage:13} {item.source_type:14} {ticker:8} {form:8} "
                 f"{item.item_id} age={item.age_minutes}m source={source_label} arrived={arrived_et}"
             )
+
+
+def _fetch_pipeline_logs(item_id: str, key_prefixes: list[str], max_lines: int, since_minutes: int) -> list[dict]:
+    """Best-effort CloudWatch lookup across event pipeline lambdas."""
+    functions = [
+        "sec-filings-poller",
+        "press-releases-poller",
+        "filings-extractor",
+        "filing-analyzer",
+        "filing-alerts",
+    ]
+    patterns = [item_id] + key_prefixes
+    start_ms = int((datetime.now().timestamp() - since_minutes * 60) * 1000)
+    logs_client = boto3.client("logs")
+    results = []
+
+    for fn in functions:
+        group = f"/aws/lambda/{fn}"
+        lines: list[str] = []
+        for pattern in patterns:
+            if len(lines) >= max_lines:
+                break
+            try:
+                resp = logs_client.filter_log_events(
+                    logGroupName=group,
+                    startTime=start_ms,
+                    filterPattern=f'"{pattern}"',
+                    limit=max_lines,
+                )
+            except ClientError:
+                continue
+            except Exception:
+                continue
+            for ev in resp.get("events", []):
+                msg = (ev.get("message") or "").strip()
+                if msg:
+                    lines.append(msg)
+                if len(lines) >= max_lines:
+                    break
+
+        deduped = []
+        seen = set()
+        for line in lines:
+            if line in seen:
+                continue
+            seen.add(line)
+            deduped.append(line)
+
+        if deduped:
+            results.append({"function": fn, "lines": deduped[:max_lines]})
+
+    return results
 
 # ---------------------------------------------------------------------------
 # praxis research

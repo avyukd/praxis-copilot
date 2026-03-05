@@ -108,3 +108,60 @@ def test_collect_pipeline_items_filters_day_window(monkeypatch):
 
     assert len(items) == 1
     assert items[0].item_id == "r2"
+
+
+def test_find_prefixes_by_item_id(monkeypatch):
+    def _list_prefix_objects(_s3, prefix):
+        if prefix == "data/raw/filings/":
+            return [
+                {"Key": "data/raw/filings/0001/a1/index.json"},
+                {"Key": "data/raw/filings/0001/a2/index.json"},
+            ]
+        if prefix == "data/raw/press_releases/":
+            return [
+                {"Key": "data/raw/press_releases/gnw/NVDA/a1/index.json"},
+            ]
+        return []
+
+    monkeypatch.setattr(ps, "list_prefix_objects", _list_prefix_objects)
+
+    matches = ps.find_prefixes_by_item_id(object(), item_id="a1", source="all")
+    assert ("filings", "data/raw/filings/0001/a1") in matches
+    assert ("press_releases", "data/raw/press_releases/gnw/NVDA/a1") in matches
+
+
+def test_build_pipeline_trace(monkeypatch):
+    files = [
+        {
+            "Key": "data/raw/filings/0001/a1/index.json",
+            "LastModified": datetime(2026, 3, 5, 14, 0, tzinfo=timezone.utc),
+        },
+        {
+            "Key": "data/raw/filings/0001/a1/extracted.json",
+            "LastModified": datetime(2026, 3, 5, 14, 1, tzinfo=timezone.utc),
+        },
+        {
+            "Key": "data/raw/filings/0001/a1/analysis.json",
+            "LastModified": datetime(2026, 3, 5, 14, 2, tzinfo=timezone.utc),
+        },
+    ]
+
+    monkeypatch.setattr(ps, "list_prefix_objects", lambda _s3, prefix: files)
+
+    def _download(_s3, key):
+        if key.endswith("/index.json"):
+            return b'{"ticker":"NVDA","form_type":"8-K","alert_sent_at":"2026-03-05T10:02:00-05:00"}'
+        if key.endswith("/extracted.json"):
+            return b'{"total_chars":1200,"items":{"2.02":"guidance"}}'
+        if key.endswith("/analysis.json"):
+            return b'{"classification":"BUY","magnitude":0.8,"summary":"Raised outlook"}'
+        raise RuntimeError("missing")
+
+    monkeypatch.setattr(ps, "download_file", _download)
+
+    trace = ps.build_pipeline_trace(object(), source_type="filings", key_prefix="data/raw/filings/0001/a1")
+    assert trace.stage == "alerted"
+    assert trace.ticker == "NVDA"
+    assert trace.analysis_classification == "BUY"
+    assert trace.analysis_magnitude == 0.8
+    assert trace.extracted_items == ["2.02"]
