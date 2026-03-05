@@ -6,6 +6,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import click
 import yaml
@@ -23,6 +24,7 @@ from cli.macro import (
 )
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
 from cli.monitors import monitor
+from cli.pipeline_status import collect_pipeline_items, parse_day_window, summarize_pipeline_items
 from cli.research_prompt import ResearchBudget, generate_research_prompt
 from cli.s3 import (
     BUCKET,
@@ -497,6 +499,109 @@ def events(ticker: str, limit: int):
         except Exception:
             click.echo(f"  {key}  (could not parse)")
 
+
+# ---------------------------------------------------------------------------
+# praxis pipeline day
+# ---------------------------------------------------------------------------
+
+@cli.group()
+def pipeline():
+    """Pipeline observability commands."""
+    pass
+
+
+@pipeline.command("day")
+@click.option("--date", "date_str", default=None, help="ET day in YYYY-MM-DD (default: today ET)")
+@click.option(
+    "--source",
+    type=click.Choice(["all", "filings", "press_releases"]),
+    default="all",
+    show_default=True,
+    help="Source scope",
+)
+@click.option(
+    "--stuck-minutes",
+    type=click.IntRange(1, 24 * 60),
+    default=30,
+    show_default=True,
+    help="Lag threshold to mark stuck stages",
+)
+@click.option("-v", "--verbose", is_flag=True, help="Show per-item details")
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output")
+def pipeline_day(date_str: str | None, source: str, stuck_minutes: int, verbose: bool, as_json: bool):
+    """Show filings/press releases that arrived on a given ET day and their stage."""
+    s3 = get_s3_client()
+    day_start_utc, day_end_utc, target_day = parse_day_window(date_str)
+    items = collect_pipeline_items(
+        s3,
+        day_start_utc=day_start_utc,
+        day_end_utc=day_end_utc,
+        source=source,
+        stuck_minutes=stuck_minutes,
+    )
+    summary = summarize_pipeline_items(items)
+
+    if as_json:
+        payload = {
+            "date": target_day.isoformat(),
+            "source": source,
+            "stuck_minutes": stuck_minutes,
+            "summary": summary,
+            "items": [
+                {
+                    "source_type": item.source_type,
+                    "ticker": item.ticker,
+                    "cik": item.cik,
+                    "form_type": item.form_type,
+                    "source": item.source,
+                    "item_id": item.item_id,
+                    "stage": item.stage,
+                    "arrived_at": item.arrived_at.isoformat(),
+                    "age_minutes": item.age_minutes,
+                    "key_prefix": item.key_prefix,
+                    "alert_sent_at": item.alert_sent_at,
+                }
+                for item in items
+            ],
+        }
+        click.echo(json.dumps(payload, indent=2))
+        return
+
+    click.echo(f"Pipeline day view ({target_day.isoformat()} ET, source={source})")
+    click.echo(f"Total arrived: {summary['total']}")
+
+    stage_counts = summary["stage_counts"]
+    if stage_counts:
+        click.echo("\nBy stage:")
+        for stage in sorted(stage_counts):
+            click.echo(f"  {stage}: {stage_counts[stage]}")
+
+    source_counts = summary["source_counts"]
+    if source_counts:
+        click.echo("\nBy source:")
+        for source_name in sorted(source_counts):
+            click.echo(f"  {source_name}: {source_counts[source_name]}")
+
+    form_counts = summary["form_counts"]
+    if form_counts:
+        click.echo("\nBy form:")
+        for form in sorted(form_counts):
+            click.echo(f"  {form}: {form_counts[form]}")
+
+    click.echo(f"\nAlerts sent: {summary['alerts_sent']}")
+
+    if verbose and items:
+        click.echo("\nItems:")
+        et = ZoneInfo("America/New_York")
+        for item in items:
+            ticker = item.ticker or "-"
+            form = item.form_type or "-"
+            source_label = item.source or "-"
+            arrived_et = item.arrived_at.astimezone(et).strftime("%Y-%m-%d %H:%M:%S %z")
+            click.echo(
+                f"  {item.stage:13} {item.source_type:14} {ticker:8} {form:8} "
+                f"{item.item_id} age={item.age_minutes}m source={source_label} arrived={arrived_et}"
+            )
 
 # ---------------------------------------------------------------------------
 # praxis research

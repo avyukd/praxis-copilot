@@ -75,6 +75,19 @@ def list_prefix(s3_client, prefix: str) -> list[str]:
     return keys
 
 
+def list_prefix_objects(s3_client, prefix: str) -> list[dict]:
+    """List S3 objects under a prefix with metadata from list_objects_v2.
+
+    Each object includes at least: Key, LastModified, Size, ETag, StorageClass.
+    """
+    objects = []
+    paginator = s3_client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            objects.append(obj)
+    return objects
+
+
 def download_file(s3_client, s3_key: str) -> bytes:
     """Download an S3 object and return its contents."""
     response = s3_client.get_object(Bucket=BUCKET, Key=s3_key)
