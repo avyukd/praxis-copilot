@@ -529,7 +529,12 @@ def events(ticker: str, limit: int):
     show_default=True,
     help="Lag threshold to mark stuck stages",
 )
-@click.option("-v", "--verbose", is_flag=True, help="Show per-item details")
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="For ITEM_ID mode, also print full contents of each artifact file",
+)
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON output")
 @click.option("--logs", is_flag=True, help="Include CloudWatch logs (best effort)")
 @click.option("--log-lines", type=click.IntRange(1, 200), default=20, show_default=True, help="Max lines per Lambda")
@@ -626,10 +631,11 @@ def pipeline(
                     f"extracted: total_chars={trace.extracted_total_chars if trace.extracted_total_chars is not None else '-'}  "
                     f"items={','.join(trace.extracted_items) if trace.extracted_items else '-'}"
                 )
+            click.echo("files:")
+            for name in trace.files:
+                click.echo(f"  {name}")
             if verbose:
-                click.echo("files:")
-                for name in trace.files:
-                    click.echo(f"  {name}")
+                _print_trace_file_contents(s3, trace.key_prefix, trace.files)
 
         if logs:
             if logs_payload:
@@ -766,6 +772,20 @@ def _fetch_pipeline_logs(item_id: str, key_prefixes: list[str], max_lines: int, 
             results.append({"function": fn, "lines": deduped[:max_lines]})
 
     return results
+
+
+def _print_trace_file_contents(s3_client, key_prefix: str, files: list[str]) -> None:
+    """Print full file contents for pipeline trace artifact files."""
+    for name in files:
+        key = f"{key_prefix}/{name}"
+        click.echo("\n" + "-" * 60)
+        click.echo(f"{name}:")
+        try:
+            raw = download_file(s3_client, key)
+            text = raw.decode("utf-8", errors="replace")
+            click.echo(text)
+        except Exception as exc:
+            click.echo(f"[error reading file: {exc}]")
 
 # ---------------------------------------------------------------------------
 # praxis research
