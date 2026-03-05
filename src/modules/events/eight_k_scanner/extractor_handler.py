@@ -97,7 +97,7 @@ def _extract_one(
     try:
         # 8-K gets the detailed item/exhibit parser
         if form_type in ("8-K", "8-K/A") or prefix is None:
-            extracted = extract_filing(cik, accession, bucket=bucket)
+            extracted = extract_filing(cik, accession, bucket=bucket, prefix=prefix or "data/raw/8k")
         else:
             # 10-K, 10-Q, etc. get generic text extraction
             extracted = extract_generic_filing(

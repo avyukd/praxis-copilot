@@ -62,14 +62,20 @@ def _should_skip_file(filename: str) -> bool:
     return False
 
 
-def extract_filing(cik: str, accession_number: str, bucket: str | None = None, force: bool = False) -> ExtractedFiling | None:
+def extract_filing(
+    cik: str,
+    accession_number: str,
+    bucket: str | None = None,
+    prefix: str = S3_RAW_PREFIX,
+    force: bool = False,
+) -> ExtractedFiling | None:
     """Extract text from a raw filing in S3. Writes extracted.json back to S3.
 
     Returns the ExtractedFiling, or None if already extracted and not force.
     """
     bucket = bucket or S3_BUCKET
-    prefix = f"{S3_RAW_PREFIX}/{cik}/{accession_number}"
-    output_key = f"{prefix}/extracted.json"
+    filing_prefix = f"{prefix}/{cik}/{accession_number}"
+    output_key = f"{filing_prefix}/extracted.json"
 
     if not force:
         try:
@@ -79,7 +85,7 @@ def extract_filing(cik: str, accession_number: str, bucket: str | None = None, f
         except Exception:
             pass
 
-    index_key = f"{prefix}/index.json"
+    index_key = f"{filing_prefix}/index.json"
     try:
         index_data = read_json_from_s3(bucket, index_key)
     except Exception as e:
@@ -95,7 +101,7 @@ def extract_filing(cik: str, accession_number: str, bucket: str | None = None, f
     files_skipped = 0
 
     if primary_doc:
-        primary_key = f"{prefix}/{primary_doc}"
+        primary_key = f"{filing_prefix}/{primary_doc}"
         try:
             content = _read_s3_file(bucket, primary_key)
             text = _parse_html(content)
@@ -125,7 +131,7 @@ def extract_filing(cik: str, accession_number: str, bucket: str | None = None, f
             files_skipped += 1
             continue
 
-        exhibit_key = f"{prefix}/{filename}"
+        exhibit_key = f"{filing_prefix}/{filename}"
         try:
             content = _read_s3_file(bucket, exhibit_key)
             text = _parse_html(content)

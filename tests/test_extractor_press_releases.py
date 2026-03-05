@@ -42,3 +42,32 @@ def test_extract_press_release_writes_extracted_payload(monkeypatch):
     assert payload["source_type"] == "press_releases"
     assert payload["ticker"] == "NVDA"
     assert payload["text"] == "Launch announced."
+
+
+def test_extract_one_8k_uses_canonical_filings_prefix(monkeypatch):
+    called = {}
+
+    class _Extracted:
+        total_chars = 123
+        items = {"2.02": "Raised guidance"}
+
+    def _extract_filing(cik, accession, bucket=None, prefix=None, force=False):
+        called["cik"] = cik
+        called["accession"] = accession
+        called["bucket"] = bucket
+        called["prefix"] = prefix
+        called["force"] = force
+        return _Extracted()
+
+    monkeypatch.setattr(extractor_handler, "extract_filing", _extract_filing)
+
+    result = extractor_handler._extract_one(
+        bucket="praxis-copilot",
+        cik="0001045810",
+        accession="a1",
+        form_type="8-K",
+        prefix="data/raw/filings",
+    )
+
+    assert result["action"] == "extracted"
+    assert called["prefix"] == "data/raw/filings"

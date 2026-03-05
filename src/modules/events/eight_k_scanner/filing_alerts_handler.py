@@ -68,6 +68,9 @@ def _alert_one(bucket: str, cik: str, accession: str) -> dict:
     if form_type not in enabled_forms:
         return {**status, "action": "skipped", "reason": f"form {form_type} not enabled"}
 
+    if str(classification).upper() == "SELL":
+        return {**status, "action": "skipped", "reason": "classification SELL suppressed"}
+
     if magnitude < SCANNER_MIN_MAGNITUDE:
         return {**status, "action": "below_threshold", "reason": f"mag={magnitude:.2f}"}
 
