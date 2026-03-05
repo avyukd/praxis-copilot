@@ -524,3 +524,10 @@ tickers:
     news_queries:
     - '"Alto Ingredients, Inc." OR "ALTO"'
     research_priority: 5
+  SKM:
+    cik: '0001015650'
+    exchange: NYSE
+    name: SK TELECOM CO LTD
+    news_queries:
+    - '"SK TELECOM CO LTD" OR "SKM"'
+    research_priority: 5
