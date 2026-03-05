@@ -14,6 +14,7 @@ from src.modules.events.eight_k_scanner.storage.s3 import et_now_iso, read_json_
 logger = logging.getLogger(__name__)
 
 FILINGS_PREFIX = "data/raw/filings"
+PRESS_RELEASES_PREFIX = "data/raw/press_releases"
 
 
 def lambda_handler(event, context=None):
@@ -25,18 +26,30 @@ def lambda_handler(event, context=None):
         s3_info = record.get("s3", {})
         bucket = s3_info.get("bucket", {}).get("name", S3_BUCKET)
         key = s3_info.get("object", {}).get("key", "")
-        if not (key.startswith(f"{FILINGS_PREFIX}/") and key.endswith("/analysis.json")):
+        if key.startswith(f"{FILINGS_PREFIX}/") and key.endswith("/analysis.json"):
+            parts = key.split("/")
+            try:
+                raw_idx = parts.index("filings")
+                cik = parts[raw_idx + 1]
+                accession = parts[raw_idx + 2]
+            except (ValueError, IndexError):
+                logger.warning("Cannot parse cik/accession from key: %s", key)
+                continue
+            results.append(_alert_one(bucket, cik, accession))
             continue
 
-        parts = key.split("/")
-        try:
-            raw_idx = parts.index("filings")
-            cik = parts[raw_idx + 1]
-            accession = parts[raw_idx + 2]
-        except (ValueError, IndexError):
-            logger.warning("Cannot parse cik/accession from key: %s", key)
+        if key.startswith(f"{PRESS_RELEASES_PREFIX}/") and key.endswith("/analysis.json"):
+            parts = key.split("/")
+            try:
+                raw_idx = parts.index("press_releases")
+                source = parts[raw_idx + 1]
+                ticker = parts[raw_idx + 2]
+                release_id = parts[raw_idx + 3]
+            except (ValueError, IndexError):
+                logger.warning("Cannot parse source/ticker/release_id from key: %s", key)
+                continue
+            results.append(_alert_press_release_one(bucket, source, ticker, release_id))
             continue
-        results.append(_alert_one(bucket, cik, accession))
 
     return {"processed": len(results), "results": results}
 
@@ -67,6 +80,54 @@ def _alert_one(bucket: str, cik: str, accession: str) -> dict:
     enabled_forms = {f.upper() for f in FILING_ANALYZER_ENABLED_FORMS}
     if form_type not in enabled_forms:
         return {**status, "action": "skipped", "reason": f"form {form_type} not enabled"}
+
+    if classification == "SELL":
+        return {**status, "action": "suppressed_sell"}
+
+    if magnitude < SCANNER_MIN_MAGNITUDE:
+        return {**status, "action": "below_threshold", "reason": f"mag={magnitude:.2f}"}
+
+    if index_data.get("alert_sent_at"):
+        return {**status, "action": "alert_already_sent"}
+
+    if not ticker:
+        return {**status, "action": "error", "reason": "no ticker"}
+
+    sent = send_alert(ticker, analysis, index_data)
+    if sent:
+        index_data["alert_sent_at"] = et_now_iso()
+        write_json_to_s3(bucket, f"{prefix}/index.json", index_data)
+        return {**status, "action": "alerted"}
+    return {**status, "action": "alert_failed"}
+
+
+def _alert_press_release_one(bucket: str, source: str, ticker: str, release_id: str) -> dict:
+    prefix = f"{PRESS_RELEASES_PREFIX}/{source}/{ticker}/{release_id}"
+    status: dict = {
+        "source": source,
+        "ticker": ticker,
+        "release_id": release_id,
+        "action": "skipped",
+    }
+
+    try:
+        index_data = read_json_from_s3(bucket, f"{prefix}/index.json")
+        analysis = read_json_from_s3(bucket, f"{prefix}/analysis.json")
+    except Exception:
+        logger.exception("Cannot read index/analysis for press release %s/%s", ticker, release_id)
+        return {**status, "action": "error", "reason": "missing index/analysis"}
+
+    ticker = index_data.get("ticker", ticker)
+    classification = analysis.get("classification", "NEUTRAL")
+    magnitude = float(analysis.get("magnitude", 0.0) or 0.0)
+    status.update({
+        "ticker": ticker,
+        "classification": classification,
+        "magnitude": magnitude,
+    })
+
+    if classification == "SELL":
+        return {**status, "action": "suppressed_sell"}
 
     if magnitude < SCANNER_MIN_MAGNITUDE:
         return {**status, "action": "below_threshold", "reason": f"mag={magnitude:.2f}"}

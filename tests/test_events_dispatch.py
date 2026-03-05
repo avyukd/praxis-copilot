@@ -139,3 +139,45 @@ def test_lambda_handler_routes_matching_monitor(monkeypatch):
     assert len(emitted) == 1
     assert emitted[0].ticker == "NVDA"
     assert emitted[0].data_type.startswith("filings")
+
+
+def test_lambda_handler_invokes_analyzer_for_press_release_extracted(monkeypatch):
+    invoked_analyzer = []
+
+    monkeypatch.setattr(handler, "_resolve_tickers", lambda bucket, key, parsed: ["SHOP"])
+    monkeypatch.setattr(
+        handler.S3Event,
+        "model_validate",
+        lambda event: SimpleNamespace(
+            Records=[
+                SimpleNamespace(
+                    s3=SimpleNamespace(
+                        bucket=SimpleNamespace(name="praxis-copilot"),
+                        object=SimpleNamespace(
+                            key="data/raw/press_releases/gnw/SHOP/abc123/extracted.json",
+                        ),
+                    )
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(handler, "_load_monitor_registry", lambda bucket: [])
+    monkeypatch.setattr(handler, "_emit_event_record", lambda bucket, event_record: None)
+    monkeypatch.setattr(handler, "_invoke_monitor_collector", lambda monitor, event_record, parsed=None: None)
+    monkeypatch.setattr(handler, "_invoke_filing_analyzer", lambda bucket, key: invoked_analyzer.append((bucket, key)))
+
+    event = {
+        "Records": [
+            {
+                "s3": {
+                    "bucket": {"name": "praxis-copilot"},
+                    "object": {"key": "data/raw/press_releases/gnw/SHOP/abc123/extracted.json"},
+                }
+            }
+        ]
+    }
+
+    result = handler.lambda_handler(event)
+
+    assert result["dispatched"] == 0
+    assert invoked_analyzer == [("praxis-copilot", "data/raw/press_releases/gnw/SHOP/abc123/extracted.json")]

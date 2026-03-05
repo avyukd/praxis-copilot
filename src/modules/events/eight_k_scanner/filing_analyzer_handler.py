@@ -25,6 +25,7 @@ from src.modules.events.eight_k_scanner.storage.s3 import et_now_iso, read_json_
 logger = logging.getLogger(__name__)
 
 FILINGS_PREFIX = "data/raw/filings"
+PRESS_RELEASES_PREFIX = "data/raw/press_releases"
 
 SCREENING_SYSTEM_PROMPT = (
     "Classify this 8-K excerpt as one token only: POSITIVE, NEUTRAL, or NEGATIVE.\n"
@@ -46,18 +47,30 @@ def lambda_handler(event, context=None):
         s3_info = record.get("s3", {})
         bucket = s3_info.get("bucket", {}).get("name", S3_BUCKET)
         key = s3_info.get("object", {}).get("key", "")
-        if not (key.startswith(f"{FILINGS_PREFIX}/") and key.endswith("/extracted.json")):
+        if key.startswith(f"{FILINGS_PREFIX}/") and key.endswith("/extracted.json"):
+            parts = key.split("/")
+            try:
+                raw_idx = parts.index("filings")
+                cik = parts[raw_idx + 1]
+                accession = parts[raw_idx + 2]
+            except (ValueError, IndexError):
+                logger.warning("Cannot parse cik/accession from key: %s", key)
+                continue
+            results.append(_analyze_one(bucket, cik, accession))
             continue
 
-        parts = key.split("/")
-        try:
-            raw_idx = parts.index("filings")
-            cik = parts[raw_idx + 1]
-            accession = parts[raw_idx + 2]
-        except (ValueError, IndexError):
-            logger.warning("Cannot parse cik/accession from key: %s", key)
+        if key.startswith(f"{PRESS_RELEASES_PREFIX}/") and key.endswith("/extracted.json"):
+            parts = key.split("/")
+            try:
+                raw_idx = parts.index("press_releases")
+                source = parts[raw_idx + 1]
+                ticker = parts[raw_idx + 2]
+                release_id = parts[raw_idx + 3]
+            except (ValueError, IndexError):
+                logger.warning("Cannot parse source/ticker/release_id from key: %s", key)
+                continue
+            results.append(_analyze_press_release_one(bucket, source, ticker, release_id))
             continue
-        results.append(_analyze_one(bucket, cik, accession))
 
     return {"processed": len(results), "results": results}
 
@@ -170,6 +183,80 @@ def _analyze_one(bucket: str, cik: str, accession: str) -> dict:
         "classification": analysis_data.get("classification", "NEUTRAL"),
         "magnitude": analysis_data.get("magnitude", 0.0),
         "warnings": warnings,
+    }
+
+
+def _analyze_press_release_one(bucket: str, source: str, ticker: str, release_id: str) -> dict:
+    prefix = f"{PRESS_RELEASES_PREFIX}/{source}/{ticker}/{release_id}"
+    status: dict = {
+        "source": source,
+        "ticker": ticker,
+        "release_id": release_id,
+        "action": "skipped",
+    }
+
+    try:
+        index_data = read_json_from_s3(bucket, f"{prefix}/index.json")
+    except Exception:
+        logger.exception("Cannot read index.json for press release %s/%s", ticker, release_id)
+        return {**status, "action": "error", "reason": "missing index.json"}
+
+    ticker = (index_data.get("ticker") or ticker or "").upper()
+    if not ticker:
+        return {**status, "action": "error", "reason": "no ticker"}
+    status["ticker"] = ticker
+
+    try:
+        extracted_data = read_json_from_s3(bucket, f"{prefix}/extracted.json")
+        extracted = ExtractedFiling(
+            cik="",
+            accession_number=release_id,
+            ticker=ticker,
+            form_type="PRESS_RELEASE",
+            text=extracted_data.get("text", ""),
+            total_chars=int(extracted_data.get("total_chars", 0) or 0),
+        )
+    except Exception:
+        logger.exception("Cannot read extracted.json for press release %s/%s", ticker, release_id)
+        return {**status, "action": "error", "reason": "missing extracted.json"}
+
+    analysis_key = f"{prefix}/analysis.json"
+    try:
+        existing = read_json_from_s3(bucket, analysis_key)
+        return {
+            **status,
+            "action": "already_analyzed",
+            "classification": existing.get("classification", "NEUTRAL"),
+            "magnitude": existing.get("magnitude", 0.0),
+        }
+    except Exception:
+        pass
+
+    if DISABLE_LLM_ANALYSIS:
+        return {
+            **status,
+            "action": "analysis_skipped",
+            "reason": "LLM disabled via DISABLE_LLM_ANALYSIS",
+        }
+
+    snapshot = get_financial_snapshot(ticker)
+    try:
+        result = analyze_filing_with_usage(extracted, snapshot, ticker)
+        analysis_data = result.analysis.model_dump()
+        analysis_data["token_usage"] = result.token_usage.model_dump()
+        analysis_data["analyzed_at"] = et_now_iso()
+        analysis_data["source_type"] = "press_releases"
+        analysis_data["form_type"] = "PRESS_RELEASE"
+        write_json_to_s3(bucket, analysis_key, analysis_data)
+    except Exception:
+        logger.exception("LLM analysis failed for press release %s (%s)", ticker, release_id)
+        return {**status, "action": "error", "reason": "llm failed"}
+
+    return {
+        **status,
+        "action": "analyzed",
+        "classification": analysis_data.get("classification", "NEUTRAL"),
+        "magnitude": analysis_data.get("magnitude", 0.0),
     }
 
 

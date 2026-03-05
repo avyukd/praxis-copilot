@@ -74,8 +74,8 @@ def lambda_handler(event: dict, context=None) -> dict:
             skipped += 1
             continue
 
-        # For canonical filings extracted events, trigger analyzer asynchronously.
-        if parsed.source == "sec-filings-extractor":
+        # For canonical extracted events, trigger analyzer asynchronously.
+        if parsed.source in {"sec-filings-extractor", "press-releases-extractor"}:
             _invoke_filing_analyzer(bucket, key)
 
         tickers = _resolve_tickers(bucket, key, parsed)

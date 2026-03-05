@@ -119,3 +119,34 @@ def test_analyzer_runs_sonnet_when_prescreen_positive(monkeypatch):
     result = analyzer._analyze_one("praxis-copilot", "0001045810", "a4")
     assert result["action"] == "analyzed"
     assert result["screening_outcome"] == "POSITIVE"
+
+
+def test_analyzer_processes_press_release(monkeypatch):
+    def _read(bucket, key):
+        if key.endswith("/index.json"):
+            return {"ticker": "SHOP", "source": "gnw", "release_id": "abc123"}
+        if key.endswith("/extracted.json"):
+            return {"text": "Company announced multi-year commercial win.", "total_chars": 47}
+        raise RuntimeError("missing")
+
+    monkeypatch.setattr(analyzer, "read_json_from_s3", _read)
+    monkeypatch.setattr(analyzer, "get_financial_snapshot", lambda ticker: object())
+
+    class _TokenUsage:
+        def model_dump(self):
+            return {"usage_available": True}
+
+    class _Result:
+        def __init__(self):
+            self.analysis = type("A", (), {"model_dump": lambda self: {"classification": "BUY", "magnitude": 0.8}})()
+            self.token_usage = _TokenUsage()
+
+    writes = []
+    monkeypatch.setattr(analyzer, "analyze_filing_with_usage", lambda extracted, snapshot, ticker: _Result())
+    monkeypatch.setattr(analyzer, "write_json_to_s3", lambda bucket, key, payload: writes.append((key, payload)))
+    monkeypatch.setattr(analyzer, "et_now_iso", lambda: "2026-03-06T00:00:00-06:00")
+
+    result = analyzer._analyze_press_release_one("praxis-copilot", "gnw", "SHOP", "abc123")
+    assert result["action"] == "analyzed"
+    assert result["classification"] == "BUY"
+    assert any(k.endswith("/analysis.json") for k, _ in writes)

@@ -263,6 +263,15 @@ aws s3api put-bucket-notification-configuration \
         ]}}
       },
       {
+        \"Id\": \"press-release-alerts-analysis\",
+        \"LambdaFunctionArn\": \"${alerts_arn}\",
+        \"Events\": [\"s3:ObjectCreated:*\"],
+        \"Filter\": {\"Key\": {\"FilterRules\": [
+          {\"Name\": \"Prefix\", \"Value\": \"data/raw/press_releases/\"},
+          {\"Name\": \"Suffix\", \"Value\": \"analysis.json\"}
+        ]}}
+      },
+      {
         \"Id\": \"dispatch-filings-extracted\",
         \"LambdaFunctionArn\": \"${dispatch_arn}\",
         \"Events\": [\"s3:ObjectCreated:*\"],
