@@ -14,10 +14,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.modules.events.eight_k_scanner.filing_analyzer_handler import (
-    _build_8k_screen_text,
-    _run_8k_prescreen,
-)
 from src.modules.events.eight_k_scanner.models import ExtractedFiling
 
 
@@ -68,7 +64,8 @@ def main() -> None:
 
             extracted_raw = _read_json(s3, args.bucket, f"{prefix}/extracted.json")
             extracted = ExtractedFiling.model_validate(extracted_raw)
-            prescreen = _run_8k_prescreen(extracted)
+            screening = _read_json(s3, args.bucket, f"{prefix}/screening.json")
+            outcome = str(screening.get("outcome", "UNKNOWN")).upper()
 
             analysis_class = ""
             try:
@@ -77,16 +74,16 @@ def main() -> None:
             except Exception:
                 pass
 
-            screen_text = _build_8k_screen_text(extracted)
+            full_text = _full_8k_text(extracted)
             rows.append(
                 {
                     "prefix": prefix,
                     "ticker": index.get("ticker", ""),
                     "form_type": form_type,
-                    "outcome": prescreen.outcome,
-                    "screen_chars": str(len(screen_text)),
-                    "full_chars": str(len(_full_8k_text(extracted))),
-                    "would_run_sonnet": "yes" if prescreen.outcome == "POSITIVE" else "no",
+                    "outcome": outcome,
+                    "screen_chars": "",
+                    "full_chars": str(len(full_text)),
+                    "would_run_sonnet": "yes" if outcome == "POSITIVE" else "no",
                     "analysis_classification": analysis_class,
                 }
             )
