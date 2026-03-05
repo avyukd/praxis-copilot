@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import boto3
@@ -12,7 +13,7 @@ from .models import MonitorSnapshot
 
 logger = logging.getLogger(__name__)
 
-BUCKET = "praxis-copilot"
+BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 MONITORS_PREFIX = "data/monitors"
 
 

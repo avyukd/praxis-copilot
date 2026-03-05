@@ -6,6 +6,7 @@ Loads monitor configs from S3, runs collectors, writes snapshot artifacts.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,7 +20,7 @@ from src.modules.monitor.evaluator.models import EvaluatorResult, MonitorConfig
 
 logger = logging.getLogger(__name__)
 
-BUCKET = "praxis-copilot"
+BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 CONFIG_PREFIX = "config/monitors/"
 
 

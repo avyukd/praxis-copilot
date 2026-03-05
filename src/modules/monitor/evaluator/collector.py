@@ -61,12 +61,25 @@ def _collect_filing(
     s3_path = event_data["s3_path"]
     ticker = event_data.get("ticker", config.tickers[0] if config.tickers else "?")
 
-    # Read the extracted.json from S3
-    try:
-        resp = _get_s3_client().get_object(Bucket=BUCKET, Key=s3_path)
-        extracted = json.loads(resp["Body"].read())
-    except Exception:
-        logger.exception("Failed to read extracted filing at %s", s3_path)
+    # Prefer extracted.json content. Some legacy dispatch paths pass analysis.json,
+    # which lacks filing text and would otherwise make the monitor a no-op.
+    extracted = None
+    loaded_key = None
+    candidate_keys = [s3_path]
+    if s3_path.endswith("/analysis.json"):
+        candidate_keys = [s3_path.replace("/analysis.json", "/extracted.json"), s3_path]
+
+    for key in candidate_keys:
+        try:
+            resp = _get_s3_client().get_object(Bucket=BUCKET, Key=key)
+            extracted = json.loads(resp["Body"].read())
+            loaded_key = key
+            break
+        except Exception:
+            logger.debug("Failed to read filing payload at %s", key)
+
+    if extracted is None or loaded_key is None:
+        logger.exception("Failed to read filing payload for %s", s3_path)
         return {"status": "unchanged", "source": f"filing:{s3_path}", "current_state": ""}
 
     # Build filing text from extracted data
@@ -74,7 +87,7 @@ def _collect_filing(
     if not filing_text.strip():
         return {
             "status": "unchanged",
-            "source": f"filing:{s3_path}",
+            "source": f"filing:{loaded_key}",
             "current_state": "Empty filing text",
         }
 
@@ -90,13 +103,13 @@ def _collect_filing(
         response = call_sonnet(system=system_prompt, user=user_prompt)
     except Exception:
         logger.exception("Sonnet call failed for monitor %s", config.id)
-        return {"status": "unchanged", "source": f"filing:{s3_path}", "current_state": ""}
+        return {"status": "unchanged", "source": f"filing:{loaded_key}", "current_state": ""}
 
     # Parse Sonnet response for significance
     significance = _parse_significance(response)
 
     return {
-        "source": f"filing:{s3_path}",
+        "source": f"filing:{loaded_key}",
         "current_state": response,
         "status": "updated",
         "delta_from_previous": _compute_delta(previous_state, response),

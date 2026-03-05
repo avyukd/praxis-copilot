@@ -2,6 +2,17 @@
 # Deploy the monitor system: evaluator Lambda, EventBridge rules, S3 notifications
 set -euo pipefail
 
+# Load deploy env if present (same convention as deploy_8k_events.sh)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-${REPO_ROOT}/.env.deploy}"
+if [[ -f "${DEPLOY_ENV_FILE}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${DEPLOY_ENV_FILE}"
+    set +a
+fi
+
 REGION="${AWS_REGION:-us-east-1}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET="praxis-copilot"
@@ -16,6 +27,13 @@ echo ""
 echo "--- Deploying monitor-evaluator Lambda ---"
 
 EVALUATOR_FUNCTION="${LAMBDA_PREFIX}-monitor-evaluator"
+ENV_VARS="S3_BUCKET=${BUCKET}"
+if [[ -n "${SNS_TOPIC_ARN:-}" ]]; then
+    ENV_VARS="${ENV_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN}"
+fi
+if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    ENV_VARS="${ENV_VARS},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+fi
 
 # Check if function exists
 if aws lambda get-function --function-name "$EVALUATOR_FUNCTION" --region "$REGION" 2>/dev/null; then
@@ -35,7 +53,7 @@ else
         --zip-file fileb://dist/monitor-evaluator.zip \
         --timeout 300 \
         --memory-size 512 \
-        --environment "Variables={S3_BUCKET=${BUCKET},SNS_TOPIC_ARN=${SNS_TOPIC_ARN:-}}" \
+        --environment "Variables={${ENV_VARS}}" \
         --region "$REGION" \
         --no-cli-pager
 fi
@@ -80,8 +98,10 @@ DISPATCH_FUNCTION="${LAMBDA_PREFIX}-dispatch"
 # This adds the filings/ prefix trigger alongside existing triggers.
 # See deploy_8k_events.sh for the full notification config.
 
-echo "IMPORTANT: Update the S3 notification configuration in deploy_8k_events.sh"
-echo "to include the new prefix: data/raw/filings/ -> ${DISPATCH_FUNCTION}"
+echo "deploy_8k_events.sh now includes:"
+echo "  - data/raw/filings/*/index.json -> extractor"
+echo "  - data/raw/filings/*/extracted.json -> ${DISPATCH_FUNCTION}"
+echo "Run scripts/deploy_8k_events.sh after this script to apply the bucket notification config."
 
 # --- 4. Sync monitor configs to S3 ---
 echo ""

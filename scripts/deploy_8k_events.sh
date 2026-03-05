@@ -44,6 +44,7 @@ CA_ANALYZER_FUNCTION="${CA_ANALYZER_FUNCTION:-8k-scanner-ca-analyzer}"
 US_GNW_POLLER_FUNCTION="${US_GNW_POLLER_FUNCTION:-8k-scanner-us-gnw-poller}"
 US_GNW_ANALYZER_FUNCTION="${US_GNW_ANALYZER_FUNCTION:-8k-scanner-us-gnw-analyzer}"
 DISPATCH_FUNCTION="${DISPATCH_FUNCTION:-8k-scanner-dispatch}"
+MONITOR_EVALUATOR_FUNCTION="${MONITOR_EVALUATOR_FUNCTION:-praxis-monitor-evaluator}"
 
 POLLER_RULE="${POLLER_RULE:-8k-scanner-poller-cron}"
 CA_POLLER_RULE="${CA_POLLER_RULE:-8k-scanner-ca-poller-cron}"
@@ -88,6 +89,25 @@ if ! aws iam get-role --role-name "${ROLE_NAME}" >/dev/null 2>&1; then
 
   echo "Waiting for IAM role propagation..."
   sleep 10
+fi
+
+# Allow dispatch Lambda (running under ROLE_NAME) to invoke the monitor evaluator.
+if ! aws iam put-role-policy \
+  --role-name "${ROLE_NAME}" \
+  --policy-name "AllowInvokeMonitorEvaluator" \
+  --policy-document "{
+    \"Version\": \"2012-10-17\",
+    \"Statement\": [
+      {
+        \"Effect\": \"Allow\",
+        \"Action\": \"lambda:InvokeFunction\",
+        \"Resource\": \"arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:${MONITOR_EVALUATOR_FUNCTION}\"
+      }
+    ]
+  }" >/dev/null; then
+  echo "WARN: could not attach inline IAM invoke policy to ${ROLE_NAME}."
+  echo "      If dispatch cannot invoke ${MONITOR_EVALUATOR_FUNCTION}, add a Lambda resource policy"
+  echo "      via aws lambda add-permission on ${MONITOR_EVALUATOR_FUNCTION} for role ${ROLE_NAME}."
 fi
 
 COMMON_VARS="S3_BUCKET=${S3_BUCKET},SEC_USER_AGENT=${SEC_USER_AGENT},FMP_API_KEY=${FMP_API_KEY},EODHD_API_KEY=${EODHD_API_KEY},MARKET_CAP_THRESHOLD=${MARKET_CAP_THRESHOLD},CA_MARKET_CAP_THRESHOLD=${CA_MARKET_CAP_THRESHOLD}"
@@ -219,6 +239,15 @@ aws s3api put-bucket-notification-configuration \
         ]}}
       },
       {
+        \"Id\": \"filings-extractor-index\",
+        \"LambdaFunctionArn\": \"${extractor_arn}\",
+        \"Events\": [\"s3:ObjectCreated:*\"],
+        \"Filter\": {\"Key\": {\"FilterRules\": [
+          {\"Name\": \"Prefix\", \"Value\": \"data/raw/filings/\"},
+          {\"Name\": \"Suffix\", \"Value\": \"index.json\"}
+        ]}}
+      },
+      {
         \"Id\": \"8k-analyzer-extracted\",
         \"LambdaFunctionArn\": \"${analyzer_arn}\",
         \"Events\": [\"s3:ObjectCreated:*\"],
@@ -252,6 +281,15 @@ aws s3api put-bucket-notification-configuration \
         \"Filter\": {\"Key\": {\"FilterRules\": [
           {\"Name\": \"Prefix\", \"Value\": \"data/raw/8k/\"},
           {\"Name\": \"Suffix\", \"Value\": \"analysis.json\"}
+        ]}}
+      },
+      {
+        \"Id\": \"dispatch-filings-extracted\",
+        \"LambdaFunctionArn\": \"${dispatch_arn}\",
+        \"Events\": [\"s3:ObjectCreated:*\"],
+        \"Filter\": {\"Key\": {\"FilterRules\": [
+          {\"Name\": \"Prefix\", \"Value\": \"data/raw/filings/\"},
+          {\"Name\": \"Suffix\", \"Value\": \"extracted.json\"}
         ]}}
       },
       {
