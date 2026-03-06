@@ -531,3 +531,38 @@ tickers:
     news_queries:
     - '"SK TELECOM CO LTD" OR "SKM"'
     research_priority: 5
+  MKTW:
+    cik: 0001805651
+    exchange: Nasdaq
+    name: MARKETWISE, INC.
+    news_queries:
+    - '"MARKETWISE, INC." OR "MKTW"'
+    research_priority: 5
+  KMFG:
+    cik: 0001935033
+    exchange: OTC
+    name: KEEMO Fashion Group Ltd
+    news_queries:
+    - '"KEEMO Fashion Group Ltd" OR "KMFG"'
+    research_priority: 5
+  IMRX:
+    cik: 0001790340
+    exchange: Nasdaq
+    name: Immuneering Corp
+    news_queries:
+    - '"Immuneering Corp" OR "IMRX"'
+    research_priority: 5
+  COHN:
+    cik: '0001270436'
+    exchange: NYSE
+    name: Cohen & Co Inc.
+    news_queries:
+    - '"Cohen & Co Inc." OR "COHN"'
+    research_priority: 5
+  COBA:
+    cik: '0001727255'
+    exchange: OTC
+    name: Chilean Cobalt Corp.
+    news_queries:
+    - '"Chilean Cobalt Corp." OR "COBA"'
+    research_priority: 5
