@@ -11,6 +11,7 @@ from src.modules.events.eight_k_scanner.analyze.llm import analyze_filing_with_u
 from src.modules.events.eight_k_scanner.config import (
     DISABLE_LLM_ANALYSIS,
     ENABLE_8K_HAIKU_SCREEN,
+    ENABLE_PRESS_RELEASE_HAIKU_SCREEN,
     FILING_ANALYZER_ENABLED_FORMS,
     HAIKU_PRESCREEN_MODEL,
     S3_BUCKET,
@@ -28,7 +29,7 @@ FILINGS_PREFIX = "data/raw/filings"
 PRESS_RELEASES_PREFIX = "data/raw/press_releases"
 
 SCREENING_SYSTEM_PROMPT = (
-    "Classify this 8-K excerpt as one token only: POSITIVE, NEUTRAL, or NEGATIVE.\n"
+    "Classify this filing or press-release excerpt as one token only: POSITIVE, NEUTRAL, or NEGATIVE.\n"
     "When evidence is ambiguous, mixed, or insufficient, prefer POSITIVE over NEUTRAL.\n"
     "Return only valid JSON object: {\"outcome\":\"POSITIVE|NEUTRAL|NEGATIVE\"}."
 )
@@ -232,6 +233,35 @@ def _analyze_press_release_one(bucket: str, source: str, ticker: str, release_id
         }
     except Exception:
         pass
+
+    if ENABLE_PRESS_RELEASE_HAIKU_SCREEN:
+        screening: PrescreenResult | None = None
+        screening_error: str | None = None
+        try:
+            screening = _run_8k_prescreen(extracted)
+        except Exception as exc:
+            logger.warning(
+                "PR Haiku prescreen failed for %s/%s/%s: %s",
+                source,
+                ticker,
+                release_id,
+                exc,
+            )
+            screening_error = exc.__class__.__name__
+
+        screening_data = {"outcome": screening.outcome if screening else "ERROR"}
+        if screening_error:
+            screening_data["error"] = screening_error
+        write_json_to_s3(bucket, f"{prefix}/screening.json", screening_data)
+
+        if screening:
+            status["screening_outcome"] = screening.outcome
+        if screening and screening.outcome in ("NEGATIVE", "NEUTRAL"):
+            return {
+                **status,
+                "action": "screened_out",
+                "reason": f"haiku_outcome={screening.outcome}",
+            }
 
     if DISABLE_LLM_ANALYSIS:
         return {

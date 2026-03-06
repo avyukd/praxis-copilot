@@ -122,6 +122,8 @@ def test_analyzer_runs_sonnet_when_prescreen_positive(monkeypatch):
 
 
 def test_analyzer_processes_press_release(monkeypatch):
+    monkeypatch.setattr(analyzer, "ENABLE_PRESS_RELEASE_HAIKU_SCREEN", False)
+
     def _read(bucket, key):
         if key.endswith("/index.json"):
             return {"ticker": "SHOP", "source": "gnw", "release_id": "abc123"}
@@ -150,3 +152,29 @@ def test_analyzer_processes_press_release(monkeypatch):
     assert result["action"] == "analyzed"
     assert result["classification"] == "BUY"
     assert any(k.endswith("/analysis.json") for k, _ in writes)
+
+
+def test_analyzer_screens_out_press_release(monkeypatch):
+    monkeypatch.setattr(analyzer, "ENABLE_PRESS_RELEASE_HAIKU_SCREEN", True)
+
+    def _read(bucket, key):
+        if key.endswith("/index.json"):
+            return {"ticker": "SHOP", "source": "gnw", "release_id": "abc123"}
+        if key.endswith("/extracted.json"):
+            return {"text": "Company announced update.", "total_chars": 26}
+        raise RuntimeError("missing")
+
+    writes = []
+    monkeypatch.setattr(analyzer, "read_json_from_s3", _read)
+    monkeypatch.setattr(analyzer, "write_json_to_s3", lambda bucket, key, payload: writes.append((key, payload)))
+    monkeypatch.setattr(
+        analyzer,
+        "_run_8k_prescreen",
+        lambda extracted: analyzer.PrescreenResult(outcome="NEUTRAL"),
+    )
+
+    result = analyzer._analyze_press_release_one("praxis-copilot", "gnw", "SHOP", "abc123")
+    assert result["action"] == "screened_out"
+    assert result["screening_outcome"] == "NEUTRAL"
+    assert any(k.endswith("/screening.json") for k, _ in writes)
+    assert not any(k.endswith("/analysis.json") for k, _ in writes)
