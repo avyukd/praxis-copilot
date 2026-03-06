@@ -18,6 +18,7 @@ class TickerRegistryEntry(BaseModel):
     exchange: str
     name: str
     news_queries: list[str]
+    edgar_supported: bool = True
     universe_status: str | None = None
     research_priority: int = 5  # 0-10, controls depth of research analysis
 

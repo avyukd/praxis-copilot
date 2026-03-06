@@ -13,7 +13,14 @@ from cli.s3 import BUCKET
 logger = logging.getLogger(__name__)
 
 
-def run_ingestion(ticker: str, cik: str, s3_client) -> IngestionResult:
+def run_ingestion(
+    ticker: str,
+    cik: str,
+    s3_client,
+    *,
+    skip_sec_filings: bool = False,
+    skip_fundamentals: bool = False,
+) -> IngestionResult:
     """Run all ingestion steps for a ticker, uploading results to S3.
 
     Each step is error-isolated — if one fails, the others still run.
@@ -25,41 +32,51 @@ def run_ingestion(ticker: str, cik: str, s3_client) -> IngestionResult:
     base_prefix = f"data/research/{ticker}/data"
 
     # 1. SEC Filings
-    try:
-        sections = ingest_sec_filings(cik, ticker)
-        for section in sections:
-            s3_key = (
-                f"{base_prefix}/filings/{section.filing_type}/"
-                f"{section.period}/{section.section_name}.txt"
-            )
-            _upload(s3_client, s3_key, section.text)
-        result.filings_count = len(sections)
-        logger.info(f"Ingested {len(sections)} filing sections for {ticker}")
-    except Exception as e:
-        msg = f"SEC filings ingestion failed: {e}"
-        logger.warning(msg)
+    if skip_sec_filings:
+        msg = "SEC filings ingestion skipped"
+        logger.info(f"{msg} for {ticker}")
         result.warnings.append(msg)
+    else:
+        try:
+            sections = ingest_sec_filings(cik, ticker)
+            for section in sections:
+                s3_key = (
+                    f"{base_prefix}/filings/{section.filing_type}/"
+                    f"{section.period}/{section.section_name}.txt"
+                )
+                _upload(s3_client, s3_key, section.text)
+            result.filings_count = len(sections)
+            logger.info(f"Ingested {len(sections)} filing sections for {ticker}")
+        except Exception as e:
+            msg = f"SEC filings ingestion failed: {e}"
+            logger.warning(msg)
+            result.warnings.append(msg)
 
     # 2. Fundamentals
-    try:
-        fundamentals = ingest_fundamentals(ticker)
-        if fundamentals:
-            raw_data = fundamentals.model_dump()
-            # Upload raw JSON (for MCP server to query)
-            s3_key = f"{base_prefix}/fundamentals/fundamentals.json"
-            _upload(s3_client, s3_key, json.dumps(raw_data, default=str))
-            # Upload compact summary (for Claude to read directly)
-            summary = generate_summary(raw_data)
-            s3_key_summary = f"{base_prefix}/fundamentals/summary.md"
-            _upload(s3_client, s3_key_summary, summary)
-            result.fundamentals_source = fundamentals.source
-            logger.info(f"Ingested fundamentals from {fundamentals.source}")
-        else:
-            result.warnings.append("No fundamental data available")
-    except Exception as e:
-        msg = f"Fundamentals ingestion failed: {e}"
-        logger.warning(msg)
+    if skip_fundamentals:
+        msg = "Fundamentals ingestion skipped"
+        logger.info(f"{msg} for {ticker}")
         result.warnings.append(msg)
+    else:
+        try:
+            fundamentals = ingest_fundamentals(ticker)
+            if fundamentals:
+                raw_data = fundamentals.model_dump()
+                # Upload raw JSON (for MCP server to query)
+                s3_key = f"{base_prefix}/fundamentals/fundamentals.json"
+                _upload(s3_client, s3_key, json.dumps(raw_data, default=str))
+                # Upload compact summary (for Claude to read directly)
+                summary = generate_summary(raw_data)
+                s3_key_summary = f"{base_prefix}/fundamentals/summary.md"
+                _upload(s3_client, s3_key_summary, summary)
+                result.fundamentals_source = fundamentals.source
+                logger.info(f"Ingested fundamentals from {fundamentals.source}")
+            else:
+                result.warnings.append("No fundamental data available")
+        except Exception as e:
+            msg = f"Fundamentals ingestion failed: {e}"
+            logger.warning(msg)
+            result.warnings.append(msg)
 
     # 3. Transcripts
     try:

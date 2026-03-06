@@ -182,24 +182,42 @@ def universe_add(tickers: tuple[str, ...], priority: int):
         # Resolve ticker via EDGAR
         click.echo(f"  Resolving via EDGAR...")
         info = resolve_ticker(ticker)
-        if not info:
-            click.echo(f"  Could not resolve {ticker} via EDGAR. Skipping.")
-            continue
-
-        click.echo(f"  Found: {info.name} (CIK: {info.cik}, Exchange: {info.exchange})")
+        if info:
+            click.echo(f"  Found: {info.name} (CIK: {info.cik}, Exchange: {info.exchange})")
+            entry = TickerRegistryEntry(
+                cik=info.cik,
+                exchange=info.exchange,
+                name=info.name,
+                news_queries=[f'"{info.name}" OR "{ticker}"'],
+                research_priority=priority,
+                edgar_supported=True,
+            )
+        else:
+            click.echo(f"  Could not resolve {ticker} via EDGAR.")
+            click.echo("  Warning: this may be a typo. Non-EDGAR tickers skip SEC filings and fundamentals ingestion.")
+            confirmed = click.confirm(
+                f"  Add {ticker} as a non-EDGAR ticker anyway?",
+                default=False,
+            )
+            if not confirmed:
+                click.echo("  Skipping.")
+                continue
+            entry = TickerRegistryEntry(
+                cik=ticker,
+                exchange="NON_US",
+                name=ticker,
+                news_queries=[f'"{ticker}"'],
+                research_priority=priority,
+                edgar_supported=False,
+            )
+            click.echo("  Added as non-EDGAR ticker (SEC filings + fundamentals ingestion will be skipped).")
 
         # Update configs
         universe_cfg.tickers.append(ticker)
         existing = registry_cfg.tickers.get(ticker)
         if existing and existing.universe_status == "external":
             click.echo(f"  Promoting {ticker} from external to in-universe")
-        registry_cfg.tickers[ticker] = TickerRegistryEntry(
-            cik=info.cik,
-            exchange=info.exchange,
-            name=info.name,
-            news_queries=[f'"{info.name}" OR "{ticker}"'],
-            research_priority=priority,
-        )
+        registry_cfg.tickers[ticker] = entry
 
         # Save after each ticker so progress isn't lost
         save_yaml(universe_path, universe_cfg.model_dump())
@@ -207,7 +225,12 @@ def universe_add(tickers: tuple[str, ...], priority: int):
 
         # Run data ingestion
         click.echo(f"  Ingesting data...")
-        result = run_ingestion(ticker, info.cik, s3)
+        result = run_ingestion(
+            ticker,
+            entry.cik,
+            s3,
+            **_ingestion_options_for_registry_entry(entry),
+        )
         click.echo(f"  Filings: {result.filings_count} | Fundamentals: {result.fundamentals_source or 'N/A'} | Transcripts: {result.transcripts_count}")
         if result.warnings:
             for w in result.warnings:
@@ -336,7 +359,12 @@ def _stage_ticker(ticker: str, config_dir: Path, registry_cfg, s3, macro_files: 
         click.echo(f"  No ingested data found. Running ingestion...")
         entry = registry_cfg.tickers.get(ticker)
         if entry:
-            result = run_ingestion(ticker, entry.cik, s3)
+            result = run_ingestion(
+                ticker,
+                entry.cik,
+                s3,
+                **_ingestion_options_for_registry_entry(entry),
+            )
             click.echo(f"  Filings: {result.filings_count}, Fundamentals: {result.fundamentals_source or 'N/A'}, Transcripts: {result.transcripts_count}")
             data_keys = list_prefix(s3, data_prefix)
         else:
@@ -448,6 +476,17 @@ def _build_manifest(data_dir: Path) -> str:
                 size_str = f"{size}B"
             lines.append(f"  - data/{relative} ({size_str})")
     return "\n".join(lines)
+
+
+def _ingestion_options_for_registry_entry(entry: TickerRegistryEntry | None) -> dict[str, bool]:
+    if not entry:
+        return {}
+    if entry.edgar_supported:
+        return {}
+    return {
+        "skip_sec_filings": True,
+        "skip_fundamentals": True,
+    }
 
 
 # ---------------------------------------------------------------------------
