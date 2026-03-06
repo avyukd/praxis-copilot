@@ -27,6 +27,7 @@ from cli.macro import (
 )
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
 from cli.monitors import monitor
+from cli.pipeline_interactive import interactive_pipeline_day_view, trace_payload
 from cli.pipeline_status import (
     build_pipeline_trace,
     collect_pipeline_items,
@@ -537,6 +538,12 @@ def events(ticker: str, limit: int):
     is_flag=True,
     help="For ITEM_ID mode, print full derived JSON outputs (extracted/screening/analysis)",
 )
+@click.option(
+    "-i",
+    "--interactive",
+    is_flag=True,
+    help="Interactive day browser to inspect filings/releases in a pager",
+)
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON output")
 @click.option("--logs", is_flag=True, help="Include CloudWatch logs (best effort)")
 @click.option("--log-lines", type=click.IntRange(1, 200), default=20, show_default=True, help="Max lines per Lambda")
@@ -547,6 +554,7 @@ def pipeline(
     source: str,
     stuck_minutes: int,
     verbose: bool,
+    interactive: bool,
     as_json: bool,
     logs: bool,
     log_lines: int,
@@ -565,6 +573,9 @@ def pipeline(
     """
     s3 = get_s3_client()
 
+    if interactive and (item_id or as_json):
+        raise click.UsageError("--interactive is supported only for day view (without ITEM_ID and --json).")
+
     if item_id:
         matches = find_prefixes_by_item_id(s3, item_id=item_id, source=source)
         if not matches:
@@ -575,34 +586,7 @@ def pipeline(
             return
 
         traces = [build_pipeline_trace(s3, source_type=src_type, key_prefix=prefix) for src_type, prefix in matches]
-        traces_payload = [
-            {
-                "source_type": trace.source_type,
-                "key_prefix": trace.key_prefix,
-                "item_id": trace.item_id,
-                "ticker": trace.ticker,
-                "cik": trace.cik,
-                "form_type": trace.form_type,
-                "source": trace.source,
-                "stage": trace.stage,
-                "files": trace.files,
-                "arrived_at": trace.arrived_at,
-                "extracted_at": trace.extracted_at,
-                "analyzed_at": trace.analyzed_at,
-                "screening_at": trace.screening_at,
-                "alert_sent_at": trace.alert_sent_at,
-                "analysis": {
-                    "classification": trace.analysis_classification,
-                    "magnitude": trace.analysis_magnitude,
-                    "summary": trace.analysis_summary,
-                },
-                "extracted": {
-                    "total_chars": trace.extracted_total_chars,
-                    "items": trace.extracted_items,
-                },
-            }
-            for trace in traces
-        ]
+        traces_payload = [trace_payload(trace) for trace in traces]
 
         logs_payload = []
         if logs:
@@ -676,6 +660,10 @@ def pipeline(
         stuck_minutes=stuck_minutes,
     )
     summary = summarize_pipeline_items(items)
+
+    if interactive:
+        interactive_pipeline_day_view(s3_client=s3, items=items, target_day=target_day, source=source)
+        return
 
     if as_json:
         payload = {
@@ -820,6 +808,7 @@ def _print_trace_file_contents(s3_client, key_prefix: str, files: list[str]) -> 
 
     if printed == 0:
         click.echo("\n(no derived JSON artifacts found)")
+
 
 # ---------------------------------------------------------------------------
 # praxis research
