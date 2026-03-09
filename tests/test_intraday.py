@@ -119,6 +119,17 @@ def test_volume_velocity_no_alert_normal_period():
     assert len(alerts) == 0
 
 
+def test_volume_velocity_skips_first_invocation():
+    config = ManageConfig(volume_velocity_multiplier=2.0)
+    state = IntradayTickerState(last_volume=0)
+
+    # First poll: last_volume=0, should skip even with large volume
+    price = _make_price(volume=10_000_000, adtv=50_000_000.0)
+    alerts = check_volume_velocity(price, config, state)
+    assert len(alerts) == 0
+    assert state.last_volume == 10_000_000
+
+
 def test_run_all_checks_with_overrides():
     config = ManageConfig(move_from_close_pct=5.0, reversal_pct=5.0)
     state = IntradayTickerState()

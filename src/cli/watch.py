@@ -140,10 +140,13 @@ def save_alert_state(state: AlertState) -> None:
 def _load_manage_config_local() -> tuple[ManageConfig, dict[str, dict[str, Any]]]:
     raw = load_yaml(get_config_dir() / "manage.yaml")
     defaults = raw.get("defaults", {})
-    config = ManageConfig(
-        price_move_pct=defaults.get("price_move_pct", 5.0),
-        volume_anomaly_multiplier=defaults.get("volume_anomaly_multiplier", 3.0),
-    )
+    # Support legacy key name
+    if "price_move_pct" in defaults and "move_from_close_pct" not in defaults:
+        defaults["move_from_close_pct"] = defaults.pop("price_move_pct")
+    config = ManageConfig(**{
+        k: v for k, v in defaults.items()
+        if k in ManageConfig.model_fields
+    })
     return config, raw.get("overrides", {})
 
 

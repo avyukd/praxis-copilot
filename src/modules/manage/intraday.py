@@ -206,9 +206,14 @@ def check_volume_velocity(
     now = datetime.now(timezone.utc)
     threshold = config.volume_velocity_multiplier
 
-    volume_delta = price_data.volume - ticker_state.last_volume
+    prev_volume = ticker_state.last_volume
     ticker_state.last_volume = price_data.volume
 
+    # Skip first invocation — no prior volume to compare against
+    if prev_volume == 0:
+        return alerts
+
+    volume_delta = price_data.volume - prev_volume
     if volume_delta <= 0 or price_data.adtv <= 0:
         return alerts
 
