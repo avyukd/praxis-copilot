@@ -57,28 +57,35 @@ def _filter_monitors(
     trigger_sources: list[str] | None,
     s3_client: boto3.client | None = None,
     now: datetime | None = None,
-) -> list[MonitorConfig]:
+) -> tuple[list[MonitorConfig], dict[str, snapshot.MonitorSnapshot | None]]:
     """Filter monitors based on trigger type, sources, and cadence.
+
+    Returns (configs_to_run, {monitor_id: previous_snapshot}) so callers
+    can reuse the snapshots already loaded for cadence checks.
 
     For event triggers: match filing monitors whose listen_keys overlap with trigger_sources.
     For scheduled triggers: return scraper and search monitors whose cadence has elapsed.
     """
+    prev_snapshots: dict[str, snapshot.MonitorSnapshot | None] = {}
+
     if trigger_type == "event" and trigger_sources:
         source_set = set(trigger_sources)
-        return [
+        matched = [
             c for c in configs
             if c.type == "filing" and bool(set(c.listen_keys) & source_set)
         ]
+        return matched, prev_snapshots
 
     # Scheduled run: filter scraper/search monitors by cadence
     candidates = [c for c in configs if c.type in ("scraper", "search")]
     if not s3_client or not now:
-        return candidates
+        return candidates, prev_snapshots
 
     due: list[MonitorConfig] = []
     for config in candidates:
         cadence_hours = cadence_to_hours(config.cadence, config.frequency)
         prev = snapshot.load_previous_snapshot(s3_client, config.id)
+        prev_snapshots[config.id] = prev
         if prev is None:
             due.append(config)
             continue
@@ -96,7 +103,7 @@ def _filter_monitors(
                 )
         except (ValueError, TypeError):
             due.append(config)
-    return due
+    return due, prev_snapshots
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -123,10 +130,11 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     # If a specific monitor is requested, evaluate only that one
     monitor_id = event.get("monitor_id")
+    cached_snapshots: dict[str, snapshot.MonitorSnapshot | None] = {}
     if monitor_id:
         configs = [c for c in all_configs if c.id == monitor_id]
     else:
-        configs = _filter_monitors(all_configs, trigger_type, trigger_sources, s3_client=s3, now=now)
+        configs, cached_snapshots = _filter_monitors(all_configs, trigger_type, trigger_sources, s3_client=s3, now=now)
 
     logger.info(
         "Evaluating %d monitors (trigger_type=%s, sources=%s)",
@@ -139,8 +147,11 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     for config in configs:
         try:
-            # Load previous snapshot for delta detection
-            previous = snapshot.load_previous_snapshot(s3, config.id)
+            # Reuse snapshot from cadence check if available, else load
+            if config.id in cached_snapshots:
+                previous = cached_snapshots[config.id]
+            else:
+                previous = snapshot.load_previous_snapshot(s3, config.id)
 
             # Run collector with event data
             collected = collector.collect(config, previous, event_data=event_data)

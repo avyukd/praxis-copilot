@@ -357,16 +357,19 @@ def _haiku_prefilter(
         logger.warning("Haiku pre-filter failed for monitor %s, passing all results through", config.id)
         return results
 
-    # Parse response — extract integers
+    # Parse response — extract all standalone integers via regex.
+    # This handles prose like "Results 0, 2, and 5 are relevant" correctly.
+    import re
+
     response_stripped = response.strip()
     if response_stripped.upper() == "NONE":
         return []
 
-    relevant_indices: set[int] = set()
-    for token in response_stripped.replace("\n", ",").split(","):
-        token = token.strip()
-        if token.isdigit():
-            relevant_indices.add(int(token))
+    relevant_indices = {int(m) for m in re.findall(r"\b(\d+)\b", response_stripped)}
+
+    # Guard against out-of-range indices
+    max_idx = len(results) - 1
+    relevant_indices = {i for i in relevant_indices if i <= max_idx}
 
     return [r for i, r in enumerate(results) if i in relevant_indices]
 

@@ -77,7 +77,9 @@ def store_snapshot(
     body = yaml.dump(
         snapshot.model_dump(), default_flow_style=False, allow_unicode=True
     )
-    dated_key = f"{MONITORS_PREFIX}/{snapshot.monitor_id}/{snapshot.date}.yaml"
+    # Use filesystem-safe key (no colons) while snapshot.date retains ISO format
+    safe_date = snapshot.date.replace(":", "")
+    dated_key = f"{MONITORS_PREFIX}/{snapshot.monitor_id}/{safe_date}.yaml"
     latest_key = f"{MONITORS_PREFIX}/{snapshot.monitor_id}/latest.yaml"
 
     s3_client.put_object(Bucket=BUCKET, Key=dated_key, Body=body.encode())

@@ -170,6 +170,39 @@ def test_haiku_passes_relevant_indices(monkeypatch):
     assert "https://example.com/0" not in sonnet_calls[0]
 
 
+def test_haiku_prose_response_extracts_indices(monkeypatch):
+    """Haiku returns prose like 'Results 0, 2, and 5 are relevant'; regex should extract all."""
+    results = [
+        {"title": "A", "url": "https://example.com/0", "snippet": "a"},
+        {"title": "B", "url": "https://example.com/1", "snippet": "b"},
+        {"title": "C", "url": "https://example.com/2", "snippet": "c"},
+    ]
+    monkeypatch.setattr(
+        "src.modules.monitor.search.backends.get_backend",
+        lambda name, api_key=None: _fake_backend_factory(results),
+    )
+
+    monkeypatch.setattr(
+        collector, "call_haiku",
+        lambda system, user: "Results 0 and 2 are relevant to the monitor.",
+    )
+
+    sonnet_calls = []
+    def fake_sonnet(system, user):
+        sonnet_calls.append(user)
+        return "SIGNIFICANCE: low\nAnalysis."
+
+    monkeypatch.setattr(collector, "call_sonnet", fake_sonnet)
+
+    result = collector._collect_search(_make_search_config(), None)
+    assert result["status"] == "updated"
+    # Sonnet should see results 0 and 2 but NOT 1
+    assert len(sonnet_calls) == 1
+    assert "https://example.com/0" in sonnet_calls[0]
+    assert "https://example.com/2" in sonnet_calls[0]
+    assert "https://example.com/1" not in sonnet_calls[0]
+
+
 def test_haiku_failure_passes_all_through(monkeypatch):
     """If Haiku call fails, all results should pass through to Sonnet."""
     results = [

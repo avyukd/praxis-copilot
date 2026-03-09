@@ -36,10 +36,11 @@ def test_cadence_filter_skips_recently_run(monkeypatch):
         lambda s3_client, mid: prev if mid == "test-6h" else None,
     )
 
-    result = handler._filter_monitors(
+    configs, cached = handler._filter_monitors(
         [config], "scheduled", None, s3_client=object(), now=now,
     )
-    assert len(result) == 0
+    assert len(configs) == 0
+    assert cached["test-6h"] is prev
 
 
 def test_cadence_filter_includes_due_monitor(monkeypatch):
@@ -58,11 +59,13 @@ def test_cadence_filter_includes_due_monitor(monkeypatch):
         lambda s3_client, mid: prev if mid == "test-6h" else None,
     )
 
-    result = handler._filter_monitors(
+    configs, cached = handler._filter_monitors(
         [config], "scheduled", None, s3_client=object(), now=now,
     )
-    assert len(result) == 1
-    assert result[0].id == "test-6h"
+    assert len(configs) == 1
+    assert configs[0].id == "test-6h"
+    # Snapshot should be cached for reuse by the handler loop
+    assert cached["test-6h"] is prev
 
 
 def test_cadence_filter_includes_never_run(monkeypatch):
@@ -75,10 +78,11 @@ def test_cadence_filter_includes_never_run(monkeypatch):
         lambda s3_client, mid: None,
     )
 
-    result = handler._filter_monitors(
+    configs, cached = handler._filter_monitors(
         [config], "scheduled", None, s3_client=object(), now=now,
     )
-    assert len(result) == 1
+    assert len(configs) == 1
+    assert cached["test-new"] is None
 
 
 def test_cadence_filter_legacy_date_format(monkeypatch):
@@ -97,7 +101,25 @@ def test_cadence_filter_legacy_date_format(monkeypatch):
         lambda s3_client, mid: prev,
     )
 
-    result = handler._filter_monitors(
+    configs, _ = handler._filter_monitors(
         [config], "scheduled", None, s3_client=object(), now=now,
     )
-    assert len(result) == 1
+    assert len(configs) == 1
+
+
+def test_event_trigger_returns_empty_cache(monkeypatch):
+    """Event triggers should return empty snapshot cache (no cadence check needed)."""
+    config = MonitorConfig(
+        id="test-filing",
+        type="filing",
+        tickers=["AGM"],
+        description="test",
+        extract="test",
+        filing_types=["10-Q"],
+    )
+
+    configs, cached = handler._filter_monitors(
+        [config], "event", ["AGM:filings:10-Q"],
+    )
+    assert len(configs) == 1
+    assert cached == {}
