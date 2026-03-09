@@ -514,7 +514,7 @@ def _stream_symbols(tickers: list[str]) -> None:
                     state_row.last_trade_size = size
                     state_row.volume += size
                 now = datetime.now(UTC)
-                state_row.event_time = _parse_event_time(row) or now - timedelta(minutes=15)
+                state_row.event_time = now - timedelta(minutes=15)
                 state_row.received_time = now
 
     def on_quote_message(_ws: websocket.WebSocketApp, message: str) -> None:
@@ -533,7 +533,7 @@ def _stream_symbols(tickers: list[str]) -> None:
                 state_row.bid_size = _parse_quote_size(row, ("bs", "bidSize"))
                 state_row.ask_size = _parse_quote_size(row, ("as", "askSize"))
                 now = datetime.now(UTC)
-                state_row.event_time = _parse_event_time(row) or now - timedelta(minutes=15)
+                state_row.event_time = now - timedelta(minutes=15)
                 state_row.received_time = now
 
     def run_socket(url: str, on_message: Any) -> None:
