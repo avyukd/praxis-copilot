@@ -22,8 +22,8 @@ from cli.market_data import (
 )
 from cli.models import UniverseConfig
 from cli.notifications import send_cli_alert
-from src.modules.manage.models import ManageConfig, PriceData
-from src.modules.manage.thresholds import check_thresholds
+from modules.manage.models import ManageConfig, PriceData
+from modules.manage.thresholds import check_thresholds
 
 
 WATCH_FILE = "watch.yaml"
