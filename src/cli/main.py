@@ -56,6 +56,55 @@ def cli():
 cli.add_command(monitor)
 
 
+def _extract_tickers_from_monitor(monitor_data: dict) -> set[str]:
+    """Return the set of tickers referenced by a monitor config."""
+    tickers = set()
+    # New schema: tickers list
+    for t in monitor_data.get("tickers", []):
+        if isinstance(t, str) and t.strip():
+            tickers.add(t.strip().upper())
+    # Legacy schema: listen entries like "TICKER:event"
+    for entry in monitor_data.get("listen", []):
+        if not isinstance(entry, str) or ":" not in entry:
+            continue
+        ticker = entry.split(":", 1)[0].strip().upper()
+        if ticker:
+            tickers.add(ticker)
+    return tickers
+
+
+def _build_monitor_counts(s3_client) -> dict[str, int]:
+    """Build a per-ticker monitor count with a single monitor prefix scan."""
+    monitor_counts: dict[str, int] = {}
+    for monitor_key in list_prefix(s3_client, "config/monitors/"):
+        try:
+            monitor_data = yaml.safe_load(download_file(s3_client, monitor_key)) or {}
+        except Exception:
+            continue
+
+        for ticker in _extract_tickers_from_monitor(monitor_data):
+            monitor_counts[ticker] = monitor_counts.get(ticker, 0) + 1
+
+    return monitor_counts
+
+
+def _get_research_status(s3_client, ticker: str) -> tuple[bool, int]:
+    """Return memo presence and ingested data file count for a ticker."""
+    prefix = f"data/research/{ticker}/"
+    keys = list_prefix(s3_client, prefix)
+    has_memo = False
+    data_count = 0
+
+    for key in keys:
+        relative = key[len(prefix):]
+        if relative == "memo.yaml":
+            has_memo = True
+        elif relative.startswith("data/"):
+            data_count += 1
+
+    return has_memo, data_count
+
+
 # ---------------------------------------------------------------------------
 # praxis config sync
 # ---------------------------------------------------------------------------
@@ -416,43 +465,20 @@ def status():
     try:
         s3 = get_s3_client()
         use_s3 = True
+        monitor_counts = _build_monitor_counts(s3)
     except SystemExit:
         click.echo("(Could not connect to AWS — showing local status only)\n")
         use_s3 = False
+        monitor_counts = {}
 
     for ticker in sorted(universe_cfg.tickers):
         parts = [ticker]
 
         if use_s3:
-            # Check for memo
-            has_memo = key_exists(s3, f"data/research/{ticker}/memo.yaml")
+            has_memo, data_count = _get_research_status(s3, ticker)
             parts.append("memo:yes" if has_memo else "memo:no")
-
-            # Check for ingested data
-            data_keys = list_prefix(s3, f"data/research/{ticker}/data/")
-            parts.append(f"data:{len(data_keys)} files" if data_keys else "data:none")
-
-            # Count monitors
-            monitor_keys = list_prefix(s3, f"config/monitors/")
-            monitor_count = 0
-            for mk in monitor_keys:
-                try:
-                    content = download_file(s3, mk)
-                    mdata = yaml.safe_load(content)
-                    # New schema: check tickers list
-                    tickers_list = mdata.get("tickers", [])
-                    if ticker in tickers_list:
-                        monitor_count += 1
-                        continue
-                    # Legacy schema: check listen keys
-                    listen = mdata.get("listen", [])
-                    for entry in listen:
-                        if isinstance(entry, str) and entry.startswith(f"{ticker}:"):
-                            monitor_count += 1
-                            break
-                except Exception:
-                    pass
-            parts.append(f"monitors:{monitor_count}")
+            parts.append(f"data:{data_count} files" if data_count else "data:none")
+            parts.append(f"monitors:{monitor_counts.get(ticker, 0)}")
 
         click.echo("  ".join(parts))
 
