@@ -2,5 +2,4 @@ max_realtime_symbols: 50
 delayed_scan_interval_minutes: 15
 default_delayed_alert_cooldown_minutes: 15
 default_realtime_alert_cooldown_minutes: 5
-watchlist: []
 alerts: []

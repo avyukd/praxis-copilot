@@ -1,4 +1,4 @@
-"""CLI commands for delayed scans, real-time watchlists, and custom alerts."""
+"""CLI commands for delayed scans, real-time streaming, and custom alerts."""
 from __future__ import annotations
 
 import json
@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import click
 from pydantic import BaseModel, Field
@@ -25,6 +26,8 @@ from cli.notifications import send_cli_alert
 from modules.manage.models import ManageConfig, PriceData
 from modules.manage.thresholds import check_thresholds
 
+
+ET = ZoneInfo("America/New_York")
 
 WATCH_FILE = "watch.yaml"
 WATCH_STATE_FILE = "watch_state.yaml"
@@ -55,7 +58,6 @@ class WatchConfig(BaseModel):
     delayed_scan_interval_minutes: int = 15
     default_delayed_alert_cooldown_minutes: int = DEFAULT_DELAYED_ALERT_COOLDOWN_MINUTES
     default_realtime_alert_cooldown_minutes: int = DEFAULT_REALTIME_ALERT_COOLDOWN_MINUTES
-    watchlist: list[str] = Field(default_factory=list)
     alerts: list[WatchAlertRule] = Field(default_factory=list)
 
 
@@ -324,8 +326,8 @@ def _run_delayed_scan_once(
             anchors=None,
             ticker_overrides=overrides.get(ticker, {}),
         )
-        for alert in default_alerts:
-            event = _format_default_alert(alert) | {"source": "delayed"}
+        for alert_obj in default_alerts:
+            event = _format_default_alert(alert_obj) | {"source": "delayed"}
             if _is_suppressed(event, alert_state, watch_config):
                 continue
             all_events.append(event)
@@ -405,7 +407,7 @@ def market_run(
     )
     try:
         while True:
-            click.echo(f"\n[{datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}] delayed scan")
+            click.echo(f"\n[{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}] delayed scan")
             events = _run_delayed_scan_once(selected, notify_sns=notify_sns, sns_dry_run=sns_dry_run)
             if not events:
                 click.echo("No delayed alerts triggered.")
@@ -417,48 +419,9 @@ def market_run(
         click.echo("\nStopped delayed scan runner.")
 
 
-@click.group()
-def watch():
-    """Real-time watchlist and stream commands."""
-    pass
-
-
-@watch.command("set")
-@click.argument("tickers", nargs=-1, required=True)
-@click.option("--append", is_flag=True, help="Append to the existing watchlist instead of replacing it.")
-def watch_set(tickers: tuple[str, ...], append: bool) -> None:
-    """Set the persistent real-time watchlist."""
-    config = load_watch_config()
-    incoming = [ticker.upper() for ticker in tickers]
-    updated = config.watchlist + incoming if append else incoming
-    deduped = list(dict.fromkeys(updated))
-    if len(deduped) > config.max_realtime_symbols:
-        raise click.ClickException(
-            f"Watchlist exceeds max_realtime_symbols={config.max_realtime_symbols}."
-        )
-    config.watchlist = deduped
-    save_watch_config(config)
-    click.echo(f"Saved watchlist: {', '.join(config.watchlist)}")
-
-
-@watch.command("list")
-def watch_list() -> None:
-    """Show the persistent real-time watchlist."""
-    config = load_watch_config()
-    if not config.watchlist:
-        click.echo("Watchlist is empty.")
-        return
-    click.echo("\n".join(config.watchlist))
-
-
-@watch.command("clear")
-def watch_clear() -> None:
-    """Clear the persistent real-time watchlist."""
-    config = load_watch_config()
-    config.watchlist = []
-    save_watch_config(config)
-    click.echo("Cleared watchlist.")
-
+# ---------------------------------------------------------------------------
+# praxis watch TICKER [TICKER ...]
+# ---------------------------------------------------------------------------
 
 def _parse_symbol(raw: dict[str, Any]) -> str | None:
     symbol = raw.get("s") or raw.get("symbol") or raw.get("code")
@@ -499,17 +462,13 @@ def _parse_quote_size(raw: dict[str, Any], keys: tuple[str, ...]) -> int | None:
     return None
 
 
-def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) -> None:
+def _stream_symbols(tickers: list[str]) -> None:
     import websocket
 
     api_key = get_eodhd_api_key()
     state: dict[str, StreamState] = {}
     lock = threading.Lock()
     stop_event = threading.Event()
-
-    watch_config = load_watch_config()
-    alert_state = load_alert_state()
-    rules = _matching_rules(watch_config, "realtime", tickers)
 
     for ticker in tickers:
         snapshot = fetch_realtime_snapshot(ticker, api_key=api_key)
@@ -520,21 +479,6 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
             volume=snapshot.volume,
             last_update=snapshot.timestamp,
         )
-
-    def emit_custom_alerts(snapshot: MarketSnapshot) -> None:
-        for rule in rules:
-            if rule.ticker != snapshot.ticker:
-                continue
-            event = evaluate_alert_rule(rule, snapshot)
-            if not event:
-                continue
-            if _is_suppressed(event, alert_state, watch_config):
-                continue
-            _record_trigger(event, alert_state)
-            save_alert_state(alert_state)
-            _emit_event(event, notify_sns=notify_sns, sns_dry_run=sns_dry_run)
-            click.echo("")
-            _print_alert(event)
 
     def on_trade_message(_ws: websocket.WebSocketApp, message: str) -> None:
         raw = json.loads(message)
@@ -556,7 +500,6 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
                     state_row.last_trade_size = size
                     state_row.volume += size
                 state_row.last_update = datetime.now(UTC)
-                emit_custom_alerts(state_row.to_snapshot())
 
     def on_quote_message(_ws: websocket.WebSocketApp, message: str) -> None:
         raw = json.loads(message)
@@ -574,7 +517,6 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
                 state_row.bid_size = _parse_quote_size(row, ("bs", "bidSize"))
                 state_row.ask_size = _parse_quote_size(row, ("as", "askSize"))
                 state_row.last_update = datetime.now(UTC)
-                emit_custom_alerts(state_row.to_snapshot())
 
     def run_socket(url: str, on_message: Any) -> None:
         def _on_open(ws: websocket.WebSocketApp) -> None:
@@ -611,7 +553,7 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
                     bid = f"{row.bid:.2f}" if row.bid is not None else "-"
                     ask = f"{row.ask:.2f}" if row.ask is not None else "-"
                     last_size = str(row.last_trade_size or "-")
-                    updated = row.last_update.strftime("%H:%M:%S")
+                    updated = row.last_update.astimezone(ET).strftime("%H:%M:%S")
                     lines.append(
                         f"{ticker:<8} {row.price:>8.2f} {row.change_pct:>8.2f}% "
                         f"{bid:>9} {ask:>9} {spread:>10} "
@@ -625,19 +567,19 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
         click.echo("\nStopped stream.")
 
 
-@watch.command("stream")
-@click.argument("tickers", nargs=-1)
-@click.option("--notify-sns/--no-notify-sns", default=False, help="Publish triggered alerts to SNS.")
-@click.option("--sns-dry-run", is_flag=True, help="Render SNS payloads without publishing.")
-def watch_stream(tickers: tuple[str, ...], notify_sns: bool, sns_dry_run: bool) -> None:
-    """Stream real-time trades and quotes for the current watchlist."""
-    selected = [ticker.upper() for ticker in tickers] if tickers else load_watch_config().watchlist
-    if not selected:
-        raise click.ClickException("No tickers provided and watchlist is empty.")
-    if len(selected) > load_watch_config().max_realtime_symbols:
-        raise click.ClickException("Requested stream exceeds configured max_realtime_symbols.")
-    _stream_symbols(selected, notify_sns=notify_sns, sns_dry_run=sns_dry_run)
+@click.command("watch")
+@click.argument("tickers", nargs=-1, required=True)
+def watch(tickers: tuple[str, ...]) -> None:
+    """Stream real-time trades and quotes for the given tickers."""
+    selected = [ticker.upper() for ticker in tickers]
+    if len(selected) > MAX_REALTIME_SYMBOLS:
+        raise click.ClickException(f"Too many tickers (max {MAX_REALTIME_SYMBOLS}).")
+    _stream_symbols(selected)
 
+
+# ---------------------------------------------------------------------------
+# praxis alert add/list/rm/enable/disable
+# ---------------------------------------------------------------------------
 
 @click.group()
 def alert():
