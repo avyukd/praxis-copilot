@@ -1,4 +1,4 @@
-"""CLI commands for delayed scans, real-time watchlists, and custom alerts."""
+"""CLI commands for delayed scans, real-time streaming, and custom alerts."""
 from __future__ import annotations
 
 import json
@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import click
 from pydantic import BaseModel, Field
@@ -25,6 +26,8 @@ from cli.notifications import send_cli_alert
 from modules.manage.models import ManageConfig, PriceData
 from modules.manage.thresholds import check_thresholds
 
+
+ET = ZoneInfo("America/New_York")
 
 WATCH_FILE = "watch.yaml"
 WATCH_STATE_FILE = "watch_state.yaml"
@@ -55,7 +58,6 @@ class WatchConfig(BaseModel):
     delayed_scan_interval_minutes: int = 15
     default_delayed_alert_cooldown_minutes: int = DEFAULT_DELAYED_ALERT_COOLDOWN_MINUTES
     default_realtime_alert_cooldown_minutes: int = DEFAULT_REALTIME_ALERT_COOLDOWN_MINUTES
-    watchlist: list[str] = Field(default_factory=list)
     alerts: list[WatchAlertRule] = Field(default_factory=list)
 
 
@@ -78,7 +80,8 @@ class StreamState:
     bid_size: int | None = None
     ask_size: int | None = None
     last_trade_size: int | None = None
-    last_update: datetime = field(default_factory=lambda: datetime.now(UTC))
+    event_time: datetime = field(default_factory=lambda: datetime.now(UTC))
+    received_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def change_pct(self) -> float:
@@ -105,7 +108,7 @@ class StreamState:
             ask=self.ask,
             bid_size=self.bid_size,
             ask_size=self.ask_size,
-            timestamp=self.last_update,
+            timestamp=self.event_time,
             source="realtime",
         )
 
@@ -137,10 +140,13 @@ def save_alert_state(state: AlertState) -> None:
 def _load_manage_config_local() -> tuple[ManageConfig, dict[str, dict[str, Any]]]:
     raw = load_yaml(get_config_dir() / "manage.yaml")
     defaults = raw.get("defaults", {})
-    config = ManageConfig(
-        price_move_pct=defaults.get("price_move_pct", 5.0),
-        volume_anomaly_multiplier=defaults.get("volume_anomaly_multiplier", 3.0),
-    )
+    # Support legacy key name
+    if "price_move_pct" in defaults and "move_from_close_pct" not in defaults:
+        defaults["move_from_close_pct"] = defaults.pop("price_move_pct")
+    config = ManageConfig(**{
+        k: v for k, v in defaults.items()
+        if k in ManageConfig.model_fields
+    })
     return config, raw.get("overrides", {})
 
 
@@ -324,8 +330,8 @@ def _run_delayed_scan_once(
             anchors=None,
             ticker_overrides=overrides.get(ticker, {}),
         )
-        for alert in default_alerts:
-            event = _format_default_alert(alert) | {"source": "delayed"}
+        for alert_obj in default_alerts:
+            event = _format_default_alert(alert_obj) | {"source": "delayed"}
             if _is_suppressed(event, alert_state, watch_config):
                 continue
             all_events.append(event)
@@ -405,7 +411,7 @@ def market_run(
     )
     try:
         while True:
-            click.echo(f"\n[{datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}] delayed scan")
+            click.echo(f"\n[{datetime.now(ET).strftime('%Y-%m-%d %H:%M:%S ET')}] delayed scan")
             events = _run_delayed_scan_once(selected, notify_sns=notify_sns, sns_dry_run=sns_dry_run)
             if not events:
                 click.echo("No delayed alerts triggered.")
@@ -417,48 +423,9 @@ def market_run(
         click.echo("\nStopped delayed scan runner.")
 
 
-@click.group()
-def watch():
-    """Real-time watchlist and stream commands."""
-    pass
-
-
-@watch.command("set")
-@click.argument("tickers", nargs=-1, required=True)
-@click.option("--append", is_flag=True, help="Append to the existing watchlist instead of replacing it.")
-def watch_set(tickers: tuple[str, ...], append: bool) -> None:
-    """Set the persistent real-time watchlist."""
-    config = load_watch_config()
-    incoming = [ticker.upper() for ticker in tickers]
-    updated = config.watchlist + incoming if append else incoming
-    deduped = list(dict.fromkeys(updated))
-    if len(deduped) > config.max_realtime_symbols:
-        raise click.ClickException(
-            f"Watchlist exceeds max_realtime_symbols={config.max_realtime_symbols}."
-        )
-    config.watchlist = deduped
-    save_watch_config(config)
-    click.echo(f"Saved watchlist: {', '.join(config.watchlist)}")
-
-
-@watch.command("list")
-def watch_list() -> None:
-    """Show the persistent real-time watchlist."""
-    config = load_watch_config()
-    if not config.watchlist:
-        click.echo("Watchlist is empty.")
-        return
-    click.echo("\n".join(config.watchlist))
-
-
-@watch.command("clear")
-def watch_clear() -> None:
-    """Clear the persistent real-time watchlist."""
-    config = load_watch_config()
-    config.watchlist = []
-    save_watch_config(config)
-    click.echo("Cleared watchlist.")
-
+# ---------------------------------------------------------------------------
+# praxis watch TICKER [TICKER ...]
+# ---------------------------------------------------------------------------
 
 def _parse_symbol(raw: dict[str, Any]) -> str | None:
     symbol = raw.get("s") or raw.get("symbol") or raw.get("code")
@@ -491,6 +458,18 @@ def _parse_quote_price(raw: dict[str, Any], keys: tuple[str, ...]) -> float | No
     return None
 
 
+def _parse_event_time(raw: dict[str, Any]) -> datetime | None:
+    """Extract event timestamp from websocket payload (seconds or millis epoch)."""
+    for key in ("t", "timestamp", "time"):
+        value = raw.get(key)
+        if value is not None:
+            ts = float(value)
+            if ts > 1e12:  # milliseconds
+                ts /= 1000.0
+            return datetime.fromtimestamp(ts, tz=UTC)
+    return None
+
+
 def _parse_quote_size(raw: dict[str, Any], keys: tuple[str, ...]) -> int | None:
     for key in keys:
         value = raw.get(key)
@@ -499,17 +478,13 @@ def _parse_quote_size(raw: dict[str, Any], keys: tuple[str, ...]) -> int | None:
     return None
 
 
-def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) -> None:
+def _stream_symbols(tickers: list[str]) -> None:
     import websocket
 
     api_key = get_eodhd_api_key()
     state: dict[str, StreamState] = {}
     lock = threading.Lock()
     stop_event = threading.Event()
-
-    watch_config = load_watch_config()
-    alert_state = load_alert_state()
-    rules = _matching_rules(watch_config, "realtime", tickers)
 
     for ticker in tickers:
         snapshot = fetch_realtime_snapshot(ticker, api_key=api_key)
@@ -518,23 +493,9 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
             price=snapshot.price,
             previous_close=snapshot.previous_close,
             volume=snapshot.volume,
-            last_update=snapshot.timestamp,
+            event_time=snapshot.timestamp,
+            received_time=datetime.now(UTC),
         )
-
-    def emit_custom_alerts(snapshot: MarketSnapshot) -> None:
-        for rule in rules:
-            if rule.ticker != snapshot.ticker:
-                continue
-            event = evaluate_alert_rule(rule, snapshot)
-            if not event:
-                continue
-            if _is_suppressed(event, alert_state, watch_config):
-                continue
-            _record_trigger(event, alert_state)
-            save_alert_state(alert_state)
-            _emit_event(event, notify_sns=notify_sns, sns_dry_run=sns_dry_run)
-            click.echo("")
-            _print_alert(event)
 
     def on_trade_message(_ws: websocket.WebSocketApp, message: str) -> None:
         raw = json.loads(message)
@@ -555,8 +516,9 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
                 if size is not None:
                     state_row.last_trade_size = size
                     state_row.volume += size
-                state_row.last_update = datetime.now(UTC)
-                emit_custom_alerts(state_row.to_snapshot())
+                now = datetime.now(UTC)
+                state_row.event_time = now - timedelta(minutes=15)
+                state_row.received_time = now
 
     def on_quote_message(_ws: websocket.WebSocketApp, message: str) -> None:
         raw = json.loads(message)
@@ -573,8 +535,9 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
                 state_row.ask = _parse_quote_price(row, ("ap", "askPrice", "ask", "a"))
                 state_row.bid_size = _parse_quote_size(row, ("bs", "bidSize"))
                 state_row.ask_size = _parse_quote_size(row, ("as", "askSize"))
-                state_row.last_update = datetime.now(UTC)
-                emit_custom_alerts(state_row.to_snapshot())
+                now = datetime.now(UTC)
+                state_row.event_time = now - timedelta(minutes=15)
+                state_row.received_time = now
 
     def run_socket(url: str, on_message: Any) -> None:
         def _on_open(ws: websocket.WebSocketApp) -> None:
@@ -603,7 +566,7 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
         while True:
             with lock:
                 lines = [
-                    "Ticker     Last      Chg%       Bid       Ask    Spread%       Vol  LastSz  Updated"
+                    "Ticker     Last      Chg%       Bid       Ask    Spread%       Vol  LastSz    As Of  Received"
                 ]
                 for ticker in tickers:
                     row = state[ticker]
@@ -611,11 +574,12 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
                     bid = f"{row.bid:.2f}" if row.bid is not None else "-"
                     ask = f"{row.ask:.2f}" if row.ask is not None else "-"
                     last_size = str(row.last_trade_size or "-")
-                    updated = row.last_update.strftime("%H:%M:%S")
+                    as_of = row.event_time.astimezone(ET).strftime("%H:%M:%S")
+                    received = row.received_time.astimezone(ET).strftime("%H:%M:%S")
                     lines.append(
                         f"{ticker:<8} {row.price:>8.2f} {row.change_pct:>8.2f}% "
                         f"{bid:>9} {ask:>9} {spread:>10} "
-                        f"{row.volume:>9} {last_size:>7} {updated:>8}"
+                        f"{row.volume:>9} {last_size:>7} {as_of:>8} {received:>9}"
                     )
             click.clear()
             click.echo("\n".join(lines))
@@ -625,19 +589,19 @@ def _stream_symbols(tickers: list[str], *, notify_sns: bool, sns_dry_run: bool) 
         click.echo("\nStopped stream.")
 
 
-@watch.command("stream")
-@click.argument("tickers", nargs=-1)
-@click.option("--notify-sns/--no-notify-sns", default=False, help="Publish triggered alerts to SNS.")
-@click.option("--sns-dry-run", is_flag=True, help="Render SNS payloads without publishing.")
-def watch_stream(tickers: tuple[str, ...], notify_sns: bool, sns_dry_run: bool) -> None:
-    """Stream real-time trades and quotes for the current watchlist."""
-    selected = [ticker.upper() for ticker in tickers] if tickers else load_watch_config().watchlist
-    if not selected:
-        raise click.ClickException("No tickers provided and watchlist is empty.")
-    if len(selected) > load_watch_config().max_realtime_symbols:
-        raise click.ClickException("Requested stream exceeds configured max_realtime_symbols.")
-    _stream_symbols(selected, notify_sns=notify_sns, sns_dry_run=sns_dry_run)
+@click.command("watch")
+@click.argument("tickers", nargs=-1, required=True)
+def watch(tickers: tuple[str, ...]) -> None:
+    """Stream real-time trades and quotes for the given tickers."""
+    selected = [ticker.upper() for ticker in tickers]
+    if len(selected) > MAX_REALTIME_SYMBOLS:
+        raise click.ClickException(f"Too many tickers (max {MAX_REALTIME_SYMBOLS}).")
+    _stream_symbols(selected)
 
+
+# ---------------------------------------------------------------------------
+# praxis alert add/list/rm/enable/disable
+# ---------------------------------------------------------------------------
 
 @click.group()
 def alert():
@@ -744,3 +708,61 @@ def alert_disable(rule_id: str) -> None:
             click.echo(f"Disabled alert {rule_id}.")
             return
     raise click.ClickException(f"Alert rule {rule_id} not found.")
+
+
+OVERRIDE_PARAMS = [
+    "move_from_close_pct",
+    "reversal_pct",
+    "volume_anomaly_multiplier",
+    "volume_velocity_multiplier",
+]
+
+
+@alert.command("override")
+@click.argument("ticker")
+@click.argument("param", type=click.Choice(OVERRIDE_PARAMS, case_sensitive=False))
+@click.argument("value", type=float)
+def alert_override(ticker: str, param: str, value: float) -> None:
+    """Set a per-ticker threshold override in manage.yaml and sync to S3.
+
+    Valid PARAMs: move_from_close_pct, reversal_pct,
+    volume_anomaly_multiplier, volume_velocity_multiplier.
+    """
+    from cli.s3 import get_s3_client, upload_file
+
+    ticker = ticker.upper()
+    config_dir = get_config_dir()
+    manage_path = config_dir / "manage.yaml"
+    raw = load_yaml(manage_path)
+
+    if "overrides" not in raw or not isinstance(raw["overrides"], dict):
+        raw["overrides"] = {}
+    if ticker not in raw["overrides"] or not isinstance(raw["overrides"].get(ticker), dict):
+        raw["overrides"][ticker] = {}
+
+    raw["overrides"][ticker][param] = value
+    save_yaml(manage_path, raw)
+
+    # Sync to S3
+    try:
+        s3 = get_s3_client()
+        upload_file(s3, manage_path, "config/manage.yaml")
+        click.echo(f"Set {ticker} {param}={value} and synced to S3.")
+    except SystemExit:
+        click.echo(f"Set {ticker} {param}={value} locally (S3 sync failed — run praxis config sync).")
+
+
+@alert.command("overrides")
+def alert_overrides() -> None:
+    """Show all per-ticker threshold overrides."""
+    config_dir = get_config_dir()
+    raw = load_yaml(config_dir / "manage.yaml")
+    overrides = raw.get("overrides", {})
+    if not overrides:
+        click.echo("No per-ticker overrides configured.")
+        return
+    for ticker, params in sorted(overrides.items()):
+        if not isinstance(params, dict) or not params:
+            continue
+        parts = [f"{k}={v}" for k, v in params.items()]
+        click.echo(f"{ticker}: {', '.join(parts)}")

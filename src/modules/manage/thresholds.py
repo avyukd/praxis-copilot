@@ -1,4 +1,4 @@
-"""Threshold checker: compares price data against config and valuation anchors."""
+"""Threshold checker: valuation anchor checks and config loading from S3."""
 from __future__ import annotations
 
 import logging
@@ -60,34 +60,96 @@ def load_valuation_anchors(s3_client: boto3.client, ticker: str) -> ValuationAnc
     )
 
 
-def load_manage_config(s3_client: boto3.client) -> ManageConfig:
-    """Load manage config from S3 config/manage.yaml."""
+def load_manage_config(s3_client: boto3.client) -> tuple[ManageConfig, dict]:
+    """Load manage config and overrides from S3 config/manage.yaml.
+
+    Returns (config, overrides_dict).
+    """
     try:
         resp = s3_client.get_object(Bucket=BUCKET, Key="config/manage.yaml")
         content = resp["Body"].read().decode("utf-8")
         raw = yaml.safe_load(content) or {}
     except Exception as e:
         logger.warning("Failed to load manage.yaml, using defaults: %s", e)
-        return ManageConfig()
+        return ManageConfig(), {}
 
     defaults = raw.get("defaults", {})
-    return ManageConfig(
-        price_move_pct=defaults.get("price_move_pct", 5.0),
-        volume_anomaly_multiplier=defaults.get("volume_anomaly_multiplier", 3.0),
-    )
+    overrides = raw.get("overrides", {}) or {}
+
+    # Support legacy key name
+    if "price_move_pct" in defaults and "move_from_close_pct" not in defaults:
+        defaults["move_from_close_pct"] = defaults.pop("price_move_pct")
+
+    return ManageConfig(**{
+        k: v for k, v in defaults.items()
+        if k in ManageConfig.model_fields
+    }), overrides
 
 
-def load_ticker_overrides(s3_client: boto3.client, ticker: str) -> dict:
-    """Load per-ticker overrides from manage.yaml."""
-    try:
-        resp = s3_client.get_object(Bucket=BUCKET, Key="config/manage.yaml")
-        content = resp["Body"].read().decode("utf-8")
-        raw = yaml.safe_load(content) or {}
-    except Exception:
-        return {}
+def check_valuation_anchors(
+    price_data: PriceData,
+    anchors: ValuationAnchors,
+) -> list[Alert]:
+    """Check price against valuation anchors (stop loss, target, entry/exit)."""
+    alerts: list[Alert] = []
+    now = datetime.now(timezone.utc)
 
-    overrides = raw.get("overrides", {})
-    return overrides.get(ticker, {})
+    # Stop loss breach
+    if anchors.stop_loss is not None and price_data.price <= anchors.stop_loss:
+        alerts.append(Alert(
+            ticker=price_data.ticker,
+            timestamp=now,
+            alert_type=AlertType.STOP_LOSS_BREACH,
+            severity=Severity.CRITICAL,
+            details={
+                "price": price_data.price,
+                "stop_loss": anchors.stop_loss,
+            },
+        ))
+
+    # Target price reached
+    target = anchors.target_price or anchors.fair_value_estimate
+    if target is not None and price_data.price >= target:
+        alerts.append(Alert(
+            ticker=price_data.ticker,
+            timestamp=now,
+            alert_type=AlertType.TARGET_REACHED,
+            severity=Severity.HIGH,
+            details={
+                "price": price_data.price,
+                "target_price": target,
+            },
+        ))
+
+    # Entry opportunity (price drops into or below entry range)
+    entry_low = anchors.entry_range_low or anchors.entry_price
+    if entry_low is not None and price_data.price <= entry_low:
+        alerts.append(Alert(
+            ticker=price_data.ticker,
+            timestamp=now,
+            alert_type=AlertType.ENTRY_OPPORTUNITY,
+            severity=Severity.HIGH,
+            details={
+                "price": price_data.price,
+                "entry_range_low": entry_low,
+                "entry_range_high": anchors.entry_range_high,
+            },
+        ))
+
+    # Exit signal (price moves above exit range)
+    if anchors.exit_range_high is not None and price_data.price >= anchors.exit_range_high:
+        alerts.append(Alert(
+            ticker=price_data.ticker,
+            timestamp=now,
+            alert_type=AlertType.EXIT_SIGNAL,
+            severity=Severity.HIGH,
+            details={
+                "price": price_data.price,
+                "exit_range_high": anchors.exit_range_high,
+            },
+        ))
+
+    return alerts
 
 
 def check_thresholds(
@@ -96,21 +158,18 @@ def check_thresholds(
     anchors: ValuationAnchors | None,
     ticker_overrides: dict | None = None,
 ) -> list[Alert]:
-    """Run deterministic threshold checks against price data.
-
-    Returns a list of triggered alerts.
-    """
+    """Legacy stateless threshold check (used by CLI delayed scan)."""
     alerts: list[Alert] = []
     now = datetime.now(timezone.utc)
 
-    # Apply per-ticker overrides
-    price_threshold = config.price_move_pct
+    price_threshold = config.move_from_close_pct
     volume_threshold = config.volume_anomaly_multiplier
     if ticker_overrides:
+        price_threshold = ticker_overrides.get("move_from_close_pct", price_threshold)
+        # Support legacy key
         price_threshold = ticker_overrides.get("price_move_pct", price_threshold)
         volume_threshold = ticker_overrides.get("volume_anomaly_multiplier", volume_threshold)
 
-    # 1. Price move threshold
     if abs(price_data.change_pct) >= price_threshold:
         direction = "up" if price_data.change_pct > 0 else "down"
         alert_type = AlertType.PRICE_BREACH_UP if direction == "up" else AlertType.PRICE_BREACH_DOWN
@@ -128,7 +187,6 @@ def check_thresholds(
             },
         ))
 
-    # 2. Volume spike
     if price_data.volume_ratio >= volume_threshold:
         severity = Severity.HIGH if price_data.volume_ratio >= volume_threshold * 2 else Severity.MEDIUM
         alerts.append(Alert(
@@ -144,61 +202,7 @@ def check_thresholds(
             },
         ))
 
-    # 3. Valuation anchor checks (only if anchors exist)
     if anchors:
-        # Stop loss breach
-        if anchors.stop_loss is not None and price_data.price <= anchors.stop_loss:
-            alerts.append(Alert(
-                ticker=price_data.ticker,
-                timestamp=now,
-                alert_type=AlertType.STOP_LOSS_BREACH,
-                severity=Severity.CRITICAL,
-                details={
-                    "price": price_data.price,
-                    "stop_loss": anchors.stop_loss,
-                },
-            ))
-
-        # Target price reached
-        target = anchors.target_price or anchors.fair_value_estimate
-        if target is not None and price_data.price >= target:
-            alerts.append(Alert(
-                ticker=price_data.ticker,
-                timestamp=now,
-                alert_type=AlertType.TARGET_REACHED,
-                severity=Severity.HIGH,
-                details={
-                    "price": price_data.price,
-                    "target_price": target,
-                },
-            ))
-
-        # Entry opportunity (price drops into or below entry range)
-        entry_low = anchors.entry_range_low or anchors.entry_price
-        if entry_low is not None and price_data.price <= entry_low:
-            alerts.append(Alert(
-                ticker=price_data.ticker,
-                timestamp=now,
-                alert_type=AlertType.ENTRY_OPPORTUNITY,
-                severity=Severity.HIGH,
-                details={
-                    "price": price_data.price,
-                    "entry_range_low": entry_low,
-                    "entry_range_high": anchors.entry_range_high,
-                },
-            ))
-
-        # Exit signal (price moves above exit range)
-        if anchors.exit_range_high is not None and price_data.price >= anchors.exit_range_high:
-            alerts.append(Alert(
-                ticker=price_data.ticker,
-                timestamp=now,
-                alert_type=AlertType.EXIT_SIGNAL,
-                severity=Severity.HIGH,
-                details={
-                    "price": price_data.price,
-                    "exit_range_high": anchors.exit_range_high,
-                },
-            ))
+        alerts.extend(check_valuation_anchors(price_data, anchors))
 
     return alerts

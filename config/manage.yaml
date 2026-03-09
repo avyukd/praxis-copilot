@@ -1,11 +1,44 @@
 # Manage stage configuration
-# Price/volume thresholds, per-ticker overrides
+# Intraday threshold alerts for the universe, triggered every 15 minutes.
 
 defaults:
-  price_move_pct: 5.0
-  volume_anomaly_multiplier: 3.0  # multiplier over 20-day ADTV
+  # ── Move from close ──────────────────────────────────────────────────
+  # Alert when a stock moves >= this % from previous close.
+  # Fires at each new threshold crossing: e.g. at 5% move_from_close_pct,
+  # alerts fire at 5%, 10%, 15%, etc.  Each crossing fires once per day.
+  move_from_close_pct: 5.0
 
-# Per-ticker overrides
+  # ── Zigzag reversal ──────────────────────────────────────────────────
+  # Detect intraday whipsaws using a zigzag filter.  Tracks the current
+  # trend direction and the running extreme (high if trending up, low if
+  # trending down).  When price reverses by >= this % from the extreme,
+  # an alert fires and the direction flips.
+  #
+  # Example with reversal_pct=5: price goes 100→92→105→95→110
+  #   - 92→105 (+14%) → alert, direction flips to up
+  #   - 105→95 (-9.5%) → alert, direction flips to down
+  #   - 95→110 (+15.8%) → alert, direction flips to up
+  reversal_pct: 5.0
+
+  # ── Volume anomaly ──────────────────────────────────────────────────
+  # Alert when total volume traded today >= this multiplier × 20-day ADTV.
+  # Catches "something big is happening today" situations.
+  # Example: ADTV = 50M, multiplier = 3 → alert when day volume >= 150M.
+  volume_anomaly_multiplier: 3.0
+
+  # ── Volume velocity ─────────────────────────────────────────────────
+  # Alert when volume in the last 15-minute period >= this multiplier ×
+  # expected per-period volume.  Expected per-period = ADTV / 26 (there
+  # are ~26 fifteen-minute intervals in a 6.5-hour trading day).
+  # Catches sudden bursts of activity even on otherwise normal-volume days.
+  # Example: ADTV = 50M → expected per-period ≈ 1.9M.
+  #          multiplier = 2 → alert when 15-min volume >= 3.8M.
+  volume_velocity_multiplier: 2.0
+
+# Per-ticker overrides — same keys as defaults, applied on top.
+# Useful for volatile names that would otherwise spam alerts.
 # overrides:
 #   NVDA:
-#     price_move_pct: 3.0
+#     reversal_pct: 8.0
+#     move_from_close_pct: 7.0
+overrides: {}
