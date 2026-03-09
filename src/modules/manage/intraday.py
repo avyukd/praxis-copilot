@@ -159,13 +159,18 @@ def check_zigzag_reversal(
 def check_volume_anomaly(
     price_data: PriceData,
     config: ManageConfig,
+    ticker_state: IntradayTickerState,
 ) -> list[Alert]:
-    """Alert when total day volume >= multiplier × 20-day ADTV."""
+    """Alert once per day when total day volume first crosses multiplier × ADTV."""
     alerts: list[Alert] = []
     now = datetime.now(timezone.utc)
     threshold = config.volume_anomaly_multiplier
 
+    if ticker_state.volume_anomaly_fired:
+        return alerts
+
     if price_data.volume_ratio >= threshold:
+        ticker_state.volume_anomaly_fired = True
         severity = Severity.HIGH if price_data.volume_ratio >= threshold * 2 else Severity.MEDIUM
         alerts.append(Alert(
             ticker=price_data.ticker,
@@ -243,7 +248,7 @@ def run_all_checks(
 
     alerts.extend(check_move_from_close(price_data, effective, ticker_state))
     alerts.extend(check_zigzag_reversal(price_data, effective, ticker_state))
-    alerts.extend(check_volume_anomaly(price_data, effective))
+    alerts.extend(check_volume_anomaly(price_data, effective, ticker_state))
     alerts.extend(check_volume_velocity(price_data, effective, ticker_state))
 
     if anchors:

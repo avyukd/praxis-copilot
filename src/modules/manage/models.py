@@ -83,6 +83,9 @@ class IntradayTickerState(BaseModel):
     # Volume velocity: volume at last check for computing deltas
     last_volume: int = 0
 
+    # Volume anomaly: fired once per day when first crossing threshold
+    volume_anomaly_fired: bool = False
+
     # Move-from-close: which threshold bands have fired (e.g. [1, 2] = 5%, 10%)
     close_bands_fired: list[int] = Field(default_factory=list)
 
