@@ -705,3 +705,61 @@ def alert_disable(rule_id: str) -> None:
             click.echo(f"Disabled alert {rule_id}.")
             return
     raise click.ClickException(f"Alert rule {rule_id} not found.")
+
+
+OVERRIDE_PARAMS = [
+    "move_from_close_pct",
+    "reversal_pct",
+    "volume_anomaly_multiplier",
+    "volume_velocity_multiplier",
+]
+
+
+@alert.command("override")
+@click.argument("ticker")
+@click.argument("param", type=click.Choice(OVERRIDE_PARAMS, case_sensitive=False))
+@click.argument("value", type=float)
+def alert_override(ticker: str, param: str, value: float) -> None:
+    """Set a per-ticker threshold override in manage.yaml and sync to S3.
+
+    Valid PARAMs: move_from_close_pct, reversal_pct,
+    volume_anomaly_multiplier, volume_velocity_multiplier.
+    """
+    from cli.s3 import get_s3_client, upload_file
+
+    ticker = ticker.upper()
+    config_dir = get_config_dir()
+    manage_path = config_dir / "manage.yaml"
+    raw = load_yaml(manage_path)
+
+    if "overrides" not in raw or not isinstance(raw["overrides"], dict):
+        raw["overrides"] = {}
+    if ticker not in raw["overrides"] or not isinstance(raw["overrides"].get(ticker), dict):
+        raw["overrides"][ticker] = {}
+
+    raw["overrides"][ticker][param] = value
+    save_yaml(manage_path, raw)
+
+    # Sync to S3
+    try:
+        s3 = get_s3_client()
+        upload_file(s3, manage_path, "config/manage.yaml")
+        click.echo(f"Set {ticker} {param}={value} and synced to S3.")
+    except SystemExit:
+        click.echo(f"Set {ticker} {param}={value} locally (S3 sync failed — run praxis config sync).")
+
+
+@alert.command("overrides")
+def alert_overrides() -> None:
+    """Show all per-ticker threshold overrides."""
+    config_dir = get_config_dir()
+    raw = load_yaml(config_dir / "manage.yaml")
+    overrides = raw.get("overrides", {})
+    if not overrides:
+        click.echo("No per-ticker overrides configured.")
+        return
+    for ticker, params in sorted(overrides.items()):
+        if not isinstance(params, dict) or not params:
+            continue
+        parts = [f"{k}={v}" for k, v in params.items()]
+        click.echo(f"{ticker}: {', '.join(parts)}")

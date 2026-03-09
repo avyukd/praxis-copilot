@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PriceData(BaseModel):
@@ -38,6 +38,8 @@ class AlertType(str, Enum):
     PRICE_BREACH_DOWN = "price_breach_down"
     PRICE_BREACH_UP = "price_breach_up"
     VOLUME_SPIKE = "volume_spike"
+    VOLUME_VELOCITY = "volume_velocity"
+    REVERSAL = "reversal"
     STOP_LOSS_BREACH = "stop_loss_breach"
     TARGET_REACHED = "target_reached"
     ENTRY_OPPORTUNITY = "entry_opportunity"
@@ -64,8 +66,32 @@ class Alert(BaseModel):
 class ManageConfig(BaseModel):
     """Parsed manage.yaml config."""
 
-    price_move_pct: float = 5.0
+    move_from_close_pct: float = 5.0
+    reversal_pct: float = 5.0
     volume_anomaly_multiplier: float = 3.0
+    volume_velocity_multiplier: float = 2.0
+
+
+class IntradayTickerState(BaseModel):
+    """Per-ticker intraday tracking state for zigzag and velocity."""
+
+    # Zigzag reversal tracking
+    direction: Literal["up", "down"] | None = None
+    extreme_price: float | None = None
+    extreme_time: datetime | None = None
+
+    # Volume velocity: volume at last check for computing deltas
+    last_volume: int = 0
+
+    # Move-from-close: which threshold bands have fired (e.g. [1, 2] = 5%, 10%)
+    close_bands_fired: list[int] = Field(default_factory=list)
+
+
+class IntradayState(BaseModel):
+    """Persisted intraday state across all tickers.  Resets daily."""
+
+    date: str = ""  # YYYY-MM-DD, auto-resets when date changes
+    tickers: dict[str, IntradayTickerState] = Field(default_factory=dict)
 
 
 class ManageResult(BaseModel):
