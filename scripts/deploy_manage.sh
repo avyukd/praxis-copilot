@@ -14,7 +14,7 @@ if [[ -f "${DEPLOY_ENV_FILE}" ]]; then
   set +a
 fi
 
-REGION="${REGION:-us-east-2}"
+REGION="${REGION:-us-east-1}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 BUCKET="${S3_BUCKET:-praxis-copilot}"
 FUNCTION_NAME="${MANAGE_FUNCTION:-praxis-manage-intraday}"

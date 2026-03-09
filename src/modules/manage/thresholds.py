@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 import boto3
 import yaml
@@ -11,6 +12,7 @@ from botocore.exceptions import ClientError
 from .models import (
     Alert,
     AlertType,
+    IntradayTickerState,
     ManageConfig,
     PriceData,
     Severity,
@@ -48,13 +50,36 @@ def load_valuation_anchors(s3_client: boto3.client, ticker: str) -> ValuationAnc
     entry_range = valuation.get("entry_range", {})
     exit_range = valuation.get("exit_range", {})
 
+    # Handle both dict {"low": x, "high": y} and list [low, high] formats
+    def _safe_float(v: Any) -> float | None:
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    if isinstance(entry_range, list) and len(entry_range) >= 2:
+        entry_low, entry_high = _safe_float(entry_range[0]), _safe_float(entry_range[1])
+    elif isinstance(entry_range, dict):
+        entry_low = _safe_float(entry_range.get("low"))
+        entry_high = _safe_float(entry_range.get("high"))
+    else:
+        entry_low, entry_high = None, None
+
+    if isinstance(exit_range, list) and len(exit_range) >= 2:
+        exit_low, exit_high = _safe_float(exit_range[0]), _safe_float(exit_range[1])
+    elif isinstance(exit_range, dict):
+        exit_low = _safe_float(exit_range.get("low"))
+        exit_high = _safe_float(exit_range.get("high"))
+    else:
+        exit_low, exit_high = None, None
+
     return ValuationAnchors(
         fair_value_estimate=valuation.get("fair_value_estimate"),
-        entry_price=entry_range.get("low") if isinstance(entry_range, dict) else None,
-        entry_range_low=entry_range.get("low") if isinstance(entry_range, dict) else None,
-        entry_range_high=entry_range.get("high") if isinstance(entry_range, dict) else None,
-        exit_range_low=exit_range.get("low") if isinstance(exit_range, dict) else None,
-        exit_range_high=exit_range.get("high") if isinstance(exit_range, dict) else None,
+        entry_price=entry_low,
+        entry_range_low=entry_low,
+        entry_range_high=entry_high,
+        exit_range_low=exit_low,
+        exit_range_high=exit_high,
         stop_loss=valuation.get("stop_loss"),
         target_price=valuation.get("target_price"),
     )
@@ -86,68 +111,107 @@ def load_manage_config(s3_client: boto3.client) -> tuple[ManageConfig, dict]:
     }), overrides
 
 
+def _classify_valuation_zone(
+    price: float,
+    anchors: ValuationAnchors,
+) -> str:
+    """Classify which valuation zone the current price falls into.
+
+    Zones (checked in order from lowest to highest):
+      below_stop  – price ≤ stop_loss
+      deep_value  – price ≤ entry_range_low
+      entry_range – entry_range_low < price ≤ entry_range_high
+      fair_value  – between entry_range_high and exit_range_low
+      exit_range  – exit_range_low ≤ price < exit_range_high
+      overvalued  – price ≥ exit_range_high
+      above_target – price ≥ target_price (if set and above exit_range_high)
+
+    When boundaries are missing we collapse adjacent zones.
+    """
+    if anchors.stop_loss is not None and price <= anchors.stop_loss:
+        return "below_stop"
+
+    target = anchors.target_price or anchors.fair_value_estimate
+    entry_low = anchors.entry_range_low or anchors.entry_price
+
+    if entry_low is not None and price <= entry_low:
+        return "deep_value"
+
+    if anchors.entry_range_high is not None and price <= anchors.entry_range_high:
+        return "entry_range"
+
+    if anchors.exit_range_low is not None and price < anchors.exit_range_low:
+        return "fair_value"
+
+    if anchors.exit_range_high is not None and price < anchors.exit_range_high:
+        return "exit_range"
+
+    if target is not None and price >= target:
+        return "above_target"
+
+    if anchors.exit_range_high is not None and price >= anchors.exit_range_high:
+        return "overvalued"
+
+    return "fair_value"
+
+
+# Map zone transitions to the alert type that should fire
+_ZONE_ALERT_MAP: dict[str, AlertType] = {
+    "below_stop": AlertType.STOP_LOSS_BREACH,
+    "deep_value": AlertType.ENTRY_OPPORTUNITY,
+    "entry_range": AlertType.ENTRY_OPPORTUNITY,
+    "exit_range": AlertType.EXIT_SIGNAL,
+    "overvalued": AlertType.EXIT_SIGNAL,
+    "above_target": AlertType.TARGET_REACHED,
+}
+
+_ZONE_SEVERITY: dict[str, Severity] = {
+    "below_stop": Severity.CRITICAL,
+    "deep_value": Severity.HIGH,
+    "entry_range": Severity.MEDIUM,
+    "fair_value": Severity.LOW,
+    "exit_range": Severity.MEDIUM,
+    "overvalued": Severity.HIGH,
+    "above_target": Severity.HIGH,
+}
+
+
 def check_valuation_anchors(
     price_data: PriceData,
     anchors: ValuationAnchors,
+    ticker_state: IntradayTickerState,
 ) -> list[Alert]:
-    """Check price against valuation anchors (stop loss, target, entry/exit)."""
+    """Alert only on zone transitions — fires once per boundary crossing."""
     alerts: list[Alert] = []
     now = datetime.now(timezone.utc)
 
-    # Stop loss breach
-    if anchors.stop_loss is not None and price_data.price <= anchors.stop_loss:
-        alerts.append(Alert(
-            ticker=price_data.ticker,
-            timestamp=now,
-            alert_type=AlertType.STOP_LOSS_BREACH,
-            severity=Severity.CRITICAL,
-            details={
-                "price": price_data.price,
-                "stop_loss": anchors.stop_loss,
-            },
-        ))
+    new_zone = _classify_valuation_zone(price_data.price, anchors)
+    old_zone = ticker_state.valuation_zone
 
-    # Target price reached
-    target = anchors.target_price or anchors.fair_value_estimate
-    if target is not None and price_data.price >= target:
-        alerts.append(Alert(
-            ticker=price_data.ticker,
-            timestamp=now,
-            alert_type=AlertType.TARGET_REACHED,
-            severity=Severity.HIGH,
-            details={
-                "price": price_data.price,
-                "target_price": target,
-            },
-        ))
+    # Update state
+    ticker_state.valuation_zone = new_zone
 
-    # Entry opportunity (price drops into or below entry range)
-    entry_low = anchors.entry_range_low or anchors.entry_price
-    if entry_low is not None and price_data.price <= entry_low:
-        alerts.append(Alert(
-            ticker=price_data.ticker,
-            timestamp=now,
-            alert_type=AlertType.ENTRY_OPPORTUNITY,
-            severity=Severity.HIGH,
-            details={
-                "price": price_data.price,
-                "entry_range_low": entry_low,
-                "entry_range_high": anchors.entry_range_high,
-            },
-        ))
+    # First observation or no change — no alert
+    if old_zone is None or old_zone == new_zone:
+        return alerts
 
-    # Exit signal (price moves above exit range)
-    if anchors.exit_range_high is not None and price_data.price >= anchors.exit_range_high:
-        alerts.append(Alert(
-            ticker=price_data.ticker,
-            timestamp=now,
-            alert_type=AlertType.EXIT_SIGNAL,
-            severity=Severity.HIGH,
-            details={
-                "price": price_data.price,
-                "exit_range_high": anchors.exit_range_high,
-            },
-        ))
+    alert_type = _ZONE_ALERT_MAP.get(new_zone)
+    if alert_type is None:
+        # Transitioning back to fair_value — no alert needed
+        return alerts
+
+    severity = _ZONE_SEVERITY.get(new_zone, Severity.MEDIUM)
+    alerts.append(Alert(
+        ticker=price_data.ticker,
+        timestamp=now,
+        alert_type=alert_type,
+        severity=severity,
+        details={
+            "price": price_data.price,
+            "from_zone": old_zone,
+            "to_zone": new_zone,
+        },
+    ))
 
     return alerts
 
@@ -203,6 +267,8 @@ def check_thresholds(
         ))
 
     if anchors:
-        alerts.extend(check_valuation_anchors(price_data, anchors))
+        # CLI one-shot: use a fresh state so all zone alerts fire once
+        tmp_state = IntradayTickerState(valuation_zone="fair_value")
+        alerts.extend(check_valuation_anchors(price_data, anchors, tmp_state))
 
     return alerts
