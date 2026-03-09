@@ -30,6 +30,7 @@ RETRIABLE_EXCEPTIONS = (
 MAX_RETRIES = 4
 BASE_BACKOFF_SECONDS = 1.5
 DEFAULT_MODEL = "anthropic/claude-sonnet-4-5-20250929"
+HAIKU_MODEL = "anthropic/claude-haiku-4-5-20251001"
 TOKENS_PER_MINUTE = 30_000
 
 _rate_lock = Lock()
@@ -101,3 +102,15 @@ def call_sonnet(
             raise
 
     raise RuntimeError("LLM call loop exited unexpectedly") from last_error
+
+
+def call_haiku(
+    system: str,
+    user: str,
+    model: str | None = None,
+) -> str:
+    """Call Haiku with system + user message. Returns response text.
+
+    Same retry/throttle logic as call_sonnet but defaults to Haiku model.
+    """
+    return call_sonnet(system=system, user=user, model=model or HAIKU_MODEL)

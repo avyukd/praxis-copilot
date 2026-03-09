@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 
 from src.modules.monitor.evaluator import collector, snapshot
 from src.modules.monitor.evaluator.alerts import send_monitor_alert
-from src.modules.monitor.evaluator.models import EvaluatorResult, MonitorConfig
+from src.modules.monitor.evaluator.models import EvaluatorResult, MonitorConfig, cadence_to_hours
 
 logger = logging.getLogger(__name__)
 
@@ -55,11 +55,13 @@ def _filter_monitors(
     configs: list[MonitorConfig],
     trigger_type: str | None,
     trigger_sources: list[str] | None,
+    s3_client: boto3.client | None = None,
+    now: datetime | None = None,
 ) -> list[MonitorConfig]:
-    """Filter monitors based on trigger type and sources.
+    """Filter monitors based on trigger type, sources, and cadence.
 
     For event triggers: match filing monitors whose listen_keys overlap with trigger_sources.
-    For scheduled triggers: return scraper and search monitors.
+    For scheduled triggers: return scraper and search monitors whose cadence has elapsed.
     """
     if trigger_type == "event" and trigger_sources:
         source_set = set(trigger_sources)
@@ -68,8 +70,31 @@ def _filter_monitors(
             if c.type == "filing" and bool(set(c.listen_keys) & source_set)
         ]
 
-    # Daily scheduled run: process scraper and search monitors
-    return [c for c in configs if c.type in ("scraper", "search")]
+    # Scheduled run: filter scraper/search monitors by cadence
+    candidates = [c for c in configs if c.type in ("scraper", "search")]
+    if not s3_client or not now:
+        return candidates
+
+    due: list[MonitorConfig] = []
+    for config in candidates:
+        cadence_hours = cadence_to_hours(config.cadence, config.frequency)
+        prev = snapshot.load_previous_snapshot(s3_client, config.id)
+        if prev is None:
+            due.append(config)
+            continue
+        try:
+            last_run = datetime.strptime(prev.date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            hours_since = (now - last_run).total_seconds() / 3600
+            if hours_since >= cadence_hours:
+                due.append(config)
+            else:
+                logger.debug(
+                    "Skipping monitor %s: %.1fh since last run, cadence is %dh",
+                    config.id, hours_since, cadence_hours,
+                )
+        except (ValueError, TypeError):
+            due.append(config)
+    return due
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -99,7 +124,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if monitor_id:
         configs = [c for c in all_configs if c.id == monitor_id]
     else:
-        configs = _filter_monitors(all_configs, trigger_type, trigger_sources)
+        configs = _filter_monitors(all_configs, trigger_type, trigger_sources, s3_client=s3, now=now)
 
     logger.info(
         "Evaluating %d monitors (trigger_type=%s, sources=%s)",

@@ -63,6 +63,7 @@ def build_snapshot(
         delta_from_previous=collected_data.get("delta_from_previous", ""),
         significance=collected_data.get("significance", "low"),
         previous_data=previous_data,
+        seen_urls=collected_data.get("seen_urls", []),
     )
 
 
