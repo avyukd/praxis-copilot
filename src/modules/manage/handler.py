@@ -15,10 +15,10 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
-from src.modules.manage.alerts import store_alerts
-from src.modules.manage.models import Alert, ManageConfig, ManageResult
-from src.modules.manage.price import fetch_price_data
-from src.modules.manage.thresholds import (
+from .alerts import store_alerts
+from .models import Alert, ManageConfig, ManageResult
+from .price import fetch_price_data
+from .thresholds import (
     check_thresholds,
     load_manage_config,
     load_ticker_overrides,

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import requests
 import yfinance as yf
 
-from src.modules.manage.models import PriceData
+from .models import PriceData
 
 logger = logging.getLogger(__name__)
 
