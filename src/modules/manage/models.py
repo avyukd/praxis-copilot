@@ -89,6 +89,11 @@ class IntradayTickerState(BaseModel):
     # Move-from-close: which threshold bands have fired (e.g. [1, 2] = 5%, 10%)
     close_bands_fired: list[int] = Field(default_factory=list)
 
+    # Valuation zone tracking for transition-based alerts.
+    # Zones: "below_stop", "deep_value", "entry_range", "fair_value",
+    #         "exit_range", "overvalued", "above_target", or None (unknown)
+    valuation_zone: str | None = None
+
 
 class IntradayState(BaseModel):
     """Persisted intraday state across all tickers.  Resets daily."""

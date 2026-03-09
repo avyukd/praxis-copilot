@@ -257,6 +257,6 @@ def run_all_checks(
     alerts.extend(check_volume_velocity(price_data, effective, ticker_state))
 
     if anchors:
-        alerts.extend(check_valuation_anchors(price_data, anchors))
+        alerts.extend(check_valuation_anchors(price_data, anchors, ticker_state))
 
     return alerts

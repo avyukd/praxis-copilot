@@ -6,7 +6,11 @@ import os
 from datetime import datetime, timezone
 
 import requests
-import yfinance as yf
+
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None  # Lambda deployment doesn't include yfinance
 
 from .models import PriceData
 
@@ -122,6 +126,8 @@ def _fetch_price_data_eodhd(ticker: str, api_key: str) -> PriceData:
 
 def _fetch_price_data_yfinance(ticker: str) -> PriceData:
     """Fallback quote source when EODHD is unavailable."""
+    if yf is None:
+        raise ImportError("yfinance is not installed; EODHD_API_KEY must be set")
     yf_ticker = yf.Ticker(ticker)
     hist = yf_ticker.history(period="1mo")
     if hist.empty:
