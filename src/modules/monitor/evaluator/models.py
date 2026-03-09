@@ -52,7 +52,7 @@ class MonitorConfig(BaseModel):
 
     # Search-specific
     queries: list[str] = Field(default_factory=list)
-    search_backend: str = "brave"
+    search_backend: str = "tavily"
 
     # Scheduling — cadence supports interval strings: "1h", "6h", "1d", "7d"
     # Kept for backward compat with existing configs; cadence takes precedence.

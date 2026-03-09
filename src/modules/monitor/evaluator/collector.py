@@ -245,7 +245,10 @@ def _collect_search(
     # 2. Delta detection: only keep URLs not in previous snapshot
     previously_seen: set[str] = set(previous.seen_urls) if previous else set()
     new_results = [r for r in all_results if r.get("url", "") not in previously_seen]
-    all_seen_urls = list(previously_seen | batch_seen)
+    # Cap seen_urls to most recent 500 to prevent unbounded growth.
+    # batch_seen (current) takes priority over previously_seen.
+    merged = list(batch_seen) + [u for u in previously_seen if u not in batch_seen]
+    all_seen_urls = merged[:500]
 
     if not new_results:
         return {

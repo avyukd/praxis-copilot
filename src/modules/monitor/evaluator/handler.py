@@ -83,7 +83,9 @@ def _filter_monitors(
             due.append(config)
             continue
         try:
-            last_run = datetime.strptime(prev.date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            # Support both date-only (legacy) and datetime formats
+            date_fmt = "%Y-%m-%dT%H:%M:%S" if "T" in prev.date else "%Y-%m-%d"
+            last_run = datetime.strptime(prev.date, date_fmt).replace(tzinfo=timezone.utc)
             hours_since = (now - last_run).total_seconds() / 3600
             if hours_since >= cadence_hours:
                 due.append(config)
@@ -107,7 +109,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
       - monitor_id: optional, to evaluate a single specific monitor
     """
     now = datetime.now(timezone.utc)
-    date_str = now.strftime("%Y-%m-%d")
+    date_str = now.strftime("%Y-%m-%dT%H:%M:%S")
 
     trigger_type = event.get("trigger_type", "scheduled")
     trigger_sources = event.get("trigger_sources", [])
