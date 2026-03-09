@@ -27,6 +27,7 @@ from cli.macro import (
 )
 from cli.models import TickerRegistry, TickerRegistryEntry, UniverseConfig
 from cli.monitors import monitor
+from cli.quant import quant
 from cli.pipeline_interactive import interactive_pipeline_day_view, trace_payload
 from cli.pipeline_status import (
     build_pipeline_trace,
@@ -58,6 +59,7 @@ cli.add_command(monitor)
 cli.add_command(market)
 cli.add_command(watch)
 cli.add_command(alert)
+cli.add_command(quant)
 
 
 def _extract_tickers_from_monitor(monitor_data: dict) -> set[str]:
