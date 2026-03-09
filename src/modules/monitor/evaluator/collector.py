@@ -10,7 +10,7 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
-from src.modules.common.llm import call_sonnet
+from src.modules.common.llm import call_haiku, call_sonnet
 from src.modules.monitor.evaluator.models import MonitorConfig, MonitorSnapshot
 
 logger = logging.getLogger(__name__)
@@ -198,7 +198,14 @@ def _collect_search(
     config: MonitorConfig,
     previous: MonitorSnapshot | None,
 ) -> dict[str, Any]:
-    """Search monitor: run queries via search backend, analyze results with Sonnet."""
+    """Search monitor with delta detection and Haiku pre-filter.
+
+    Flow:
+      1. Run SERP queries via pluggable backend
+      2. Delta detection: filter to URLs not seen in previous snapshot
+      3. Haiku pre-filter: cheap call to decide if each new result is relevant
+      4. Sonnet analysis: deep analysis only on Haiku-approved results
+    """
     if not config.queries:
         logger.warning("Search monitor %s has no queries", config.id)
         return {"status": "unchanged", "source": "search:no_queries", "current_state": ""}
@@ -211,16 +218,16 @@ def _collect_search(
         logger.exception("Failed to load search backend '%s'", config.search_backend)
         return {"status": "unchanged", "source": f"search:{config.search_backend}", "current_state": ""}
 
-    # Run all queries and deduplicate
+    # 1. Run all queries and deduplicate within this batch
     all_results: list[dict[str, str]] = []
-    seen_urls: set[str] = set()
+    batch_seen: set[str] = set()
     for query in config.queries:
         try:
             results = backend.search(query)
             for r in results:
                 url = r.get("url", "")
-                if url not in seen_urls:
-                    seen_urls.add(url)
+                if url and url not in batch_seen:
+                    batch_seen.add(url)
                     all_results.append(r)
         except Exception:
             logger.warning("Search query failed for monitor %s: %s", config.id, query)
@@ -228,30 +235,69 @@ def _collect_search(
     if not all_results:
         return {
             "source": f"search:{config.search_backend}",
-            "current_state": "No search results",
+            "current_state": previous.current_state if previous else "No search results",
             "status": "unchanged",
             "delta_from_previous": "",
             "significance": "low",
+            "seen_urls": list(previous.seen_urls) if previous else [],
         }
 
-    # Format results for Sonnet
+    # 2. Delta detection: only keep URLs not in previous snapshot
+    previously_seen: set[str] = set(previous.seen_urls) if previous else set()
+    new_results = [r for r in all_results if r.get("url", "") not in previously_seen]
+    # Cap seen_urls to most recent 500 to prevent unbounded growth.
+    # batch_seen (current) takes priority over previously_seen.
+    merged = list(batch_seen) + [u for u in previously_seen if u not in batch_seen]
+    all_seen_urls = merged[:500]
+
+    if not new_results:
+        return {
+            "source": f"search:{config.search_backend}",
+            "current_state": previous.current_state if previous else "No new results",
+            "status": "unchanged",
+            "delta_from_previous": "",
+            "significance": "low",
+            "seen_urls": all_seen_urls,
+        }
+
+    logger.info(
+        "Monitor %s: %d total results, %d new (delta)",
+        config.id, len(all_results), len(new_results),
+    )
+
+    # 3. Haiku pre-filter: cheap relevance gate
+    relevant_results = _haiku_prefilter(config, new_results)
+
+    if not relevant_results:
+        logger.info("Monitor %s: Haiku filtered all %d new results as irrelevant", config.id, len(new_results))
+        return {
+            "source": f"search:{config.search_backend}",
+            "current_state": previous.current_state if previous else "No relevant new results",
+            "status": "unchanged",
+            "delta_from_previous": f"{len(new_results)} new results filtered as irrelevant by pre-screen",
+            "significance": "low",
+            "seen_urls": all_seen_urls,
+        }
+
+    # 4. Sonnet analysis on relevant results only
     results_text = "\n\n".join(
         f"Title: {r.get('title', '')}\nURL: {r.get('url', '')}\nSnippet: {r.get('snippet', '')}"
-        for r in all_results[:20]
+        for r in relevant_results[:20]
     )
 
     previous_state = previous.current_state if previous else ""
     system_prompt = (
-        f"You are a financial monitor analyzing search results.\n"
+        f"You are a financial monitor analyzing NEW search results that passed relevance screening.\n"
         f"Monitor: {config.description}\n"
         f"Extract instruction: {config.extract}\n"
         f"Threshold: {config.threshold}\n\n"
         f"Previous state:\n{previous_state[:5000]}\n\n"
-        f"Analyze the search results. Extract relevant information per the extract instruction.\n"
+        f"Analyze these new results. Extract relevant information per the extract instruction.\n"
+        f"Provide an updated current state that incorporates new findings with previous state.\n"
         f"Classify significance as low, medium, or high based on the threshold.\n"
         f"Start your response with SIGNIFICANCE: low|medium|high"
     )
-    user_prompt = f"Search results:\n\n{results_text}"
+    user_prompt = f"New search results ({len(relevant_results)} of {len(new_results)} passed relevance screen):\n\n{results_text}"
 
     try:
         response = call_sonnet(system=system_prompt, user=user_prompt)
@@ -259,10 +305,11 @@ def _collect_search(
         logger.exception("Sonnet call failed for search monitor %s", config.id)
         return {
             "source": f"search:{config.search_backend}",
-            "current_state": results_text[:2000],
+            "current_state": previous_state or results_text[:2000],
             "status": "updated",
-            "delta_from_previous": "Search results found but analysis failed",
+            "delta_from_previous": "New results found but Sonnet analysis failed",
             "significance": "medium",
+            "seen_urls": all_seen_urls,
         }
 
     significance = _parse_significance(response)
@@ -273,7 +320,58 @@ def _collect_search(
         "status": "updated",
         "delta_from_previous": _compute_delta(previous_state, response),
         "significance": significance,
+        "seen_urls": all_seen_urls,
     }
+
+
+def _haiku_prefilter(
+    config: MonitorConfig,
+    results: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    """Use Haiku to cheaply filter search results for relevance.
+
+    Sends all results in a single batch call. Returns only results Haiku
+    marks as relevant.
+    """
+    if not results:
+        return []
+
+    numbered_results = "\n".join(
+        f"[{i}] {r.get('title', '')} — {r.get('snippet', '')}"
+        for i, r in enumerate(results)
+    )
+
+    system_prompt = (
+        "You are a relevance filter for a financial monitoring system.\n"
+        f"Monitor description: {config.description}\n"
+        f"Extract instruction: {config.extract}\n\n"
+        "For each numbered search result below, decide if it is RELEVANT to the monitor.\n"
+        "Respond with ONLY a comma-separated list of the relevant result numbers.\n"
+        "If none are relevant, respond with: NONE\n"
+        "Example response: 0,2,5"
+    )
+
+    try:
+        response = call_haiku(system=system_prompt, user=numbered_results)
+    except Exception:
+        logger.warning("Haiku pre-filter failed for monitor %s, passing all results through", config.id)
+        return results
+
+    # Parse response — extract all standalone integers via regex.
+    # This handles prose like "Results 0, 2, and 5 are relevant" correctly.
+    import re
+
+    response_stripped = response.strip()
+    if response_stripped.upper() == "NONE":
+        return []
+
+    relevant_indices = {int(m) for m in re.findall(r"\b(\d+)\b", response_stripped)}
+
+    # Guard against out-of-range indices
+    max_idx = len(results) - 1
+    relevant_indices = {i for i in relevant_indices if i <= max_idx}
+
+    return [r for i, r in enumerate(results) if i in relevant_indices]
 
 
 def _build_filing_text(extracted: dict) -> str:

@@ -64,10 +64,11 @@ class TavilySearchBackend:
         resp = requests.post(
             self.base_url,
             json={
-                "api_key": self.api_key,
                 "query": query,
                 "max_results": max_results,
+                "topic": "news",
             },
+            headers={"Authorization": f"Bearer {self.api_key}"},
             timeout=15,
         )
         resp.raise_for_status()

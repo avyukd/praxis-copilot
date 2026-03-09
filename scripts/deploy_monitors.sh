@@ -29,11 +29,13 @@ aws lambda get-function --function-name "$EVALUATOR_FUNCTION" --region "$REGION"
 
 FUNC_ARN=$(aws lambda get-function --function-name "$EVALUATOR_FUNCTION" --region "$REGION" --query 'Configuration.FunctionArn' --output text)
 
+MONITOR_CRON="${MONITOR_CRON:-cron(0 * ? * MON-FRI *)}"
+
 aws events put-rule \
   --name "$RULE_NAME" \
-  --schedule-expression "cron(0 14 ? * MON-FRI *)" \
+  --schedule-expression "${MONITOR_CRON}" \
   --state ENABLED \
-  --description "Daily monitor evaluation (search + scraper monitors)" \
+  --description "Hourly monitor evaluation (cadence-gated per monitor)" \
   --region "$REGION" >/dev/null
 
 aws events put-targets \

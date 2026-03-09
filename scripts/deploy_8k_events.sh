@@ -130,6 +130,8 @@ EXTRACTOR_ENV="{${COMMON_VARS}}"
 ANALYZER_ENV="{${COMMON_VARS},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},DISABLE_LLM_ANALYSIS=${DISABLE_LLM_ANALYSIS},FILING_ANALYZER_ENABLED_FORMS=${FILING_ANALYZER_ENABLED_FORMS},ENABLE_8K_HAIKU_SCREEN=${ENABLE_8K_HAIKU_SCREEN},HAIKU_PRESCREEN_MODEL=${HAIKU_PRESCREEN_MODEL}}"
 ALERTS_ENV="{${COMMON_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},FILING_ANALYZER_ENABLED_FORMS=${FILING_ANALYZER_ENABLED_FORMS}}"
 DISPATCH_ENV="{S3_BUCKET=${S3_BUCKET},MONITOR_EVALUATOR_LAMBDA=${MONITOR_EVALUATOR_FUNCTION},FILING_ANALYZER_LAMBDA=${ANALYZER_FUNCTION}}"
+TAVILY_API_KEY="${TAVILY_API_KEY:-}"
+MONITOR_EVALUATOR_ENV="{S3_BUCKET=${S3_BUCKET},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},TAVILY_API_KEY=${TAVILY_API_KEY}}"
 
 create_or_update_lambda() {
   local func_name="$1"
@@ -174,6 +176,7 @@ create_or_update_lambda "${EXTRACTOR_FUNCTION}" "src.modules.events.eight_k_scan
 create_or_update_lambda "${ANALYZER_FUNCTION}" "src.modules.events.eight_k_scanner.filing_analyzer_handler.lambda_handler" "${ANALYZER_ENV}"
 create_or_update_lambda "${ALERTS_FUNCTION}" "src.modules.events.eight_k_scanner.filing_alerts_handler.lambda_handler" "${ALERTS_ENV}"
 create_or_update_lambda "${DISPATCH_FUNCTION}" "src.modules.events.dispatch.handler.lambda_handler" "${DISPATCH_ENV}"
+create_or_update_lambda "${MONITOR_EVALUATOR_FUNCTION}" "src.modules.monitor.evaluator.handler.handler" "${MONITOR_EVALUATOR_ENV}"
 
 ensure_rule_target() {
   local rule_name="$1"
