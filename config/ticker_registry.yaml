@@ -5,6 +5,7 @@ tickers:
     name: NVIDIA CORP
     news_queries:
     - '"NVIDIA CORP" OR "NVDA"'
+    edgar_supported: true
     research_priority: 5
   TSM:
     cik: 0001046179
@@ -12,6 +13,7 @@ tickers:
     name: TAIWAN SEMICONDUCTOR MANUFACTURING CO LTD
     news_queries:
     - '"TAIWAN SEMICONDUCTOR MANUFACTURING CO LTD" OR "TSM"'
+    edgar_supported: true
     research_priority: 5
   AAOI:
     cik: 0001158114
@@ -19,6 +21,7 @@ tickers:
     name: APPLIED OPTOELECTRONICS, INC.
     news_queries:
     - '"APPLIED OPTOELECTRONICS, INC." OR "AAOI"'
+    edgar_supported: true
     research_priority: 5
   ACMR:
     cik: 0001680062
@@ -26,6 +29,7 @@ tickers:
     name: ACM Research, Inc.
     news_queries:
     - '"ACM Research, Inc." OR "ACMR"'
+    edgar_supported: true
     research_priority: 5
   ACNT:
     cik: 0000095953
@@ -33,6 +37,7 @@ tickers:
     name: ASCENT INDUSTRIES CO.
     news_queries:
     - '"ASCENT INDUSTRIES CO." OR "ACNT"'
+    edgar_supported: true
     research_priority: 5
   AEHR:
     cik: '0001040470'
@@ -40,6 +45,7 @@ tickers:
     name: AEHR TEST SYSTEMS
     news_queries:
     - '"AEHR TEST SYSTEMS" OR "AEHR"'
+    edgar_supported: true
     research_priority: 5
   AES:
     cik: 0000874761
@@ -47,6 +53,7 @@ tickers:
     name: AES CORP
     news_queries:
     - '"AES CORP" OR "AES"'
+    edgar_supported: true
     research_priority: 5
   AGM:
     cik: 0000845877
@@ -54,6 +61,7 @@ tickers:
     name: FEDERAL AGRICULTURAL MORTGAGE CORP
     news_queries:
     - '"FEDERAL AGRICULTURAL MORTGAGE CORP" OR "AGM"'
+    edgar_supported: true
     research_priority: 5
   AII:
     cik: 0002007587
@@ -61,6 +69,7 @@ tickers:
     name: American Integrity Insurance Group, Inc.
     news_queries:
     - '"American Integrity Insurance Group, Inc." OR "AII"'
+    edgar_supported: true
     research_priority: 5
   APP:
     cik: 0001751008
@@ -68,6 +77,7 @@ tickers:
     name: AppLovin Corp
     news_queries:
     - '"AppLovin Corp" OR "APP"'
+    edgar_supported: true
     research_priority: 5
   ASIC:
     cik: 0002040491
@@ -75,6 +85,7 @@ tickers:
     name: Ategrity Specialty Insurance Co Holdings
     news_queries:
     - '"Ategrity Specialty Insurance Co Holdings" OR "ASIC"'
+    edgar_supported: true
     research_priority: 5
   ASIX:
     cik: 0001673985
@@ -82,6 +93,7 @@ tickers:
     name: AdvanSix Inc.
     news_queries:
     - '"AdvanSix Inc." OR "ASIX"'
+    edgar_supported: true
     research_priority: 5
   ASML:
     cik: 0000937966
@@ -89,6 +101,7 @@ tickers:
     name: ASML HOLDING NV
     news_queries:
     - '"ASML HOLDING NV" OR "ASML"'
+    edgar_supported: true
     research_priority: 5
   BLNE:
     cik: 0001534708
@@ -96,6 +109,7 @@ tickers:
     name: Beeline Holdings, Inc.
     news_queries:
     - '"Beeline Holdings, Inc." OR "BLNE"'
+    edgar_supported: true
     research_priority: 5
   CBLL:
     cik: 0001861107
@@ -103,6 +117,7 @@ tickers:
     name: Ceribell, Inc.
     news_queries:
     - '"Ceribell, Inc." OR "CBLL"'
+    edgar_supported: true
     research_priority: 5
   CBNA:
     cik: 0001392272
@@ -110,6 +125,7 @@ tickers:
     name: CHAIN BRIDGE BANCORP INC
     news_queries:
     - '"CHAIN BRIDGE BANCORP INC" OR "CBNA"'
+    edgar_supported: true
     research_priority: 5
   CCLD:
     cik: 0001582982
@@ -117,6 +133,7 @@ tickers:
     name: CareCloud, Inc.
     news_queries:
     - '"CareCloud, Inc." OR "CCLD"'
+    edgar_supported: true
     research_priority: 5
   CFNB:
     cik: 0000803016
@@ -124,6 +141,7 @@ tickers:
     name: CALIFORNIA FIRST LEASING CORP
     news_queries:
     - '"CALIFORNIA FIRST LEASING CORP" OR "CFNB"'
+    edgar_supported: true
     research_priority: 5
   COUR:
     cik: '0001651562'
@@ -131,6 +149,7 @@ tickers:
     name: Coursera, Inc.
     news_queries:
     - '"Coursera, Inc." OR "COUR"'
+    edgar_supported: true
     research_priority: 5
   CRDF:
     cik: '0001213037'
@@ -138,6 +157,7 @@ tickers:
     name: Cardiff Oncology, Inc.
     news_queries:
     - '"Cardiff Oncology, Inc." OR "CRDF"'
+    edgar_supported: true
     research_priority: 5
   CRDO:
     cik: 0001807794
@@ -145,6 +165,7 @@ tickers:
     name: Credo Technology Group Holding Ltd
     news_queries:
     - '"Credo Technology Group Holding Ltd" OR "CRDO"'
+    edgar_supported: true
     research_priority: 5
   DOCU:
     cik: '0001261333'
@@ -152,6 +173,7 @@ tickers:
     name: DOCUSIGN, INC.
     news_queries:
     - '"DOCUSIGN, INC." OR "DOCU"'
+    edgar_supported: true
     research_priority: 5
   EDSA:
     cik: 0001540159
@@ -159,6 +181,7 @@ tickers:
     name: Edesa Biotech, Inc.
     news_queries:
     - '"Edesa Biotech, Inc." OR "EDSA"'
+    edgar_supported: true
     research_priority: 5
   FICO:
     cik: 0000814547
@@ -166,6 +189,7 @@ tickers:
     name: FAIR ISAAC CORP
     news_queries:
     - '"FAIR ISAAC CORP" OR "FICO"'
+    edgar_supported: true
     research_priority: 5
   FLYW:
     cik: 0001580560
@@ -173,6 +197,7 @@ tickers:
     name: Flywire Corp
     news_queries:
     - '"Flywire Corp" OR "FLYW"'
+    edgar_supported: true
     research_priority: 5
   FRO:
     cik: 0000913290
@@ -180,6 +205,7 @@ tickers:
     name: Frontline plc
     news_queries:
     - '"Frontline plc" OR "FRO"'
+    edgar_supported: true
     research_priority: 5
   HRTG:
     cik: 0001598665
@@ -187,6 +213,7 @@ tickers:
     name: Heritage Insurance Holdings, Inc.
     news_queries:
     - '"Heritage Insurance Holdings, Inc." OR "HRTG"'
+    edgar_supported: true
     research_priority: 5
   HYNE:
     cik: '0002073153'
@@ -194,6 +221,7 @@ tickers:
     name: Hoyne Bancorp, Inc.
     news_queries:
     - '"Hoyne Bancorp, Inc." OR "HYNE"'
+    edgar_supported: true
     research_priority: 5
   ICE:
     cik: 0001571949
@@ -201,6 +229,7 @@ tickers:
     name: Intercontinental Exchange, Inc.
     news_queries:
     - '"Intercontinental Exchange, Inc." OR "ICE"'
+    edgar_supported: true
     research_priority: 5
   IESC:
     cik: 0001048268
@@ -208,6 +237,7 @@ tickers:
     name: IES Holdings, Inc.
     news_queries:
     - '"IES Holdings, Inc." OR "IESC"'
+    edgar_supported: true
     research_priority: 5
   IVFH:
     cik: '0000312257'
@@ -215,6 +245,7 @@ tickers:
     name: INNOVATIVE FOOD HOLDINGS INC
     news_queries:
     - '"INNOVATIVE FOOD HOLDINGS INC" OR "IVFH"'
+    edgar_supported: true
     research_priority: 5
   JMIA:
     cik: 0001756708
@@ -222,6 +253,7 @@ tickers:
     name: Jumia Technologies AG
     news_queries:
     - '"Jumia Technologies AG" OR "JMIA"'
+    edgar_supported: true
     research_priority: 5
   LB:
     cik: 0001995807
@@ -229,6 +261,7 @@ tickers:
     name: LandBridge Co LLC
     news_queries:
     - '"LandBridge Co LLC" OR "LB"'
+    edgar_supported: true
     research_priority: 5
   MIAX:
     cik: 0001438472
@@ -236,6 +269,7 @@ tickers:
     name: MIAMI INTERNATIONAL HOLDINGS, INC.
     news_queries:
     - '"MIAMI INTERNATIONAL HOLDINGS, INC." OR "MIAX"'
+    edgar_supported: true
     research_priority: 5
   MICC:
     cik: 0002071668
@@ -243,6 +277,7 @@ tickers:
     name: Magnum Ice Cream Co N.V.
     news_queries:
     - '"Magnum Ice Cream Co N.V." OR "MICC"'
+    edgar_supported: true
     research_priority: 5
   MKL:
     cik: 0001096343
@@ -250,6 +285,7 @@ tickers:
     name: MARKEL GROUP INC.
     news_queries:
     - '"MARKEL GROUP INC." OR "MKL"'
+    edgar_supported: true
     research_priority: 5
   MLP:
     cik: '0000063330'
@@ -257,6 +293,7 @@ tickers:
     name: MAUI LAND & PINEAPPLE CO INC
     news_queries:
     - '"MAUI LAND & PINEAPPLE CO INC" OR "MLP"'
+    edgar_supported: true
     research_priority: 5
   MNTN:
     cik: 0001891027
@@ -264,6 +301,7 @@ tickers:
     name: MNTN, Inc.
     news_queries:
     - '"MNTN, Inc." OR "MNTN"'
+    edgar_supported: true
     research_priority: 5
   MRX:
     cik: 0001997464
@@ -271,6 +309,7 @@ tickers:
     name: Marex Group plc
     news_queries:
     - '"Marex Group plc" OR "MRX"'
+    edgar_supported: true
     research_priority: 5
   NN:
     cik: 0001865631
@@ -278,6 +317,7 @@ tickers:
     name: NEXTNAV INC.
     news_queries:
     - '"NEXTNAV INC." OR "NN"'
+    edgar_supported: true
     research_priority: 5
   NVTS:
     cik: 0001821769
@@ -285,6 +325,7 @@ tickers:
     name: Navitas Semiconductor Corp
     news_queries:
     - '"Navitas Semiconductor Corp" OR "NVTS"'
+    edgar_supported: true
     research_priority: 5
   NWSA:
     cik: 0001564708
@@ -292,6 +333,7 @@ tickers:
     name: NEWS CORP
     news_queries:
     - '"NEWS CORP" OR "NWSA"'
+    edgar_supported: true
     research_priority: 5
   OMAB:
     cik: 0001378239
@@ -299,6 +341,7 @@ tickers:
     name: Central North Airport Group
     news_queries:
     - '"Central North Airport Group" OR "OMAB"'
+    edgar_supported: true
     research_priority: 5
   OPY:
     cik: 0000791963
@@ -306,6 +349,7 @@ tickers:
     name: OPPENHEIMER HOLDINGS INC
     news_queries:
     - '"OPPENHEIMER HOLDINGS INC" OR "OPY"'
+    edgar_supported: true
     research_priority: 5
   PFSB:
     cik: 0001967656
@@ -313,6 +357,7 @@ tickers:
     name: PFS Bancorp, Inc.
     news_queries:
     - '"PFS Bancorp, Inc." OR "PFSB"'
+    edgar_supported: true
     research_priority: 5
   PKBK:
     cik: 0001315399
@@ -320,6 +365,7 @@ tickers:
     name: PARKE BANCORP, INC.
     news_queries:
     - '"PARKE BANCORP, INC." OR "PKBK"'
+    edgar_supported: true
     research_priority: 5
   PLBY:
     cik: 0001803914
@@ -327,6 +373,7 @@ tickers:
     name: Playboy, Inc.
     news_queries:
     - '"Playboy, Inc." OR "PLBY"'
+    edgar_supported: true
     research_priority: 5
   SATS:
     cik: '0001415404'
@@ -334,6 +381,7 @@ tickers:
     name: EchoStar CORP
     news_queries:
     - '"EchoStar CORP" OR "SATS"'
+    edgar_supported: true
     research_priority: 5
   SBMW:
     cik: '0002036060'
@@ -341,6 +389,7 @@ tickers:
     name: Security Midwest Bancorp, Inc.
     news_queries:
     - '"Security Midwest Bancorp, Inc." OR "SBMW"'
+    edgar_supported: true
     research_priority: 5
   SHLS:
     cik: 0001831651
@@ -348,6 +397,7 @@ tickers:
     name: Shoals Technologies Group, Inc.
     news_queries:
     - '"Shoals Technologies Group, Inc." OR "SHLS"'
+    edgar_supported: true
     research_priority: 5
   SHMD:
     cik: 0001987240
@@ -355,6 +405,7 @@ tickers:
     name: SCHMID Group N.V.
     news_queries:
     - '"SCHMID Group N.V." OR "SHMD"'
+    edgar_supported: true
     research_priority: 5
   SNBR:
     cik: 0000827187
@@ -362,6 +413,7 @@ tickers:
     name: Sleep Number Corp
     news_queries:
     - '"Sleep Number Corp" OR "SNBR"'
+    edgar_supported: true
     research_priority: 5
   SNAP:
     cik: 0001564408
@@ -369,6 +421,7 @@ tickers:
     name: Snap Inc
     news_queries:
     - '"Snap Inc" OR "SNAP"'
+    edgar_supported: true
     research_priority: 5
   SNWV:
     cik: '0001417663'
@@ -376,6 +429,7 @@ tickers:
     name: SANUWAVE Health, Inc.
     news_queries:
     - '"SANUWAVE Health, Inc." OR "SNWV"'
+    edgar_supported: true
     research_priority: 5
   SOLS:
     cik: 0002064953
@@ -383,6 +437,7 @@ tickers:
     name: Solstice Advanced Materials Inc.
     news_queries:
     - '"Solstice Advanced Materials Inc." OR "SOLS"'
+    edgar_supported: true
     research_priority: 5
   TIC:
     cik: 0002032966
@@ -390,6 +445,7 @@ tickers:
     name: TIC Solutions, Inc.
     news_queries:
     - '"TIC Solutions, Inc." OR "TIC"'
+    edgar_supported: true
     research_priority: 5
   TPB:
     cik: 0001290677
@@ -397,6 +453,7 @@ tickers:
     name: Turning Point Brands, Inc.
     news_queries:
     - '"Turning Point Brands, Inc." OR "TPB"'
+    edgar_supported: true
     research_priority: 5
   TWST:
     cik: 0001581280
@@ -404,6 +461,7 @@ tickers:
     name: Twist Bioscience Corp
     news_queries:
     - '"Twist Bioscience Corp" OR "TWST"'
+    edgar_supported: true
     research_priority: 5
   UMC:
     cik: '0001033767'
@@ -411,6 +469,7 @@ tickers:
     name: UNITED MICROELECTRONICS CORP
     news_queries:
     - '"UNITED MICROELECTRONICS CORP" OR "UMC"'
+    edgar_supported: true
     research_priority: 5
   UVE:
     cik: 0000891166
@@ -418,6 +477,7 @@ tickers:
     name: UNIVERSAL INSURANCE HOLDINGS, INC.
     news_queries:
     - '"UNIVERSAL INSURANCE HOLDINGS, INC." OR "UVE"'
+    edgar_supported: true
     research_priority: 5
   VNDA:
     cik: 0001347178
@@ -425,6 +485,7 @@ tickers:
     name: Vanda Pharmaceuticals Inc.
     news_queries:
     - '"Vanda Pharmaceuticals Inc." OR "VNDA"'
+    edgar_supported: true
     research_priority: 5
   VOD:
     cik: 0000839923
@@ -432,6 +493,7 @@ tickers:
     name: VODAFONE GROUP PUBLIC LTD CO
     news_queries:
     - '"VODAFONE GROUP PUBLIC LTD CO" OR "VOD"'
+    edgar_supported: true
     research_priority: 5
   VRME:
     cik: 0001104038
@@ -439,6 +501,7 @@ tickers:
     name: VerifyMe, Inc.
     news_queries:
     - '"VerifyMe, Inc." OR "VRME"'
+    edgar_supported: true
     research_priority: 5
   WBI:
     cik: 0002064947
@@ -446,6 +509,7 @@ tickers:
     name: WaterBridge Infrastructure LLC
     news_queries:
     - '"WaterBridge Infrastructure LLC" OR "WBI"'
+    edgar_supported: true
     research_priority: 5
   ZM:
     cik: 0001585521
@@ -453,6 +517,7 @@ tickers:
     name: Zoom Communications, Inc.
     news_queries:
     - '"Zoom Communications, Inc." OR "ZM"'
+    edgar_supported: true
     research_priority: 5
   WSBF:
     cik: 0001569994
@@ -460,6 +525,7 @@ tickers:
     name: Waterstone Financial, Inc.
     news_queries:
     - '"Waterstone Financial, Inc." OR "WSBF"'
+    edgar_supported: true
     research_priority: 5
   VTRS:
     cik: 0001792044
@@ -467,6 +533,7 @@ tickers:
     name: Viatris Inc
     news_queries:
     - '"Viatris Inc" OR "VTRS"'
+    edgar_supported: true
     research_priority: 5
   FTRK:
     cik: '0002027262'
@@ -474,6 +541,7 @@ tickers:
     name: Fast Track Group
     news_queries:
     - '"Fast Track Group" OR "FTRK"'
+    edgar_supported: true
     research_priority: 5
   CEIN:
     cik: 0001309082
@@ -481,6 +549,7 @@ tickers:
     name: CAMBER ENERGY, INC.
     news_queries:
     - '"CAMBER ENERGY, INC." OR "CEIN"'
+    edgar_supported: true
     research_priority: 5
   INV:
     cik: '0002001557'
@@ -488,6 +557,7 @@ tickers:
     name: Innventure, Inc.
     news_queries:
     - '"Innventure, Inc." OR "INV"'
+    edgar_supported: true
     research_priority: 5
   RBNE:
     cik: 0002039060
@@ -495,6 +565,7 @@ tickers:
     name: Robin Energy Ltd.
     news_queries:
     - '"Robin Energy Ltd." OR "RBNE"'
+    edgar_supported: true
     research_priority: 5
   CTXR:
     cik: '0001506251'
@@ -502,6 +573,7 @@ tickers:
     name: Citius Pharmaceuticals, Inc.
     news_queries:
     - '"Citius Pharmaceuticals, Inc." OR "CTXR"'
+    edgar_supported: true
     research_priority: 5
   CTOR:
     cik: 0001851484
@@ -509,6 +581,7 @@ tickers:
     name: CITIUS ONCOLOGY, INC.
     news_queries:
     - '"CITIUS ONCOLOGY, INC." OR "CTOR"'
+    edgar_supported: true
     research_priority: 5
   AIRT:
     cik: 0000353184
@@ -516,6 +589,7 @@ tickers:
     name: AIR T INC
     news_queries:
     - '"AIR T INC" OR "AIRT"'
+    edgar_supported: true
     research_priority: 5
   ALTO:
     cik: 0000778164
@@ -523,6 +597,7 @@ tickers:
     name: Alto Ingredients, Inc.
     news_queries:
     - '"Alto Ingredients, Inc." OR "ALTO"'
+    edgar_supported: true
     research_priority: 5
   SKM:
     cik: '0001015650'
@@ -530,6 +605,7 @@ tickers:
     name: SK TELECOM CO LTD
     news_queries:
     - '"SK TELECOM CO LTD" OR "SKM"'
+    edgar_supported: true
     research_priority: 5
   MKTW:
     cik: 0001805651
@@ -537,6 +613,7 @@ tickers:
     name: MARKETWISE, INC.
     news_queries:
     - '"MARKETWISE, INC." OR "MKTW"'
+    edgar_supported: true
     research_priority: 5
   KMFG:
     cik: 0001935033
@@ -544,6 +621,7 @@ tickers:
     name: KEEMO Fashion Group Ltd
     news_queries:
     - '"KEEMO Fashion Group Ltd" OR "KMFG"'
+    edgar_supported: true
     research_priority: 5
   IMRX:
     cik: 0001790340
@@ -551,6 +629,7 @@ tickers:
     name: Immuneering Corp
     news_queries:
     - '"Immuneering Corp" OR "IMRX"'
+    edgar_supported: true
     research_priority: 5
   COHN:
     cik: '0001270436'
@@ -558,6 +637,7 @@ tickers:
     name: Cohen & Co Inc.
     news_queries:
     - '"Cohen & Co Inc." OR "COHN"'
+    edgar_supported: true
     research_priority: 5
   COBA:
     cik: '0001727255'
@@ -565,4 +645,301 @@ tickers:
     name: Chilean Cobalt Corp.
     news_queries:
     - '"Chilean Cobalt Corp." OR "COBA"'
+    edgar_supported: true
+    research_priority: 5
+  HUN:
+    cik: 0001307954
+    exchange: NYSE
+    name: Huntsman CORP
+    news_queries:
+    - '"Huntsman CORP" OR "HUN"'
+    edgar_supported: true
+    research_priority: 5
+  DOW:
+    cik: 0001751788
+    exchange: NYSE
+    name: DOW INC.
+    news_queries:
+    - '"DOW INC." OR "DOW"'
+    edgar_supported: true
+    research_priority: 5
+  BAK:
+    cik: 0001071438
+    exchange: NYSE
+    name: BRASKEM SA
+    news_queries:
+    - '"BRASKEM SA" OR "BAK"'
+    edgar_supported: true
+    research_priority: 5
+  LYB:
+    cik: 0001489393
+    exchange: NYSE
+    name: LyondellBasell Industries N.V.
+    news_queries:
+    - '"LyondellBasell Industries N.V." OR "LYB"'
+    edgar_supported: true
+    research_priority: 5
+  OLN:
+    cik: '0000074303'
+    exchange: NYSE
+    name: OLIN Corp
+    news_queries:
+    - '"OLIN Corp" OR "OLN"'
+    edgar_supported: true
+    research_priority: 5
+  LXU:
+    cik: '0000060714'
+    exchange: NYSE
+    name: LSB INDUSTRIES, INC.
+    news_queries:
+    - '"LSB INDUSTRIES, INC." OR "LXU"'
+    edgar_supported: true
+    research_priority: 5
+  ERII:
+    cik: '0001421517'
+    exchange: Nasdaq
+    name: Energy Recovery, Inc.
+    news_queries:
+    - '"Energy Recovery, Inc." OR "ERII"'
+    edgar_supported: true
+    research_priority: 5
+  IFOS.V:
+    cik: IFOS.V
+    exchange: NON_US
+    name: IFOS.V
+    news_queries:
+    - '"IFOS.V"'
+    edgar_supported: false
+    research_priority: 5
+  LGO:
+    cik: 0001400438
+    exchange: Nasdaq
+    name: Largo Inc.
+    news_queries:
+    - '"Largo Inc." OR "LGO"'
+    edgar_supported: true
+    research_priority: 5
+  REOP:
+    cik: REOP
+    exchange: NON_US
+    name: REOP
+    news_queries:
+    - '"REOP"'
+    edgar_supported: false
+    research_priority: 5
+  KNOP:
+    cik: 0001564180
+    exchange: NYSE
+    name: KNOT Offshore Partners LP
+    news_queries:
+    - '"KNOT Offshore Partners LP" OR "KNOP"'
+    edgar_supported: true
+    research_priority: 5
+  SU:
+    cik: '0000311337'
+    exchange: NYSE
+    name: SUNCOR ENERGY INC
+    news_queries:
+    - '"SUNCOR ENERGY INC" OR "SU"'
+    edgar_supported: true
+    research_priority: 5
+  QURE:
+    cik: 0001590560
+    exchange: Nasdaq
+    name: uniQure N.V.
+    news_queries:
+    - '"uniQure N.V." OR "QURE"'
+    edgar_supported: true
+    research_priority: 5
+  CLPT:
+    cik: 0001285550
+    exchange: Nasdaq
+    name: ClearPoint Neuro, Inc.
+    news_queries:
+    - '"ClearPoint Neuro, Inc." OR "CLPT"'
+    edgar_supported: true
+    research_priority: 5
+  TROX:
+    cik: 0001530804
+    exchange: NYSE
+    name: Tronox Holdings plc
+    news_queries:
+    - '"Tronox Holdings plc" OR "TROX"'
+    edgar_supported: true
+    research_priority: 5
+  CC:
+    cik: '0001627223'
+    exchange: NYSE
+    name: Chemours Co
+    news_queries:
+    - '"Chemours Co" OR "CC"'
+    edgar_supported: true
+    research_priority: 5
+  KLXE:
+    cik: 0001738827
+    exchange: Nasdaq
+    name: KLX Energy Services Holdings, Inc.
+    news_queries:
+    - '"KLX Energy Services Holdings, Inc." OR "KLXE"'
+    edgar_supported: true
+    research_priority: 5
+  ACDC:
+    cik: 0001881487
+    exchange: Nasdaq
+    name: ProFrac Holding Corp.
+    news_queries:
+    - '"ProFrac Holding Corp." OR "ACDC"'
+    edgar_supported: true
+    research_priority: 5
+  BGC:
+    cik: 0001094831
+    exchange: Nasdaq
+    name: BGC Group, Inc.
+    news_queries:
+    - '"BGC Group, Inc." OR "BGC"'
+    edgar_supported: true
+    research_priority: 5
+  EVC:
+    cik: 0001109116
+    exchange: NYSE
+    name: ENTRAVISION COMMUNICATIONS CORP
+    news_queries:
+    - '"ENTRAVISION COMMUNICATIONS CORP" OR "EVC"'
+    edgar_supported: true
+    research_priority: 5
+  FCEL:
+    cik: 0000886128
+    exchange: Nasdaq
+    name: FUELCELL ENERGY INC
+    news_queries:
+    - '"FUELCELL ENERGY INC" OR "FCEL"'
+    edgar_supported: true
+    research_priority: 5
+  LBRT:
+    cik: 0001694028
+    exchange: NYSE
+    name: Liberty Energy Inc.
+    news_queries:
+    - '"Liberty Energy Inc." OR "LBRT"'
+    edgar_supported: true
+    research_priority: 5
+  IBIO:
+    cik: '0001420720'
+    exchange: Nasdaq
+    name: iBio, Inc.
+    news_queries:
+    - '"iBio, Inc." OR "IBIO"'
+    edgar_supported: true
+    research_priority: 5
+  RLMD:
+    cik: '0001553643'
+    exchange: Nasdaq
+    name: RELMADA THERAPEUTICS, INC.
+    news_queries:
+    - '"RELMADA THERAPEUTICS, INC." OR "RLMD"'
+    edgar_supported: true
+    research_priority: 5
+  ABEO:
+    cik: 0000318306
+    exchange: Nasdaq
+    name: ABEONA THERAPEUTICS INC.
+    news_queries:
+    - '"ABEONA THERAPEUTICS INC." OR "ABEO"'
+    edgar_supported: true
+    research_priority: 5
+  KRRO:
+    cik: '0001703647'
+    exchange: Nasdaq
+    name: Korro Bio, Inc.
+    news_queries:
+    - '"Korro Bio, Inc." OR "KRRO"'
+    edgar_supported: true
+    research_priority: 5
+  LSTA:
+    cik: '0000320017'
+    exchange: Nasdaq
+    name: LISATA THERAPEUTICS, INC.
+    news_queries:
+    - '"LISATA THERAPEUTICS, INC." OR "LSTA"'
+    edgar_supported: true
+    research_priority: 5
+  INM:
+    cik: 0001728328
+    exchange: Nasdaq
+    name: InMed Pharmaceuticals Inc.
+    news_queries:
+    - '"InMed Pharmaceuticals Inc." OR "INM"'
+    edgar_supported: true
+    research_priority: 5
+  PLX:
+    cik: 0001006281
+    exchange: NYSE
+    name: Protalix BioTherapeutics, Inc.
+    news_queries:
+    - '"Protalix BioTherapeutics, Inc." OR "PLX"'
+    edgar_supported: true
+    research_priority: 5
+  KROS:
+    cik: '0001664710'
+    exchange: Nasdaq
+    name: Keros Therapeutics, Inc.
+    news_queries:
+    - '"Keros Therapeutics, Inc." OR "KROS"'
+    edgar_supported: true
+    research_priority: 5
+  ALLR:
+    cik: 0001860657
+    exchange: Nasdaq
+    name: Allarity Therapeutics, Inc.
+    news_queries:
+    - '"Allarity Therapeutics, Inc." OR "ALLR"'
+    edgar_supported: true
+    research_priority: 5
+  IEHC:
+    cik: 0000050292
+    exchange: OTC
+    name: IEH Corp
+    news_queries:
+    - '"IEH Corp" OR "IEHC"'
+    edgar_supported: true
+    research_priority: 5
+  CLMT:
+    cik: '0002013745'
+    exchange: Nasdaq
+    name: Calumet, Inc. /DE
+    news_queries:
+    - '"Calumet, Inc. /DE" OR "CLMT"'
+    edgar_supported: true
+    research_priority: 5
+  AMRC:
+    cik: 0001488139
+    exchange: NYSE
+    name: Ameresco, Inc.
+    news_queries:
+    - '"Ameresco, Inc." OR "AMRC"'
+    edgar_supported: true
+    research_priority: 5
+  PROP:
+    cik: 0001162896
+    exchange: Nasdaq
+    name: Prairie Operating Co.
+    news_queries:
+    - '"Prairie Operating Co." OR "PROP"'
+    edgar_supported: true
+    research_priority: 5
+  DIS:
+    cik: 0001744489
+    exchange: NYSE
+    name: Walt Disney Co
+    news_queries:
+    - '"Walt Disney Co" OR "DIS"'
+    edgar_supported: true
+    research_priority: 5
+  KLNG:
+    cik: '0001110607'
+    exchange: OTC
+    name: Koil Energy Solutions, Inc.
+    news_queries:
+    - '"Koil Energy Solutions, Inc." OR "KLNG"'
+    edgar_supported: true
     research_priority: 5
