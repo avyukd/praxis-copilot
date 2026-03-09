@@ -45,6 +45,7 @@ from cli.s3 import (
     upload_directory,
     upload_file,
 )
+from cli.watch import alert, market, watch
 
 
 @click.group()
@@ -54,6 +55,9 @@ def cli():
 
 
 cli.add_command(monitor)
+cli.add_command(market)
+cli.add_command(watch)
+cli.add_command(alert)
 
 
 def _extract_tickers_from_monitor(monitor_data: dict) -> set[str]:
