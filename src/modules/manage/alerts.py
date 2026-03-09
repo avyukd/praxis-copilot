@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import boto3
 import yaml
 
-from src.modules.manage.models import Alert
+from .models import Alert
 
 logger = logging.getLogger(__name__)
 

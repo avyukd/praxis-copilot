@@ -8,7 +8,7 @@ import boto3
 import yaml
 from botocore.exceptions import ClientError
 
-from src.modules.manage.models import (
+from .models import (
     Alert,
     AlertType,
     ManageConfig,
