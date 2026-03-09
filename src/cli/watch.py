@@ -80,7 +80,8 @@ class StreamState:
     bid_size: int | None = None
     ask_size: int | None = None
     last_trade_size: int | None = None
-    last_update: datetime = field(default_factory=lambda: datetime.now(UTC))
+    event_time: datetime = field(default_factory=lambda: datetime.now(UTC))
+    received_time: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def change_pct(self) -> float:
@@ -107,7 +108,7 @@ class StreamState:
             ask=self.ask,
             bid_size=self.bid_size,
             ask_size=self.ask_size,
-            timestamp=self.last_update,
+            timestamp=self.event_time,
             source="realtime",
         )
 
@@ -454,6 +455,18 @@ def _parse_quote_price(raw: dict[str, Any], keys: tuple[str, ...]) -> float | No
     return None
 
 
+def _parse_event_time(raw: dict[str, Any]) -> datetime | None:
+    """Extract event timestamp from websocket payload (seconds or millis epoch)."""
+    for key in ("t", "timestamp", "time"):
+        value = raw.get(key)
+        if value is not None:
+            ts = float(value)
+            if ts > 1e12:  # milliseconds
+                ts /= 1000.0
+            return datetime.fromtimestamp(ts, tz=UTC)
+    return None
+
+
 def _parse_quote_size(raw: dict[str, Any], keys: tuple[str, ...]) -> int | None:
     for key in keys:
         value = raw.get(key)
@@ -477,7 +490,8 @@ def _stream_symbols(tickers: list[str]) -> None:
             price=snapshot.price,
             previous_close=snapshot.previous_close,
             volume=snapshot.volume,
-            last_update=snapshot.timestamp,
+            event_time=snapshot.timestamp,
+            received_time=datetime.now(UTC),
         )
 
     def on_trade_message(_ws: websocket.WebSocketApp, message: str) -> None:
@@ -499,7 +513,8 @@ def _stream_symbols(tickers: list[str]) -> None:
                 if size is not None:
                     state_row.last_trade_size = size
                     state_row.volume += size
-                state_row.last_update = datetime.now(UTC)
+                state_row.event_time = _parse_event_time(row) or state_row.event_time
+                state_row.received_time = datetime.now(UTC)
 
     def on_quote_message(_ws: websocket.WebSocketApp, message: str) -> None:
         raw = json.loads(message)
@@ -516,7 +531,8 @@ def _stream_symbols(tickers: list[str]) -> None:
                 state_row.ask = _parse_quote_price(row, ("ap", "askPrice", "ask", "a"))
                 state_row.bid_size = _parse_quote_size(row, ("bs", "bidSize"))
                 state_row.ask_size = _parse_quote_size(row, ("as", "askSize"))
-                state_row.last_update = datetime.now(UTC)
+                state_row.event_time = _parse_event_time(row) or state_row.event_time
+                state_row.received_time = datetime.now(UTC)
 
     def run_socket(url: str, on_message: Any) -> None:
         def _on_open(ws: websocket.WebSocketApp) -> None:
@@ -545,7 +561,7 @@ def _stream_symbols(tickers: list[str]) -> None:
         while True:
             with lock:
                 lines = [
-                    "Ticker     Last      Chg%       Bid       Ask    Spread%       Vol  LastSz  Updated"
+                    "Ticker     Last      Chg%       Bid       Ask    Spread%       Vol  LastSz    As Of  Received"
                 ]
                 for ticker in tickers:
                     row = state[ticker]
@@ -553,11 +569,12 @@ def _stream_symbols(tickers: list[str]) -> None:
                     bid = f"{row.bid:.2f}" if row.bid is not None else "-"
                     ask = f"{row.ask:.2f}" if row.ask is not None else "-"
                     last_size = str(row.last_trade_size or "-")
-                    updated = row.last_update.astimezone(ET).strftime("%H:%M:%S")
+                    as_of = row.event_time.astimezone(ET).strftime("%H:%M:%S")
+                    received = row.received_time.astimezone(ET).strftime("%H:%M:%S")
                     lines.append(
                         f"{ticker:<8} {row.price:>8.2f} {row.change_pct:>8.2f}% "
                         f"{bid:>9} {ask:>9} {spread:>10} "
-                        f"{row.volume:>9} {last_size:>7} {updated:>8}"
+                        f"{row.volume:>9} {last_size:>7} {as_of:>8} {received:>9}"
                     )
             click.clear()
             click.echo("\n".join(lines))
