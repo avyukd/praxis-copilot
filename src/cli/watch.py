@@ -662,7 +662,10 @@ def alert_add(
     cooldown_minutes: int | None,
     note: str | None,
 ) -> None:
-    """Add a persistent custom alert rule."""
+    """Add a persistent custom alert rule.
+
+    FIELD is one of: price, change_pct, volume, volume_ratio, bid, ask, spread_pct.
+    """
     config = load_watch_config()
     rule = WatchAlertRule(
         id=uuid.uuid4().hex[:8],
