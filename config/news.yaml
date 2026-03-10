@@ -1,6 +1,0 @@
-# News scanner configuration
-enabled: true
-serp_api: tavily
-results_per_ticker: 10
-lookback_hours: 24
-market_hours_only: true
