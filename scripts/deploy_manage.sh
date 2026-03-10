@@ -31,6 +31,13 @@ aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" >/de
 
 FUNC_ARN=$(aws lambda get-function --function-name "$FUNCTION_NAME" --region "$REGION" --query 'Configuration.FunctionArn' --output text)
 
+# Ensure timeout is sufficient for price checks + options flow scan (~120 tickers)
+aws lambda update-function-configuration \
+  --function-name "$FUNCTION_NAME" \
+  --timeout 120 \
+  --region "$REGION" >/dev/null
+echo "Set Lambda timeout to 120s"
+
 # EventBridge rule: every 15 minutes, Mon-Fri, 13:00-20:00 UTC (9am-4pm ET)
 aws events put-rule \
   --name "$RULE_NAME" \
