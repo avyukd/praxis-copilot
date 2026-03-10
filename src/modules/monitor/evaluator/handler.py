@@ -22,6 +22,32 @@ logger = logging.getLogger(__name__)
 
 BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 CONFIG_PREFIX = "config/monitors/"
+UNIVERSE_KEY = "config/universe.yaml"
+
+
+def _load_universe(s3_client: boto3.client) -> set[str]:
+    """Load active ticker universe from S3. Returns empty set on failure (runs all)."""
+    try:
+        obj = s3_client.get_object(Bucket=BUCKET, Key=UNIVERSE_KEY)
+        data = yaml.safe_load(obj["Body"].read().decode())
+        tickers = data.get("tickers", []) if isinstance(data, dict) else []
+        universe = {t.upper() for t in tickers if isinstance(t, str)}
+        logger.info("Loaded universe with %d tickers", len(universe))
+        return universe
+    except ClientError:
+        logger.warning("Failed to load universe from %s, running all monitors", UNIVERSE_KEY)
+        return set()
+
+
+def _filter_by_universe(configs: list[MonitorConfig], universe: set[str]) -> list[MonitorConfig]:
+    """Keep only monitors where at least one ticker is in the universe."""
+    if not universe:
+        return configs
+    filtered = [c for c in configs if not c.tickers or any(t.upper() in universe for t in c.tickers)]
+    skipped = len(configs) - len(filtered)
+    if skipped:
+        logger.info("Skipped %d monitors for tickers not in universe", skipped)
+    return filtered
 
 
 def _load_monitor_configs(s3_client: boto3.client) -> list[MonitorConfig]:
@@ -127,9 +153,11 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     s3 = boto3.client("s3")
 
-    # Load all monitor configs
+    # Load all monitor configs, filtered to active universe
     all_configs = _load_monitor_configs(s3)
-    logger.info("Loaded %d monitor configs", len(all_configs))
+    universe = _load_universe(s3)
+    all_configs = _filter_by_universe(all_configs, universe)
+    logger.info("Loaded %d monitor configs (after universe filter)", len(all_configs))
 
     # If a specific monitor is requested, evaluate only that one
     monitor_id = event.get("monitor_id")
