@@ -260,6 +260,22 @@ def _collect_search(
             "seen_urls": all_seen_urls,
         }
 
+    # Lazy seed: first run (no previous snapshot) just captures seen_urls
+    # so the next run can do proper delta detection. No LLM calls, no alerts.
+    if previous is None:
+        logger.info(
+            "Monitor %s: seeding with %d URLs (first run, skipping LLM)",
+            config.id, len(all_results),
+        )
+        return {
+            "source": f"search:{config.search_backend}",
+            "current_state": "Seeded — awaiting first delta",
+            "status": "unchanged",
+            "delta_from_previous": "",
+            "significance": "low",
+            "seen_urls": all_seen_urls,
+        }
+
     logger.info(
         "Monitor %s: %d total results, %d new (delta)",
         config.id, len(all_results), len(new_results),

@@ -76,13 +76,17 @@ def _filter_monitors(
         ]
         return matched, prev_snapshots
 
-    # Scheduled run: filter scraper/search monitors by cadence
-    candidates = [c for c in configs if c.type in ("scraper", "search")]
-    if not s3_client or not now:
-        return candidates, prev_snapshots
+    # Scheduled run: run all search monitors (EventBridge schedule is the cadence).
+    # Scraper monitors still use per-monitor cadence gating.
+    search_monitors = [c for c in configs if c.type == "search"]
+    scraper_candidates = [c for c in configs if c.type == "scraper"]
 
-    due: list[MonitorConfig] = []
-    for config in candidates:
+    due: list[MonitorConfig] = list(search_monitors)
+
+    if not s3_client or not now:
+        return due + scraper_candidates, prev_snapshots
+
+    for config in scraper_candidates:
         cadence_hours = cadence_to_hours(config.cadence, config.frequency)
         prev = snapshot.load_previous_snapshot(s3_client, config.id)
         prev_snapshots[config.id] = prev
@@ -90,7 +94,6 @@ def _filter_monitors(
             due.append(config)
             continue
         try:
-            # Support both date-only (legacy) and datetime formats
             date_fmt = "%Y-%m-%dT%H:%M:%S" if "T" in prev.date else "%Y-%m-%d"
             last_run = datetime.strptime(prev.date, date_fmt).replace(tzinfo=timezone.utc)
             hours_since = (now - last_run).total_seconds() / 3600

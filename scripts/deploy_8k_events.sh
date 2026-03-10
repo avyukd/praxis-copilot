@@ -48,6 +48,13 @@ MONITOR_EVALUATOR_FUNCTION="${MONITOR_EVALUATOR_FUNCTION:-praxis-monitor-evaluat
 
 SEC_POLLER_RULE="${SEC_POLLER_RULE:-sec-filings-poller-cron}"
 PRESS_POLLER_RULE="${PRESS_POLLER_RULE:-press-releases-poller-cron}"
+MONITOR_EVALUATOR_RULE="${MONITOR_EVALUATOR_RULE:-praxis-monitor-evaluator-schedule}"
+# 8:30am/12pm/3pm ET checkpoints (EDT = UTC-4, EST = UTC-5)
+# Two rules needed: one for :30 (8:30am) and one for :00 (12pm, 3pm)
+MONITOR_EVALUATOR_RULE_MORNING="${MONITOR_EVALUATOR_RULE:-praxis-monitor-evaluator-schedule}-morning"
+MONITOR_EVALUATOR_RULE_MIDDAY="${MONITOR_EVALUATOR_RULE:-praxis-monitor-evaluator-schedule}-midday"
+MONITOR_EVALUATOR_CRON_MORNING="${MONITOR_EVALUATOR_CRON_MORNING:-cron(30 12 ? * MON-FRI *)}"
+MONITOR_EVALUATOR_CRON_MIDDAY="${MONITOR_EVALUATOR_CRON_MIDDAY:-cron(0 16,19 ? * MON-FRI *)}"
 
 LEGACY_FUNCTIONS=(
   "8k-scanner-poller"
@@ -217,6 +224,45 @@ echo "--- EventBridge cron rules ---"
 ensure_rule_target "${SEC_POLLER_RULE}" "${SEC_POLLER_FUNCTION}" "eventbridge-sec-filings-cron"
 ensure_rule_target "${PRESS_POLLER_RULE}" "${PRESS_POLLER_FUNCTION}" "eventbridge-press-releases-cron"
 
+# Monitor evaluator: 8:30am/12pm/3pm ET checkpoints
+evaluator_schedule_arn=$(aws lambda get-function --function-name "${MONITOR_EVALUATOR_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
+EVALUATOR_INPUT="{\\\"trigger_type\\\":\\\"scheduled\\\"}"
+
+for rule_name_var in MONITOR_EVALUATOR_RULE_MORNING MONITOR_EVALUATOR_RULE_MIDDAY; do
+  if [[ "${rule_name_var}" == "MONITOR_EVALUATOR_RULE_MORNING" ]]; then
+    rule_name="${MONITOR_EVALUATOR_RULE_MORNING}"
+    cron_expr="${MONITOR_EVALUATOR_CRON_MORNING}"
+    desc="Monitor evaluator 8:30am ET checkpoint"
+    sid="eventbridge-evaluator-morning"
+  else
+    rule_name="${MONITOR_EVALUATOR_RULE_MIDDAY}"
+    cron_expr="${MONITOR_EVALUATOR_CRON_MIDDAY}"
+    desc="Monitor evaluator 12pm/3pm ET checkpoints"
+    sid="eventbridge-evaluator-midday"
+  fi
+
+  aws events put-rule \
+    --name "${rule_name}" \
+    --schedule-expression "${cron_expr}" \
+    --state ENABLED \
+    --description "${desc}" \
+    --region "${REGION}" >/dev/null
+
+  aws lambda add-permission \
+    --function-name "${MONITOR_EVALUATOR_FUNCTION}" \
+    --statement-id "${sid}" \
+    --action "lambda:InvokeFunction" \
+    --principal events.amazonaws.com \
+    --source-arn "arn:aws:events:${REGION}:${ACCOUNT_ID}:rule/${rule_name}" \
+    --region "${REGION}" >/dev/null 2>&1 || true
+
+  aws events put-targets \
+    --rule "${rule_name}" \
+    --targets "[{\"Id\":\"monitor-evaluator\",\"Arn\":\"${evaluator_schedule_arn}\",\"Input\":\"${EVALUATOR_INPUT}\"}]" \
+    --region "${REGION}" >/dev/null
+done
+
+
 extractor_arn=$(aws lambda get-function --function-name "${EXTRACTOR_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 analyzer_arn=$(aws lambda get-function --function-name "${ANALYZER_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 alerts_arn=$(aws lambda get-function --function-name "${ALERTS_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
@@ -330,5 +376,5 @@ done
 
 echo "=== Deploy complete ==="
 echo "Functions: ${SEC_POLLER_FUNCTION}, ${PRESS_POLLER_FUNCTION}, ${EXTRACTOR_FUNCTION}, ${ANALYZER_FUNCTION}, ${ALERTS_FUNCTION}, ${DISPATCH_FUNCTION}, ${MONITOR_EVALUATOR_FUNCTION}"
-echo "Rules: ${SEC_POLLER_RULE}, ${PRESS_POLLER_RULE}"
+echo "Rules: ${SEC_POLLER_RULE}, ${PRESS_POLLER_RULE}, ${MONITOR_EVALUATOR_RULE_MORNING}, ${MONITOR_EVALUATOR_RULE_MIDDAY}"
 echo "Next: run scripts/release_smoke_check.sh"
