@@ -36,7 +36,7 @@ from cli.pipeline_status import (
     summarize_pipeline_items,
 )
 from cli.research_prompt import ResearchBudget, generate_research_prompt
-from cli.research_run import build_run_prompt, fetch_tactical_context, launch_session
+from cli.research_run import build_run_prompt, fetch_tactical_context, write_prompt_file
 from cli.s3 import (
     BUCKET,
     download_file,
@@ -1055,10 +1055,13 @@ def research_sync(tickers: tuple[str, ...]):
 
 
 @research.command("run")
-@click.argument("ticker")
+@click.argument("tickers", nargs=-1, required=True)
 @click.option("--tactical", is_flag=True, help="Pull latest alerts/analyses and add tactical overlay")
-def research_run(ticker: str, tactical: bool):
-    """Launch a Claude Code research session for TICKER.
+def research_run(tickers: tuple[str, ...], tactical: bool):
+    """Prepare Claude Code research sessions for TICKER(s).
+
+    Writes the initial prompt to each workspace, then prints launch
+    commands. Run them in separate terminals for parallel research.
 
     Default mode: analyze using CLAUDE.md process with ingested data.
     With --tactical: pulls latest monitor snapshots, filing analyses,
@@ -1067,32 +1070,41 @@ def research_run(ticker: str, tactical: bool):
     \b
     Examples:
       praxis research run BNTC
-      praxis research run BNTC --tactical
+      praxis research run BNTC TROX LBRT --tactical
     """
-    ticker = ticker.upper()
     repo_root = find_repo_root()
-    workspace = repo_root / "workspace" / ticker
+    ready: list[tuple[str, Path]] = []
 
-    if not workspace.exists():
-        click.echo(f"No workspace for {ticker}. Run 'praxis stage {ticker}' first.")
+    for raw_ticker in tickers:
+        ticker = raw_ticker.upper()
+        workspace = repo_root / "workspace" / ticker
+
+        if not workspace.exists() or not (workspace / "CLAUDE.md").exists():
+            click.echo(f"No workspace for {ticker}. Run 'praxis stage {ticker}' first.")
+            continue
+
+        tactical_context = ""
+        if tactical:
+            click.echo(f"Pulling tactical context for {ticker}...")
+            tactical_context = fetch_tactical_context(ticker)
+            if tactical_context:
+                click.echo(f"  Found context ({len(tactical_context)} chars)")
+            else:
+                click.echo(f"  WARNING: No recent alerts/analyses found for {ticker}")
+
+        prompt = build_run_prompt(ticker, tactical, tactical_context)
+        write_prompt_file(workspace, prompt)
+        ready.append((ticker, workspace))
+
+    if not ready:
         return
 
-    if not (workspace / "CLAUDE.md").exists():
-        click.echo(f"No CLAUDE.md in {workspace}. Run 'praxis stage {ticker}' first.")
-        return
-
-    tactical_context = ""
-    if tactical:
-        click.echo(f"Pulling tactical context for {ticker}...")
-        tactical_context = fetch_tactical_context(ticker)
-        if tactical_context:
-            click.echo(f"  Found context ({len(tactical_context)} chars)")
-        else:
-            click.echo(f"  WARNING: No recent alerts/analyses found for {ticker}")
-
-    prompt = build_run_prompt(ticker, tactical, tactical_context)
-    click.echo(f"\nLaunching Claude Code in {workspace}/\n")
-    launch_session(workspace, prompt)
+    click.echo(f"\n{'='*40}")
+    click.echo(f"Ready to launch {len(ready)} session(s):\n")
+    for ticker, workspace in ready:
+        prompt_file = workspace / ".research-prompt.txt"
+        click.echo(f'  cd {workspace} && cat {prompt_file.name} | claude')
+    click.echo(f"\nResume any session later: cd workspace/TICKER && claude --resume")
 
 
 # ---------------------------------------------------------------------------

@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -207,9 +205,8 @@ def build_run_prompt(ticker: str, tactical: bool, tactical_context: str) -> str:
     )
 
 
-def launch_session(workspace: Path, prompt: str) -> None:
-    """Launch a Claude Code session in the workspace directory."""
-    subprocess.run(
-        ["claude", "--print", "--dangerously-skip-permissions", "-p", prompt],
-        cwd=workspace,
-    )
+def write_prompt_file(workspace: Path, prompt: str) -> Path:
+    """Write the initial prompt to a file in the workspace. Returns the path."""
+    prompt_path = workspace / ".research-prompt.txt"
+    prompt_path.write_text(prompt)
+    return prompt_path
