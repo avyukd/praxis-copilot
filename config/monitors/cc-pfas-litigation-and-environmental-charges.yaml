@@ -1,0 +1,16 @@
+id: cc-pfas-litigation-and-environmental-charges
+type: filing
+tickers:
+- CC
+description: 'Track new PFAS-related litigation accruals, environmental remediation
+  charges, and settlement disclosures in quarterly/annual filings. Key notes: commitments,
+  contingencies, subsequent events. Source: SEC 10-Q/10-K filings.'
+extract: 'Track new PFAS-related litigation accruals, environmental remediation charges,
+  and settlement disclosures in quarterly/annual filings. Key notes: commitments,
+  contingencies, subsequent events. Source: SEC 10-Q/10-K filings.'
+threshold: Any single-period PFAS/environmental charge exceeding $100M or cumulative
+  accrual exceeding $800M (up from current $618M)
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

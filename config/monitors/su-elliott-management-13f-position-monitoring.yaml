@@ -1,0 +1,13 @@
+id: su-elliott-management-13f-position-monitoring
+type: scraper
+tickers:
+- SU
+description: Track Elliott's stake in Suncor via quarterly 13F filings. Elliott at
+  4.4% (10.3% of their portfolio) provides governance discipline. A material reduction
+  signals the activist believes the turnaround trade is complete.
+extract: Track Elliott's stake in Suncor via quarterly 13F filings. Elliott at 4.4%
+  (10.3% of their portfolio) provides governance discipline. A material reduction
+  signals the activist believes the turnaround trade is complete.
+threshold: Elliott reduces position below 3% or exits entirely
+cadence: 1d
+source_url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=elliott+investment+management&CIK=&type=13F&dateb=&owner=include&count=10

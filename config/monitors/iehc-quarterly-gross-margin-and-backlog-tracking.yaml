@@ -1,0 +1,17 @@
+id: iehc-quarterly-gross-margin-and-backlog-tracking
+type: filing
+tickers:
+- IEHC
+description: 'Monitor 10-Q and 10-K filings for gross margin trend (target >24%),
+  backlog level, and revenue trajectory. Key variables: gross profit as % of revenue,
+  reported backlog figure, customer deposit levels, and any commentary on gold cost
+  pass-through or pricing actions.'
+extract: 'Monitor 10-Q and 10-K filings for gross margin trend (target >24%), backlog
+  level, and revenue trajectory. Key variables: gross profit as % of revenue, reported
+  backlog figure, customer deposit levels, and any commentary on gold cost pass-through
+  or pricing actions.'
+threshold: Gross margin below 15% for two consecutive quarters OR backlog below $15M
+  OR revenue below $6M/quarter
+filing_types:
+- 10-K
+- 10-Q

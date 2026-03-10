@@ -1,0 +1,16 @@
+id: ctxr-lymphir-quarterly-revenue-trajectory
+type: filing
+tickers:
+- CTXR
+description: Track CTXR/CTOR 10-Q and 10-K filings for LYMPHIR net product revenue,
+  gross margin, and accounts receivable. Revenue ramp vs. channel stocking is the
+  key near-term signal.
+extract: Track CTXR/CTOR 10-Q and 10-K filings for LYMPHIR net product revenue, gross
+  margin, and accounts receivable. Revenue ramp vs. channel stocking is the key near-term
+  signal.
+threshold: "Alert if quarterly revenue < $3M (bearish \u2014 stocking artifact) or\
+  \ > $8M (bullish \u2014 ramp confirmed). Flag if A/R exceeds 80% of quarterly revenue\
+  \ (collection risk)."
+filing_types:
+- 10-Q
+- 10-K

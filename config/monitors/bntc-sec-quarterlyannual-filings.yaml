@@ -1,0 +1,17 @@
+id: bntc-sec-quarterlyannual-filings
+type: filing
+tickers:
+- BNTC
+description: 'Monitor 10-K and 10-Q filings for cash burn rate changes, SBC expense
+  trajectory, material weakness remediation status, and updated clinical program spending.
+  Key metrics: cash position, operating cash burn, SBC as % of OpEx, fully diluted
+  share count.'
+extract: 'Monitor 10-K and 10-Q filings for cash burn rate changes, SBC expense trajectory,
+  material weakness remediation status, and updated clinical program spending. Key
+  metrics: cash position, operating cash burn, SBC as % of OpEx, fully diluted share
+  count.'
+threshold: Cash burn >$12M/quarter (vs $3-4M recent), SBC >30% of market cap annually,
+  or new material weakness disclosed
+filing_types:
+- 10-K
+- 10-Q

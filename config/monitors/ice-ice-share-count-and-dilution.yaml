@@ -1,0 +1,13 @@
+id: ice-ice-share-count-and-dilution
+type: filing
+tickers:
+- ICE
+description: Track shares outstanding in 10-Q filings. FY2025 showed first net share
+  reduction (571M vs 577M). Monitor whether buybacks are producing real shrink or
+  just offsetting SBC.
+extract: Track shares outstanding in 10-Q filings. FY2025 showed first net share reduction
+  (571M vs 577M). Monitor whether buybacks are producing real shrink or just offsetting
+  SBC.
+threshold: Shares outstanding increase QoQ for two consecutive quarters
+filing_types:
+- 10-Q

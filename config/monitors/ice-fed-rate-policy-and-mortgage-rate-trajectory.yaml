@@ -1,0 +1,11 @@
+id: ice-fed-rate-policy-and-mortgage-rate-trajectory
+type: scraper
+tickers:
+- ICE
+description: Monitor Freddie Mac PMMS 30-year mortgage rate. Below 5.5% is bullish
+  for ICE mortgage tech; above 7.5% is bearish.
+extract: Monitor Freddie Mac PMMS 30-year mortgage rate. Below 5.5% is bullish for
+  ICE mortgage tech; above 7.5% is bearish.
+threshold: 30-year fixed rate crosses below 5.5% or above 7.5%
+cadence: 1d
+source_url: https://www.freddiemac.com/pmms

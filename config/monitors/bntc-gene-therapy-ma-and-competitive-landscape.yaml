@@ -1,0 +1,19 @@
+id: bntc-gene-therapy-ma-and-competitive-landscape
+type: search
+tickers:
+- BNTC
+description: 'Monitor for acquisition activity in rare disease gene therapy space
+  (potential BNTC acquirers: Novartis, BioMarin, Sarepta/Roche, Pfizer), new OPMD
+  therapeutic programs from any modality, and gene therapy sector sentiment shifts.'
+extract: 'Monitor for acquisition activity in rare disease gene therapy space (potential
+  BNTC acquirers: Novartis, BioMarin, Sarepta/Roche, Pfizer), new OPMD therapeutic
+  programs from any modality, and gene therapy sector sentiment shifts.'
+threshold: Any M&A involving rare disease gene therapy assets >$200M, any new OPMD
+  clinical program announced, or major gene therapy commercial failure/success
+cadence: 6h
+queries:
+- '"Benitec" acquisition OR partnership'
+- '"OPMD" gene therapy OR treatment'
+- rare disease gene therapy acquisition 2026
+- '"oculopharyngeal muscular dystrophy" clinical trial'
+search_backend: tavily

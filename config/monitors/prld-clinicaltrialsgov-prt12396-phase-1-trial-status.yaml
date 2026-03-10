@@ -1,0 +1,14 @@
+id: prld-clinicaltrialsgov-prt12396-phase-1-trial-status
+type: scraper
+tickers:
+- PRLD
+description: Scrape ClinicalTrials.gov for PRT12396 Phase 1 trial registration, enrollment
+  status, site activations, and any status changes (recruiting, active, suspended,
+  terminated).
+extract: Scrape ClinicalTrials.gov for PRT12396 Phase 1 trial registration, enrollment
+  status, site activations, and any status changes (recruiting, active, suspended,
+  terminated).
+threshold: Trial status changes to 'Recruiting', 'Suspended', or 'Terminated'; enrollment
+  numbers updated
+cadence: 1d
+source_url: https://clinicaltrials.gov/search?intr=PRT12396&sponsor=Prelude

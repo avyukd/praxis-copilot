@@ -1,0 +1,19 @@
+id: apyx-competitor-body-contouring-product-launches
+type: search
+tickers:
+- APYX
+description: Monitor for new FDA-cleared body contouring devices or platform launches
+  from InMode, Cynosure, Cutera, or new entrants that could erode APYX's helium plasma
+  differentiation. InMode's IgniteRF expansion is the primary threat.
+extract: Monitor for new FDA-cleared body contouring devices or platform launches
+  from InMode, Cynosure, Cutera, or new entrants that could erode APYX's helium plasma
+  differentiation. InMode's IgniteRF expansion is the primary threat.
+threshold: Any new FDA clearance for integrated body contouring platform; InMode IgniteRF
+  receiving subdermal indication
+cadence: 6h
+queries:
+- '"body contouring" FDA clearance 2026'
+- InMode IgniteRF FDA
+- Cynosure body contouring launch
+- '"energy-based device" "body contouring" approval'
+search_backend: tavily

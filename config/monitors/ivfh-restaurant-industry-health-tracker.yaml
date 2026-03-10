@@ -1,0 +1,14 @@
+id: ivfh-restaurant-industry-health-tracker
+type: scraper
+tickers:
+- IVFH
+description: Track National Restaurant Association Restaurant Performance Index or
+  Census Bureau food services sales data as a leading indicator of IVFH's addressable
+  market health.
+extract: Track National Restaurant Association Restaurant Performance Index or Census
+  Bureau food services sales data as a leading indicator of IVFH's addressable market
+  health.
+threshold: Restaurant sales growth below 0% YoY or RPI below 99 for two consecutive
+  months
+cadence: 1d
+source_url: https://www.census.gov/retail/marts/www/timeseries.html

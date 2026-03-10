@@ -1,0 +1,14 @@
+id: iehc-defense-program-production-rates
+type: scraper
+tickers:
+- IEHC
+description: Track Lockheed Martin PATRIOT and Raytheon AMRAAM production rate announcements
+  from their investor relations pages. IEH's revenue correlates directly with unit
+  production rates on these programs.
+extract: Track Lockheed Martin PATRIOT and Raytheon AMRAAM production rate announcements
+  from their investor relations pages. IEH's revenue correlates directly with unit
+  production rates on these programs.
+threshold: PATRIOT or AMRAAM production rate increase >20% YoY OR new international
+  sale exceeding $2B
+cadence: 1d
+source_url: https://www.lockheedmartin.com/en-us/products/pac-3.html

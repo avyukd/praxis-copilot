@@ -1,0 +1,13 @@
+id: prld-sec-edgar-prld-insider-transactions
+type: scraper
+tickers:
+- PRLD
+description: "Monitor Form 4 filings for PRLD insider purchases or sales. CEO Vaddi\
+  \ bought $500K open-market in March 2025 \u2014 further buying would be bullish\
+  \ signal. Any selling by remaining insiders at $2-3 would be bearish."
+extract: "Monitor Form 4 filings for PRLD insider purchases or sales. CEO Vaddi bought\
+  \ $500K open-market in March 2025 \u2014 further buying would be bullish signal.\
+  \ Any selling by remaining insiders at $2-3 would be bearish."
+threshold: Any insider purchase >$50K or any insider sale
+cadence: 1d
+source_url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001816736&type=4&dateb=&owner=include&count=10

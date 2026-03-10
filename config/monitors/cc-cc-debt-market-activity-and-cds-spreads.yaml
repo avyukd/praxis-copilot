@@ -1,0 +1,17 @@
+id: cc-cc-debt-market-activity-and-cds-spreads
+type: search
+tickers:
+- CC
+description: Monitor secondary market pricing on CC bonds (especially 2027 5.375%
+  and 2028 5.75% notes) and CDS spread movements as leading indicators of refinancing
+  risk.
+extract: Monitor secondary market pricing on CC bonds (especially 2027 5.375% and
+  2028 5.75% notes) and CDS spread movements as leading indicators of refinancing
+  risk.
+threshold: Bond yields exceeding 10% or CDS spread widening beyond 500bps
+cadence: 1d
+queries:
+- Chemours bond yield
+- CC 5.375 2027 notes price
+- Chemours credit default swap
+search_backend: tavily

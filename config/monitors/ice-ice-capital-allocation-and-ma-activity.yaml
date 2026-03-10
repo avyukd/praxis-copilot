@@ -1,0 +1,14 @@
+id: ice-ice-capital-allocation-and-ma-activity
+type: filing
+tickers:
+- ICE
+description: Monitor 8-K filings for new acquisitions, debt issuances, or material
+  changes to buyback program. Watch for Polymarket-style speculative deals or mortgage
+  tech bolt-ons.
+extract: Monitor 8-K filings for new acquisitions, debt issuances, or material changes
+  to buyback program. Watch for Polymarket-style speculative deals or mortgage tech
+  bolt-ons.
+threshold: Any acquisition above $500M; debt issuance that increases leverage above
+  3.5x; buyback suspension
+filing_types:
+- 8-K

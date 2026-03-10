@@ -1,0 +1,17 @@
+id: lsta-lsta-sec-filings-tender-offer-and-deal-closing
+type: filing
+tickers:
+- LSTA
+description: Monitor all LSTA SEC filings for tender offer updates (SC TO-T, SC 14D-9),
+  deal amendments, extensions, or termination notices. Also catches any 8-K announcing
+  material events (financing, MAC, regulatory issues).
+extract: Monitor all LSTA SEC filings for tender offer updates (SC TO-T, SC 14D-9),
+  deal amendments, extensions, or termination notices. Also catches any 8-K announcing
+  material events (financing, MAC, regulatory issues).
+threshold: Any filing related to the Kuva Labs acquisition, especially amendments
+  to consideration, timeline changes, or termination.
+filing_types:
+- 8-K
+- SC TO-T
+- SC 14D-9
+- DEFM14A

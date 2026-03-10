@@ -1,0 +1,12 @@
+id: ice-mortgage-origination-volume-trends
+type: scraper
+tickers:
+- ICE
+description: Track MBA weekly mortgage application survey for origination volume trends.
+  ICE mortgage tech revenue is directly tied to origination volumes.
+extract: Track MBA weekly mortgage application survey for origination volume trends.
+  ICE mortgage tech revenue is directly tied to origination volumes.
+threshold: Purchase index falls below 150 or refinance index falls below 400 (sustained
+  4-week average)
+cadence: 1d
+source_url: https://www.mba.org/news-and-research/research-and-economics/single-family-research/weekly-applications-survey

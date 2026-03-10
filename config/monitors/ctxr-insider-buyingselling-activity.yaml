@@ -1,0 +1,14 @@
+id: ctxr-insider-buyingselling-activity
+type: filing
+tickers:
+- CTXR
+description: Monitor Form 4 filings for open-market purchases or sales by CTXR/CTOR
+  insiders. No insider buying since September 2019 despite stock declining from $50+
+  to under $1.
+extract: Monitor Form 4 filings for open-market purchases or sales by CTXR/CTOR insiders.
+  No insider buying since September 2019 despite stock declining from $50+ to under
+  $1.
+threshold: Any open-market insider purchase (strongly bullish signal given 6-year
+  drought). Any insider sale > $50K.
+filing_types:
+- 8-K

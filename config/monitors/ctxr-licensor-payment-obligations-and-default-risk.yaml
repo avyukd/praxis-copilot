@@ -1,0 +1,16 @@
+id: ctxr-licensor-payment-obligations-and-default-risk
+type: filing
+tickers:
+- CTXR
+description: "Track Dr. Reddy's milestone balance ($18.25M) and Eisai unpaid invoices\
+  \ ($6.8M) in quarterly filings. Payment default could trigger license termination\
+  \ \u2014 existential risk."
+extract: "Track Dr. Reddy's milestone balance ($18.25M) and Eisai unpaid invoices\
+  \ ($6.8M) in quarterly filings. Payment default could trigger license termination\
+  \ \u2014 existential risk."
+threshold: Alert if any filing mentions default notice, breach, license termination
+  discussion, or renegotiated payment terms.
+filing_types:
+- 10-Q
+- 10-K
+- 8-K

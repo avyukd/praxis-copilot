@@ -1,0 +1,14 @@
+id: lsta-post-close-cvr-relevant-filings
+type: filing
+tickers:
+- LSTA
+description: After deal closes, monitor successor entity filings for any NDA or IND
+  amendments related to certepetide Phase 3. CVR triggers on NDA filing within 7 years.
+extract: After deal closes, monitor successor entity filings for any NDA or IND amendments
+  related to certepetide Phase 3. CVR triggers on NDA filing within 7 years.
+threshold: Any reference to Phase 3 initiation, NDA preparation, or regulatory submission
+  for certepetide.
+filing_types:
+- 8-K
+- 10-K
+- 10-Q

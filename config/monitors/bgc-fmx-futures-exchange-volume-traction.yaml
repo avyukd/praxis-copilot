@@ -1,0 +1,16 @@
+id: bgc-fmx-futures-exchange-volume-traction
+type: search
+tickers:
+- BGC
+description: Track FMX Futures Exchange volume disclosures, market share data, and
+  competitive positioning vs CME in SOFR and Treasury futures.
+extract: Track FMX Futures Exchange volume disclosures, market share data, and competitive
+  positioning vs CME in SOFR and Treasury futures.
+threshold: FMX futures ADV reaches 5%+ of CME SOFR futures ADV, or conversely, no
+  meaningful volume growth after 18 months
+cadence: 1d
+queries:
+- '"FMX futures" volume'
+- '"FMX" SOFR futures market share'
+- BGC "futures exchange" ADV
+search_backend: tavily

@@ -1,0 +1,18 @@
+id: dis-universal-epic-universe-competitive-performance
+type: search
+tickers:
+- DIS
+description: Monitor Universal/Comcast earnings reports and industry coverage for
+  Epic Universe attendance, EBITDA, and expansion plans (UK park, Dallas). Key competitive
+  threat to Disney's Experiences segment.
+extract: Monitor Universal/Comcast earnings reports and industry coverage for Epic
+  Universe attendance, EBITDA, and expansion plans (UK park, Dallas). Key competitive
+  threat to Disney's Experiences segment.
+threshold: Universal theme park segment EBITDA exceeds $4B annually or announces additional
+  major parks beyond UK and Dallas
+cadence: 1d
+queries:
+- '"Epic Universe" attendance revenue'
+- '"Universal theme park" expansion EBITDA 2026'
+- Comcast theme park earnings
+search_backend: tavily

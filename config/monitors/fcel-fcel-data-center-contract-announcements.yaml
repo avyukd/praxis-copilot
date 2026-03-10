@@ -1,0 +1,16 @@
+id: fcel-fcel-data-center-contract-announcements
+type: search
+tickers:
+- FCEL
+description: "Monitor for any actual data center power contract wins by FCEL. Currently\
+  \ zero contracted \u2014 any signed deal would be thesis-changing."
+extract: "Monitor for any actual data center power contract wins by FCEL. Currently\
+  \ zero contracted \u2014 any signed deal would be thesis-changing."
+threshold: Any signed data center power purchase agreement or letter of intent; named
+  hyperscaler or colocation customer
+cadence: 1d
+queries:
+- '"FuelCell Energy" "data center"'
+- '"FCEL" "data center" contract'
+- '"FuelCell Energy" "behind the meter"'
+search_backend: tavily

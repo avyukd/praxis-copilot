@@ -1,0 +1,13 @@
+id: prld-clinicaltrialsgov-eilean-therapeutics-jak2v617f-co
+type: scraper
+tickers:
+- PRLD
+description: "Track Eilean Therapeutics ZE74-0282 Phase 1 trial progress. Eilean is\
+  \ the primary competitive threat \u2014 already dosing FIH patients as of Dec 2025.\
+  \ Monitor for patient enrollment, dose escalation, and any efficacy/safety signals."
+extract: "Track Eilean Therapeutics ZE74-0282 Phase 1 trial progress. Eilean is the\
+  \ primary competitive threat \u2014 already dosing FIH patients as of Dec 2025.\
+  \ Monitor for patient enrollment, dose escalation, and any efficacy/safety signals."
+threshold: Any trial status change, new enrollment data, or results posted
+cadence: 1d
+source_url: https://clinicaltrials.gov/search?intr=ZE74-0282&sponsor=Eilean

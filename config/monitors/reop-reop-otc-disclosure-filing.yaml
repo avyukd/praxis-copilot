@@ -1,0 +1,15 @@
+id: reop-reop-otc-disclosure-filing
+type: filing
+tickers:
+- REOP
+description: Monitor for any new OTC Markets disclosure documents filed by Reo Plastics,
+  including annual reports, financial statements, or management certifications. This
+  is the only channel through which current financial data may become publicly available.
+extract: Monitor for any new OTC Markets disclosure documents filed by Reo Plastics,
+  including annual reports, financial statements, or management certifications. This
+  is the only channel through which current financial data may become publicly available.
+threshold: Any new financial disclosure document filed
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

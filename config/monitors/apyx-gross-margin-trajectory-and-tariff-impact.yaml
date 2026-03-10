@@ -1,0 +1,15 @@
+id: apyx-gross-margin-trajectory-and-tariff-impact
+type: filing
+tickers:
+- APYX
+description: Monitor quarterly gross margins for compression from tariff costs on
+  Ningbo-sourced components or AYON launch mix effects. Stable ~62% margins are critical
+  to the breakeven math. Check COGS notes and MD&A for tariff commentary.
+extract: Monitor quarterly gross margins for compression from tariff costs on Ningbo-sourced
+  components or AYON launch mix effects. Stable ~62% margins are critical to the breakeven
+  math. Check COGS notes and MD&A for tariff commentary.
+threshold: Gross margin below 60% for two consecutive quarters; any management commentary
+  on tariff cost absorption
+filing_types:
+- 10-Q
+- 10-K

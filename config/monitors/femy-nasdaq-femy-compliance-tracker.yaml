@@ -1,0 +1,11 @@
+id: femy-nasdaq-femy-compliance-tracker
+type: scraper
+tickers:
+- FEMY
+description: Scrape Nasdaq's listing compliance page for FEMY deficiency status. Deadline
+  is July 13, 2026 for bid price compliance.
+extract: Scrape Nasdaq's listing compliance page for FEMY deficiency status. Deadline
+  is July 13, 2026 for bid price compliance.
+threshold: Any change in compliance status, new deficiency notice, or hearing scheduled
+cadence: 1d
+source_url: https://listingcenter.nasdaq.com/noncompliantcompanylist.aspx

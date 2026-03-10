@@ -1,0 +1,13 @@
+id: cc-tio2-pricing-and-margin-recovery
+type: filing
+tickers:
+- CC
+description: 'Monitor TT segment revenue, price/volume decomposition, and EBITDA margins
+  for signs of cycle recovery. Source: segment disclosures in 10-Q/10-K.'
+extract: 'Monitor TT segment revenue, price/volume decomposition, and EBITDA margins
+  for signs of cycle recovery. Source: segment disclosures in 10-Q/10-K.'
+threshold: Two consecutive quarters of positive YoY TiO2 pricing or TT EBITDA margin
+  above 10%
+filing_types:
+- 10-K
+- 10-Q

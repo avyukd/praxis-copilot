@@ -1,0 +1,18 @@
+id: trox-strait-of-hormuz-and-red-sea-shipping-disruption
+type: search
+tickers:
+- TROX
+description: Monitor developments in Iran conflict, Hormuz closure risk, and Red Sea
+  shipping disruption that directly affect TROX's supply chain between SA mines and
+  global pigment plants.
+extract: Monitor developments in Iran conflict, Hormuz closure risk, and Red Sea shipping
+  disruption that directly affect TROX's supply chain between SA mines and global
+  pigment plants.
+threshold: Hormuz transit insurance premiums spike >50%, new military escalation,
+  or shipping line diversions affecting SA-KSA-Europe routes
+cadence: 1d
+queries:
+- '"Strait of Hormuz" shipping disruption'
+- '"Red Sea" freight rates TiO2'
+- Iran war escalation oil prices
+search_backend: tavily

@@ -1,0 +1,13 @@
+id: cc-taiwan-land-sale-completion
+type: filing
+tickers:
+- CC
+description: 'Track completion of the $360M Taiwan land sale and application of proceeds
+  to debt reduction. Expected mid-2026. Source: 8-K or subsequent event disclosure.'
+extract: 'Track completion of the $360M Taiwan land sale and application of proceeds
+  to debt reduction. Expected mid-2026. Source: 8-K or subsequent event disclosure.'
+threshold: Sale closing confirmed or delayed beyond Q3 2026; proceeds not applied
+  to debt paydown
+filing_types:
+- 8-K
+- 10-Q

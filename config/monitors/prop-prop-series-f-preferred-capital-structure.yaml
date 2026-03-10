@@ -1,0 +1,15 @@
+id: prop-prop-series-f-preferred-capital-structure
+type: search
+tickers:
+- PROP
+description: Track any market commentary, SEC filings, or news about PROP's Series
+  F preferred stock, warrant exercises, or refinancing activity.
+extract: Track any market commentary, SEC filings, or news about PROP's Series F preferred
+  stock, warrant exercises, or refinancing activity.
+threshold: Any announcement of preferred redemption, exchange offer, or warrant exercise
+cadence: 1d
+queries:
+- '"Prairie Operating" "Series F" preferred'
+- '"PROP" refinancing preferred'
+- '"Prairie Operating" warrants exercise'
+search_backend: tavily

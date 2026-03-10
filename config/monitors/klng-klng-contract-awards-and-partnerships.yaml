@@ -1,0 +1,16 @@
+id: klng-klng-contract-awards-and-partnerships
+type: search
+tickers:
+- KLNG
+description: Search for KLNG/Koil Energy contract announcements, partnership updates
+  (SubseaDesign AS alliance), and Brazil market entry news that may not appear in
+  SEC filings.
+extract: Search for KLNG/Koil Energy contract announcements, partnership updates (SubseaDesign
+  AS alliance), and Brazil market entry news that may not appear in SEC filings.
+threshold: Any new named contract, partnership expansion, or Brazil operational milestone
+cadence: 6h
+queries:
+- '"Koil Energy" contract'
+- '"KLNG" award OR contract'
+- '"Deep Down" subsea Brazil'
+search_backend: tavily

@@ -943,3 +943,83 @@ tickers:
     - '"Koil Energy Solutions, Inc." OR "KLNG"'
     edgar_supported: true
     research_priority: 5
+  VTIX:
+    cik: '0001606242'
+    exchange: Nasdaq
+    name: Virtuix Holdings Inc.
+    news_queries:
+    - '"Virtuix Holdings Inc." OR "VTIX"'
+    edgar_supported: true
+    research_priority: 5
+  HMR.V:
+    cik: HMR.V
+    exchange: NON_US
+    name: HMR.V
+    news_queries:
+    - '"HMR.V"'
+    edgar_supported: false
+    research_priority: 5
+  PRLD:
+    cik: 0001678660
+    exchange: Nasdaq
+    name: Prelude Therapeutics Inc
+    news_queries:
+    - '"Prelude Therapeutics Inc" OR "PRLD"'
+    edgar_supported: true
+    research_priority: 5
+  TNXP:
+    cik: '0001430306'
+    exchange: Nasdaq
+    name: Tonix Pharmaceuticals Holding Corp.
+    news_queries:
+    - '"Tonix Pharmaceuticals Holding Corp." OR "TNXP"'
+    edgar_supported: true
+    research_priority: 5
+  CBR.V:
+    cik: CBR.V
+    exchange: NON_US
+    name: CBR.V
+    news_queries:
+    - '"CBR.V"'
+    edgar_supported: false
+    research_priority: 5
+  BNTC:
+    cik: 0001808898
+    exchange: Nasdaq
+    name: Benitec Biopharma Inc.
+    news_queries:
+    - '"Benitec Biopharma Inc." OR "BNTC"'
+    edgar_supported: true
+    research_priority: 5
+  APYX:
+    cik: 0000719135
+    exchange: Nasdaq
+    name: Apyx Medical Corp
+    news_queries:
+    - '"Apyx Medical Corp" OR "APYX"'
+    edgar_supported: true
+    research_priority: 5
+  FEMY:
+    cik: 0001339005
+    exchange: Nasdaq
+    name: FEMASYS INC
+    news_queries:
+    - '"FEMASYS INC" OR "FEMY"'
+    edgar_supported: true
+    research_priority: 5
+  PTX.V:
+    cik: PTX.V
+    exchange: NON_US
+    name: PTX.V
+    news_queries:
+    - '"PTX.V"'
+    edgar_supported: false
+    research_priority: 5
+  ENA.V:
+    cik: ENA.V
+    exchange: NON_US
+    name: ENA.V
+    news_queries:
+    - '"ENA.V"'
+    edgar_supported: false
+    research_priority: 5

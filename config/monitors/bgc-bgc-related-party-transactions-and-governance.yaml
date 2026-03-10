@@ -1,0 +1,16 @@
+id: bgc-bgc-related-party-transactions-and-governance
+type: filing
+tickers:
+- BGC
+description: Monitor 10-K/10-Q/8-K for changes in Cantor-BGC related party transactions,
+  Brandon Lutnick governance decisions, and any material changes to the BGC Credit
+  Agreement or clearing arrangements.
+extract: Monitor 10-K/10-Q/8-K for changes in Cantor-BGC related party transactions,
+  Brandon Lutnick governance decisions, and any material changes to the BGC Credit
+  Agreement or clearing arrangements.
+threshold: Cantor-related charges increase >50% YoY or new material related-party
+  agreements are entered
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

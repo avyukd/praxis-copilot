@@ -1,0 +1,14 @@
+id: trox-eu-anti-dumping-duty-status
+type: filing
+tickers:
+- TROX
+description: Monitor references to EU anti-dumping duty modifications, extensions,
+  or circumvention in SEC filings. These duties are the most consequential trade protection
+  for TROX's European operations.
+extract: Monitor references to EU anti-dumping duty modifications, extensions, or
+  circumvention in SEC filings. These duties are the most consequential trade protection
+  for TROX's European operations.
+threshold: Any change to duty rates, scope, or duration; any circumvention ruling
+filing_types:
+- 10-K
+- 10-Q

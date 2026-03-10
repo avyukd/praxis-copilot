@@ -1,0 +1,13 @@
+id: klng-customer-concentration-and-bad-debt
+type: filing
+tickers:
+- KLNG
+description: Monitor for additional receivable write-offs or customer concentration
+  disclosures. OMSi $569K write-off in Q3 2025 was 2.5% of annual revenue.
+extract: Monitor for additional receivable write-offs or customer concentration disclosures.
+  OMSi $569K write-off in Q3 2025 was 2.5% of annual revenue.
+threshold: Any single bad debt provision exceeding $200K or disclosure of customer
+  >15% of revenue
+filing_types:
+- 10-K
+- 10-Q

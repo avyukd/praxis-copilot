@@ -1,0 +1,12 @@
+id: trox-tio2-pricing-and-industry-supply-data
+type: scraper
+tickers:
+- TROX
+description: Track TiO2 contract pricing indicators and Western producer utilization
+  rates from ICIS or TiPMC published data.
+extract: Track TiO2 contract pricing indicators and Western producer utilization rates
+  from ICIS or TiPMC published data.
+threshold: TiO2 prices move +/-5% from current levels or Western utilization crosses
+  85%
+cadence: 1d
+source_url: https://www.icis.com/explore/commodities/chemicals/titanium-dioxide/

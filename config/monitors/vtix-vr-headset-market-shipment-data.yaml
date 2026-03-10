@@ -1,0 +1,14 @@
+id: vtix-vr-headset-market-shipment-data
+type: scraper
+tickers:
+- VTIX
+description: Track IDC or Counterpoint quarterly VR headset shipment estimates. VTIX's
+  TAM is directly tied to active VR headset installed base. Declining shipments compress
+  the addressable market for a $3,495 peripheral.
+extract: Track IDC or Counterpoint quarterly VR headset shipment estimates. VTIX's
+  TAM is directly tied to active VR headset installed base. Declining shipments compress
+  the addressable market for a $3,495 peripheral.
+threshold: Quarterly VR headset shipments decline >20% YoY OR Quest market share drops
+  below 60%
+cadence: 1d
+source_url: https://www.counterpointresearch.com/insight/global-xr-headset-tracker

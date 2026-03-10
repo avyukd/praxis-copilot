@@ -1,0 +1,14 @@
+id: cc-epa-aim-act-and-technology-transitions-rulemaking
+type: scraper
+tickers:
+- CC
+description: Monitor EPA Federal Register entries and regulations.gov docket EPA-HQ-OAR-2024-0180
+  for final rules on Technology Transitions GWP thresholds. The October 2025 proposed
+  reconsideration could relax GWP limits from 150 to 1,400 for commercial refrigeration.
+extract: Monitor EPA Federal Register entries and regulations.gov docket EPA-HQ-OAR-2024-0180
+  for final rules on Technology Transitions GWP thresholds. The October 2025 proposed
+  reconsideration could relax GWP limits from 150 to 1,400 for commercial refrigeration.
+threshold: Final rule published or comment period extended; any GWP threshold change
+  for subsectors currently at 150
+cadence: 1d
+source_url: https://www.regulations.gov/docket/EPA-HQ-OAR-2024-0180

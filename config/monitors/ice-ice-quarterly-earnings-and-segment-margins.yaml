@@ -1,0 +1,15 @@
+id: ice-ice-quarterly-earnings-and-segment-margins
+type: filing
+tickers:
+- ICE
+description: 'Monitor 10-Q/10-K for mortgage tech GAAP profitability, exchange segment
+  margins, and consolidated EPS trajectory. Key metrics: mortgage tech operating income
+  (GAAP), exchange adj operating margin, net debt/EBITDA.'
+extract: 'Monitor 10-Q/10-K for mortgage tech GAAP profitability, exchange segment
+  margins, and consolidated EPS trajectory. Key metrics: mortgage tech operating income
+  (GAAP), exchange adj operating margin, net debt/EBITDA.'
+threshold: Mortgage tech GAAP operating income turns negative; exchange margin drops
+  below 70%; net debt/EBITDA rises above 3.5x
+filing_types:
+- 10-K
+- 10-Q

@@ -72,10 +72,57 @@ class SerpAPIProvider(SerpProvider):
         return results[:num_results]
 
 
+class TavilyNewsProvider(SerpProvider):
+    """Tavily Search API provider configured for news topic."""
+
+    ENDPOINT = "https://api.tavily.com/search"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+
+    def search(self, query: str, num_results: int = 10, max_retries: int = 3) -> list[SerpResult]:
+        payload = {
+            "query": query,
+            "max_results": num_results,
+            "topic": "news",
+        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(self.ENDPOINT, json=payload, headers=headers, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            except requests.RequestException as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt
+                    logger.warning("Tavily attempt %d failed for %r, retrying in %ds: %s", attempt + 1, query, wait, e)
+                    time.sleep(wait)
+        else:
+            logger.error("Tavily request failed after %d attempts for query %r: %s", max_retries, query, last_error)
+            return []
+
+        results: list[SerpResult] = []
+        for item in data.get("results", []):
+            results.append(
+                SerpResult(
+                    headline=item.get("title", ""),
+                    url=item.get("url", ""),
+                    snippet=item.get("content", ""),
+                    source=item.get("url", "").split("/")[2] if item.get("url") else "",
+                    published=item.get("published_date"),
+                )
+            )
+        return results[:num_results]
+
+
 def get_provider(provider_name: str, api_key: str) -> SerpProvider:
     """Factory for SERP providers."""
     providers: dict[str, type[SerpProvider]] = {
         "serpapi": SerpAPIProvider,
+        "tavily": TavilyNewsProvider,
     }
     cls = providers.get(provider_name)
     if cls is None:

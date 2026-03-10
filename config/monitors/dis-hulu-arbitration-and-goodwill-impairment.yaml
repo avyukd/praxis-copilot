@@ -1,0 +1,15 @@
+id: dis-hulu-arbitration-and-goodwill-impairment
+type: filing
+tickers:
+- DIS
+description: Monitor 8-K filings for Hulu arbitration resolution (potential $0-5B
+  additional payment to NBCU) and any goodwill impairment charges, especially at entertainment
+  linear networks reporting unit.
+extract: Monitor 8-K filings for Hulu arbitration resolution (potential $0-5B additional
+  payment to NBCU) and any goodwill impairment charges, especially at entertainment
+  linear networks reporting unit.
+threshold: Hulu arbitration payment exceeds $3B or goodwill impairment exceeds $2B
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

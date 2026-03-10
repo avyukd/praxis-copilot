@@ -1,0 +1,13 @@
+id: prop-prop-insider-transactions
+type: filing
+tickers:
+- PROP
+description: Monitor Form 4 filings for continued insider buying (especially Narrogal)
+  or any insider selling which would negate the refi thesis.
+extract: Monitor Form 4 filings for continued insider buying (especially Narrogal)
+  or any insider selling which would negate the refi thesis.
+threshold: "Any Form 4 filing \u2014 particularly watch for disposition (sale) transactions\
+  \ which would be a negative signal"
+filing_types:
+- '4'
+- 4/A

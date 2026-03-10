@@ -1,0 +1,14 @@
+id: klng-brent-crude-forward-curve
+type: scraper
+tickers:
+- KLNG
+description: Monitor Brent crude price and forward curve. Deepwater breakevens are
+  ~$43/bbl; project sanctioning hesitancy starts below $55. KLNG's order intake depends
+  on operator confidence.
+extract: Monitor Brent crude price and forward curve. Deepwater breakevens are ~$43/bbl;
+  project sanctioning hesitancy starts below $55. KLNG's order intake depends on operator
+  confidence.
+threshold: Brent spot below $50 for 5+ consecutive trading days OR 12-month forward
+  below $55
+cadence: 1d
+source_url: https://www.eia.gov/dnav/pet/pet_pri_spt_s1_d.htm

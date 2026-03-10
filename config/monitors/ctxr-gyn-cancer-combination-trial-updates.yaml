@@ -1,0 +1,11 @@
+id: ctxr-gyn-cancer-combination-trial-updates
+type: scraper
+tickers:
+- CTXR
+description: Monitor ClinicalTrials.gov for LYMPHIR + pembrolizumab solid tumor trial
+  (NCT05200559) for Phase 2 expansion, new registrations in gynecologic cancers.
+extract: Monitor ClinicalTrials.gov for LYMPHIR + pembrolizumab solid tumor trial
+  (NCT05200559) for Phase 2 expansion, new registrations in gynecologic cancers.
+threshold: Any status change, new Phase 2 registration, or enrollment expansion.
+cadence: 1d
+source_url: https://clinicaltrials.gov/study/NCT05200559

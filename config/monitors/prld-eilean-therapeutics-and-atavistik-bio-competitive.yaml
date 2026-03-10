@@ -1,0 +1,21 @@
+id: prld-eilean-therapeutics-and-atavistik-bio-competitive
+type: search
+tickers:
+- PRLD
+description: Search for news about Eilean Therapeutics (ZE74-0282) and Atavistik Bio
+  JAK2V617F programs. These are the two direct competitors in mutant-selective JAK2
+  space. Watch for clinical data presentations, partnership announcements, or funding
+  rounds that signal competitive intensity.
+extract: Search for news about Eilean Therapeutics (ZE74-0282) and Atavistik Bio JAK2V617F
+  programs. These are the two direct competitors in mutant-selective JAK2 space. Watch
+  for clinical data presentations, partnership announcements, or funding rounds that
+  signal competitive intensity.
+threshold: Eilean reports Phase 1 safety/efficacy data OR Atavistik enters clinical
+  trials with JAK2V617F candidate OR any new entrant announces mutant-selective JAK2
+  program
+cadence: 1d
+queries:
+- '"Eilean Therapeutics" JAK2'
+- '"Atavistik Bio" JAK2 V617F'
+- '"mutant-selective JAK2" clinical trial'
+search_backend: tavily

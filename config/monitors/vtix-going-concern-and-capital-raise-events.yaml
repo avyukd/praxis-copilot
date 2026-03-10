@@ -1,0 +1,16 @@
+id: vtix-going-concern-and-capital-raise-events
+type: filing
+tickers:
+- VTIX
+description: Track proxy statements, S-3 registrations, and 8-K filings for new financing
+  arrangements, reverse stock split execution, ATM offerings, or auditor going-concern
+  language changes. Capital structure events are the primary risk driver.
+extract: Track proxy statements, S-3 registrations, and 8-K filings for new financing
+  arrangements, reverse stock split execution, ATM offerings, or auditor going-concern
+  language changes. Capital structure events are the primary risk driver.
+threshold: New financing facility announced OR reverse split executed OR going concern
+  language added/removed
+filing_types:
+- 8-K
+- DEF 14A
+- S-3

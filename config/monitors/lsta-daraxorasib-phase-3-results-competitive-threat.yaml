@@ -1,0 +1,16 @@
+id: lsta-daraxorasib-phase-3-results-competitive-threat
+type: search
+tickers:
+- LSTA
+description: Track Revolution Medicines' daraxorasib (RMC-6236) Phase 3 RASOLUTE results.
+  A positive readout would shift 1L mPDAC standard of care away from Gem/NabP, reducing
+  certepetide's addressable population and CVR probability.
+extract: Track Revolution Medicines' daraxorasib (RMC-6236) Phase 3 RASOLUTE results.
+  A positive readout would shift 1L mPDAC standard of care away from Gem/NabP, reducing
+  certepetide's addressable population and CVR probability.
+threshold: Phase 3 data readout or FDA filing for daraxorasib in mPDAC.
+cadence: 6h
+queries:
+- '"daraxorasib" OR "RMC-6236" "phase 3" "pancreatic"'
+- '"RASOLUTE" "revolution medicines" results'
+search_backend: tavily

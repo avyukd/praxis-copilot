@@ -1,0 +1,15 @@
+id: iehc-annual-report-governance-and-capital-allocation-si
+type: filing
+tickers:
+- IEHC
+description: Monitor 10-K for changes in executive compensation, dividend/buyback
+  policy, shareholder count, trading venue status (Expert Market vs OTCQB), and any
+  M&A or capacity expansion announcements. Also track material weakness remediation
+  status.
+extract: Monitor 10-K for changes in executive compensation, dividend/buyback policy,
+  shareholder count, trading venue status (Expert Market vs OTCQB), and any M&A or
+  capacity expansion announcements. Also track material weakness remediation status.
+threshold: CEO comp exceeds 5% of revenue OR shareholder count drops below 100 OR
+  going-private transaction announced
+filing_types:
+- 10-K

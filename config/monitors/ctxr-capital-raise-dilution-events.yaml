@@ -1,0 +1,15 @@
+id: ctxr-capital-raise-dilution-events
+type: filing
+tickers:
+- CTXR
+description: Monitor CTXR and CTOR 8-K filings, prospectus supplements, and S-3 registrations
+  for equity offerings, ATM programs, warrant exercises, or convertible debt. Terms
+  of the next raise determine per-share value.
+extract: Monitor CTXR and CTOR 8-K filings, prospectus supplements, and S-3 registrations
+  for equity offerings, ATM programs, warrant exercises, or convertible debt. Terms
+  of the next raise determine per-share value.
+threshold: Any filing indicating new share issuance. Alert specifically if raise price
+  < $0.50/share or if total shares outstanding exceed 40M.
+filing_types:
+- 8-K
+- S-3

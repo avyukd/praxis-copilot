@@ -1,0 +1,14 @@
+id: tnxp-tonmya-weekly-prescription-tracker
+type: scraper
+tickers:
+- TNXP
+description: Scrape TONMYA prescription data from publicly available pharmacy/prescription
+  tracking sources. Weekly TRx and NBRx trajectory is the single most important leading
+  indicator for the thesis.
+extract: Scrape TONMYA prescription data from publicly available pharmacy/prescription
+  tracking sources. Weekly TRx and NBRx trajectory is the single most important leading
+  indicator for the thesis.
+threshold: Weekly TRx crossing 500/week would confirm base case trajectory; below
+  100/week after 6 months signals failure
+cadence: 1d
+source_url: https://www.drugs.com/stats/tonmya

@@ -1,0 +1,13 @@
+id: bntc-suvretta-capital-13f-holdings
+type: scraper
+tickers:
+- BNTC
+description: "Track Suvretta Capital Management quarterly 13F filings on SEC EDGAR\
+  \ for BNTC position changes. Suvretta holds 33.6% \u2014 any material reduction\
+  \ is a thesis-breaking signal."
+extract: "Track Suvretta Capital Management quarterly 13F filings on SEC EDGAR for\
+  \ BNTC position changes. Suvretta holds 33.6% \u2014 any material reduction is a\
+  \ thesis-breaking signal."
+threshold: BNTC position reduced by >10% or increased by >5% quarter-over-quarter
+cadence: 1d
+source_url: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=suvretta&CIK=&type=13F&dateb=&owner=include&count=10&search_text=&action=getcompany

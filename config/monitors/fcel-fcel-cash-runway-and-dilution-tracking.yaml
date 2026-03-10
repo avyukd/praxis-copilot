@@ -1,0 +1,15 @@
+id: fcel-fcel-cash-runway-and-dilution-tracking
+type: filing
+tickers:
+- FCEL
+description: Track unrestricted cash balance, shares outstanding, and ATM activity
+  from quarterly filings. Calculate effective runway (unrestricted cash minus $55M
+  EXIM covenant divided by quarterly burn rate).
+extract: Track unrestricted cash balance, shares outstanding, and ATM activity from
+  quarterly filings. Calculate effective runway (unrestricted cash minus $55M EXIM
+  covenant divided by quarterly burn rate).
+threshold: Effective runway drops below 12 months; shares outstanding increases >15%
+  quarter-over-quarter; unrestricted cash falls below $150M
+filing_types:
+- 10-K
+- 10-Q

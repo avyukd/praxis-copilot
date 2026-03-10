@@ -1,0 +1,12 @@
+id: ctxr-nasdaq-compliance-status
+type: scraper
+tickers:
+- CTXR
+description: Monitor CTXR stock price for minimum bid compliance. Stock near $1.00
+  threshold; reverse split already done once (Nov 2024). Delisting would trigger forced
+  selling.
+extract: Monitor CTXR stock price for minimum bid compliance. Stock near $1.00 threshold;
+  reverse split already done once (Nov 2024). Delisting would trigger forced selling.
+threshold: 30 consecutive trading days below $1.00 minimum bid.
+cadence: 1d
+source_url: https://stockanalysis.com/stocks/ctxr/

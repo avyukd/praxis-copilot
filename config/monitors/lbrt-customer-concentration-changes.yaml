@@ -1,0 +1,11 @@
+id: lbrt-customer-concentration-changes
+type: filing
+tickers:
+- LBRT
+description: Monitor annual filings for shifts in top-5 customer concentration (currently
+  39% of revenue). Loss of Oxy or XTO (each >10%) would be material.
+extract: Monitor annual filings for shifts in top-5 customer concentration (currently
+  39% of revenue). Loss of Oxy or XTO (each >10%) would be material.
+threshold: Any single customer exceeding 15% or top-5 concentration exceeding 45%
+filing_types:
+- 10-K

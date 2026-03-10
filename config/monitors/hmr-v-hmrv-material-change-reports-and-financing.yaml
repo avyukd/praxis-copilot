@@ -1,0 +1,13 @@
+id: hmr-v-hmrv-material-change-reports-and-financing
+type: filing
+tickers:
+- HMR.V
+description: 'Monitor SEDAR+ for material change reports, private placement filings,
+  and prospectuses. Key signal: any financing event, especially pricing relative to
+  market (premium vs discount indicates market confidence).'
+extract: 'Monitor SEDAR+ for material change reports, private placement filings, and
+  prospectuses. Key signal: any financing event, especially pricing relative to market
+  (premium vs discount indicates market confidence).'
+threshold: Any new equity financing or material change report filed
+filing_types:
+- 8-K

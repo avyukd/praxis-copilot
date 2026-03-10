@@ -1,0 +1,13 @@
+id: ctxr-going-concern-and-cash-runway-updates
+type: filing
+tickers:
+- CTXR
+description: Monitor auditor opinion and management discussion for going concern language,
+  cash balance, and stated runway. Current runway through May 2026.
+extract: Monitor auditor opinion and management discussion for going concern language,
+  cash balance, and stated runway. Current runway through May 2026.
+threshold: Alert if runway extends beyond 12 months (bullish) or if going concern
+  language escalates or cash drops below $3M without imminent raise.
+filing_types:
+- 10-Q
+- 10-K

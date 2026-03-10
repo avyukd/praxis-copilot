@@ -1,0 +1,11 @@
+id: femy-nasdaq-compliance-status
+type: filing
+tickers:
+- FEMY
+description: Track Nasdaq deficiency notices (MVLS and bid price), compliance plan
+  submissions, and any reverse split announcements. July 13, 2026 deadline for compliance.
+extract: Track Nasdaq deficiency notices (MVLS and bid price), compliance plan submissions,
+  and any reverse split announcements. July 13, 2026 deadline for compliance.
+threshold: Reverse split announcement, delisting notice, or transfer to OTC markets
+filing_types:
+- 8-K

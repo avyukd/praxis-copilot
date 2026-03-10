@@ -1,0 +1,15 @@
+id: ena-v-enav-financing-and-dilution-events
+type: filing
+tickers:
+- ENA.V
+description: "Monitor SEDAR for equity raises, convertible amendments, warrant exercises,\
+  \ or debt restructuring. The C$29.8M convertible at $2.25 is the key overhang \u2014\
+  \ any conversion or amendment materially impacts equity value."
+extract: "Monitor SEDAR for equity raises, convertible amendments, warrant exercises,\
+  \ or debt restructuring. The C$29.8M convertible at $2.25 is the key overhang \u2014\
+  \ any conversion or amendment materially impacts equity value."
+threshold: Any new equity raise, convertible conversion notices, or debt restructuring
+  filing
+filing_types:
+- material-change
+- prospectus

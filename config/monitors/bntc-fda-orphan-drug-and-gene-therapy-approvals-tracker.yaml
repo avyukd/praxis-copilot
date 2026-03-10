@@ -1,0 +1,14 @@
+id: bntc-fda-orphan-drug-and-gene-therapy-approvals-tracker
+type: scraper
+tickers:
+- BNTC
+description: Monitor FDA CBER gene therapy approvals page and orphan drug designations
+  for any new OPMD-related designations or approvals. Also track evolution of the
+  Feb 2026 plausible mechanism framework guidance documents.
+extract: Monitor FDA CBER gene therapy approvals page and orphan drug designations
+  for any new OPMD-related designations or approvals. Also track evolution of the
+  Feb 2026 plausible mechanism framework guidance documents.
+threshold: New OPMD designation granted to any entity, new gene therapy guidance document
+  affecting rare disease approval pathways, or BB-301 approval/CRL
+cadence: 1d
+source_url: https://www.fda.gov/vaccines-blood-biologics/cellular-gene-therapy-products/approved-cellular-and-gene-therapy-products

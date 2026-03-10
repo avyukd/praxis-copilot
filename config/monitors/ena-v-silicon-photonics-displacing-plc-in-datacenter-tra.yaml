@@ -1,0 +1,18 @@
+id: ena-v-silicon-photonics-displacing-plc-in-datacenter-tra
+type: search
+tickers:
+- ENA.V
+description: 'Track silicon photonics adoption in 800G/1.6T transceivers and co-packaged
+  optics deployments that could structurally reduce discrete PLC chip demand. Key
+  players: Broadcom CPO, TSMC COUPE, Intel SiPh.'
+extract: 'Track silicon photonics adoption in 800G/1.6T transceivers and co-packaged
+  optics deployments that could structurally reduce discrete PLC chip demand. Key
+  players: Broadcom CPO, TSMC COUPE, Intel SiPh.'
+threshold: Major hyperscaler CPO deployment announcement or SiPh transceiver volume
+  displacing PLC-based modules
+cadence: 1d
+queries:
+- '"co-packaged optics" deployment hyperscaler 2026'
+- '"silicon photonics" transceiver "800G" OR "1.6T" volume production'
+- Broadcom CPO OR "TSMC COUPE" optical production
+search_backend: tavily

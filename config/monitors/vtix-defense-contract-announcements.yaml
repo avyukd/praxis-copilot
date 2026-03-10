@@ -1,0 +1,13 @@
+id: vtix-defense-contract-announcements
+type: filing
+tickers:
+- VTIX
+description: Monitor 8-K filings for VTW defense contract awards, LOIs, or material
+  agreements with DoD entities. A single meaningful contract would fundamentally change
+  the thesis.
+extract: Monitor 8-K filings for VTW defense contract awards, LOIs, or material agreements
+  with DoD entities. A single meaningful contract would fundamentally change the thesis.
+threshold: Any defense contract or LOI valued at $1M+ OR formal government procurement
+  vehicle established
+filing_types:
+- 8-K

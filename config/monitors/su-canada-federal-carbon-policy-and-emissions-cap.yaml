@@ -1,0 +1,17 @@
+id: su-canada-federal-carbon-policy-and-emissions-cap
+type: search
+tickers:
+- SU
+description: Monitor for federal emissions cap legislation or regulatory changes targeting
+  oil sands. A binding production cap would strand future capital and cap Suncor's
+  long-term production. This is an existential risk for the basin.
+extract: Monitor for federal emissions cap legislation or regulatory changes targeting
+  oil sands. A binding production cap would strand future capital and cap Suncor's
+  long-term production. This is an existential risk for the basin.
+threshold: Draft legislation or final rule imposing binding production or emissions
+  caps on oil sands operations
+cadence: 1d
+queries:
+- '"Canada emissions cap" oil sands'
+- '"oil sands" federal regulation production cap 2026'
+search_backend: tavily

@@ -1,0 +1,16 @@
+id: prop-colorado-oil-regulation
+type: search
+tickers:
+- PROP
+description: Monitor Colorado regulatory changes affecting Weld County oil and gas
+  operations, particularly setback rules, permitting delays, or new environmental
+  restrictions.
+extract: Monitor Colorado regulatory changes affecting Weld County oil and gas operations,
+  particularly setback rules, permitting delays, or new environmental restrictions.
+threshold: Any new Colorado regulation specifically restricting Weld County drilling
+  or increasing setback requirements
+cadence: 1d
+queries:
+- Colorado oil gas regulation Weld County 2026
+- ECMC permitting DJ Basin
+search_backend: tavily

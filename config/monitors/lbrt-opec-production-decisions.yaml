@@ -1,0 +1,15 @@
+id: lbrt-opec-production-decisions
+type: search
+tickers:
+- LBRT
+description: Monitor OPEC+ production policy changes, quota adjustments, and compliance
+  data. OPEC+ oversupply is the primary downside risk to LBRT's frac economics.
+extract: Monitor OPEC+ production policy changes, quota adjustments, and compliance
+  data. OPEC+ oversupply is the primary downside risk to LBRT's frac economics.
+threshold: OPEC+ announces >500K bbl/d production increase or Saudi Arabia breaks
+  from agreed cuts
+cadence: 1d
+queries:
+- OPEC+ production decision quota
+- Saudi Arabia oil production increase
+search_backend: tavily

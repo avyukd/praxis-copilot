@@ -1,0 +1,15 @@
+id: dis-disney-ceo-succession-announcement
+type: search
+tickers:
+- DIS
+description: Monitor for Disney CEO succession announcement expected early 2026. New
+  CEO could shift capital allocation priorities on the $60B capex plan or content
+  strategy.
+extract: Monitor for Disney CEO succession announcement expected early 2026. New CEO
+  could shift capital allocation priorities on the $60B capex plan or content strategy.
+threshold: New CEO named or Iger contract extended beyond current term
+cadence: 6h
+queries:
+- '"Disney CEO" successor announcement 2026'
+- '"Disney" "chief executive" appointment named'
+search_backend: tavily

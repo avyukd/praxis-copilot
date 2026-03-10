@@ -1,0 +1,15 @@
+id: su-capex-trajectory-and-sustaining-vs-growth-split
+type: filing
+tickers:
+- SU
+description: "Track capital expenditure levels and breakdown between sustaining and\
+  \ growth capex in quarterly MD&A. Capex crept from C$4.6B to C$5.9B (28% increase)\
+  \ \u2014 need to determine if this is cost inflation or productive investment."
+extract: "Track capital expenditure levels and breakdown between sustaining and growth\
+  \ capex in quarterly MD&A. Capex crept from C$4.6B to C$5.9B (28% increase) \u2014\
+  \ need to determine if this is cost inflation or productive investment."
+threshold: Total capex exceeds C$6.5B annualized or sustaining capex per barrel increases
+  >10% YoY
+filing_types:
+- 40-F
+- 6-K

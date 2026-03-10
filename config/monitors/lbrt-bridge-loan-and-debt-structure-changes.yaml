@@ -1,0 +1,14 @@
+id: lbrt-bridge-loan-and-debt-structure-changes
+type: filing
+tickers:
+- LBRT
+description: "Monitor 8-K filings for bridge loan closing, refinancing, convertible\
+  \ debt issuance, or equity offering. The $600M bridge must close by June 2026 with\
+  \ 365-day maturity \u2014 refinancing is critical."
+extract: "Monitor 8-K filings for bridge loan closing, refinancing, convertible debt\
+  \ issuance, or equity offering. The $600M bridge must close by June 2026 with 365-day\
+  \ maturity \u2014 refinancing is critical."
+threshold: Any new debt issuance >$100M, convertible offering, or equity dilution
+  event
+filing_types:
+- 8-K

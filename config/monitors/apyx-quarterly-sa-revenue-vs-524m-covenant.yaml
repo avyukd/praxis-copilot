@@ -1,0 +1,17 @@
+id: apyx-quarterly-sa-revenue-vs-524m-covenant
+type: filing
+tickers:
+- APYX
+description: Track Surgical Aesthetics segment revenue in each quarterly filing against
+  the FY2026 Perceptive covenant target of $52.4M. Calculate cumulative YTD AE revenue
+  and run-rate to project full-year compliance. Also monitor OEM segment mix to assess
+  whether AE mix is trending toward the required ~90%.
+extract: Track Surgical Aesthetics segment revenue in each quarterly filing against
+  the FY2026 Perceptive covenant target of $52.4M. Calculate cumulative YTD AE revenue
+  and run-rate to project full-year compliance. Also monitor OEM segment mix to assess
+  whether AE mix is trending toward the required ~90%.
+threshold: YTD AE revenue run-rate below $52.4M annualized in any quarter; AE mix
+  below 88% of total revenue
+filing_types:
+- 10-Q
+- 10-K

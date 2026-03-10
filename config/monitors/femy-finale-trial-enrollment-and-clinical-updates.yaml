@@ -1,0 +1,18 @@
+id: femy-finale-trial-enrollment-and-clinical-updates
+type: filing
+tickers:
+- FEMY
+description: "Track FINALE pivotal trial enrollment progress, interim data, and any\
+  \ protocol amendments in quarterly and annual SEC filings. Enrollment pace is the\
+  \ single most important variable \u2014 each quarter of delay costs ~$5M burn +\
+  \ 10-15M dilutive shares."
+extract: "Track FINALE pivotal trial enrollment progress, interim data, and any protocol\
+  \ amendments in quarterly and annual SEC filings. Enrollment pace is the single\
+  \ most important variable \u2014 each quarter of delay costs ~$5M burn + 10-15M\
+  \ dilutive shares."
+threshold: Enrollment pace <80 women/quarter (implies 2+ year enrollment vs. target),
+  any clinical hold, or protocol amendment changing primary endpoint
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

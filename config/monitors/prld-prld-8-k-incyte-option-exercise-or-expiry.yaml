@@ -1,0 +1,14 @@
+id: prld-prld-8-k-incyte-option-exercise-or-expiry
+type: filing
+tickers:
+- PRLD
+description: Monitor 8-K filings for Incyte option exercise decision, any amendments
+  to the Option Agreement, tolling period activation, or option expiry. Also watch
+  for ATM utilization, shelf offering announcements, or any capital raise disclosures.
+extract: Monitor 8-K filings for Incyte option exercise decision, any amendments to
+  the Option Agreement, tolling period activation, or option expiry. Also watch for
+  ATM utilization, shelf offering announcements, or any capital raise disclosures.
+threshold: Any 8-K mentioning Incyte option exercise, option expiry, securities offering,
+  or ATM sales
+filing_types:
+- 8-K

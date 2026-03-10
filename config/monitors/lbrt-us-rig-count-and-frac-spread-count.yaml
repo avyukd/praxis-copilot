@@ -1,0 +1,14 @@
+id: lbrt-us-rig-count-and-frac-spread-count
+type: scraper
+tickers:
+- LBRT
+description: Track Baker Hughes weekly rig count and estimated active frac spread
+  count from Primary Vision. Supply attrition thesis depends on fleet counts declining
+  while demand stabilizes.
+extract: Track Baker Hughes weekly rig count and estimated active frac spread count
+  from Primary Vision. Supply attrition thesis depends on fleet counts declining while
+  demand stabilizes.
+threshold: US rig count below 650 (bearish) or above 800 (bullish recovery signal);
+  frac spreads below 210 or above 260
+cadence: 1d
+source_url: https://rigcount.bakerhughes.com/na-rig-count

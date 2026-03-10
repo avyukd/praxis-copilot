@@ -1,0 +1,14 @@
+id: tnxp-tonmya-formulary-and-coverage-status
+type: scraper
+tickers:
+- TNXP
+description: "Track TONMYA formulary placement across major PBMs (Express Scripts,\
+  \ CVS Caremark, OptumRx). No wins disclosed as of 4 months post-launch \u2014 any\
+  \ change is material."
+extract: "Track TONMYA formulary placement across major PBMs (Express Scripts, CVS\
+  \ Caremark, OptumRx). No wins disclosed as of 4 months post-launch \u2014 any change\
+  \ is material."
+threshold: Any Tier 2/3 formulary placement on a top-5 PBM. Non-formulary status persisting
+  beyond June 2026 would be bearish.
+cadence: 1d
+source_url: https://www.tonmya.com/coverage

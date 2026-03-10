@@ -1,0 +1,18 @@
+id: lbrt-data-center-distributed-power-contracts
+type: search
+tickers:
+- LBRT
+description: Monitor for new distributed power/behind-the-meter generation deals in
+  the data center space, both LBRT-specific and competitor activity. Validates or
+  invalidates LPI thesis.
+extract: Monitor for new distributed power/behind-the-meter generation deals in the
+  data center space, both LBRT-specific and competitor activity. Validates or invalidates
+  LPI thesis.
+threshold: LBRT announces new LPI contract >100 MW or major competitor enters distributed
+  gas-fired data center power market
+cadence: 1d
+queries:
+- '"Liberty Energy" distributed power data center'
+- '"Liberty Power Innovations" contract'
+- distributed generation data center natural gas behind-the-meter
+search_backend: tavily

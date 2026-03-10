@@ -1,0 +1,15 @@
+id: mrx-ningi-lawsuit-securities-fraud-developments
+type: search
+tickers:
+- MRX
+description: Track developments in Narayanan v. Marex Group (25-cv-08393) including
+  motions to dismiss, discovery rulings, settlement talks, or SEC investigation announcements.
+extract: Track developments in Narayanan v. Marex Group (25-cv-08393) including motions
+  to dismiss, discovery rulings, settlement talks, or SEC investigation announcements.
+threshold: Any court ruling, settlement disclosure, or SEC enforcement action
+cadence: 6h
+queries:
+- '"Marex Group" lawsuit'
+- '"Marex Group" "securities fraud"'
+- '"NINGI Research" Marex'
+search_backend: tavily

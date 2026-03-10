@@ -1,0 +1,13 @@
+id: tnxp-cash-burn-rate-and-runway
+type: filing
+tickers:
+- TNXP
+description: Track quarterly operating cash flow, SGA spend (TONMYA launch costs),
+  and ending cash position. Current burn ~$30-35M/quarter with $225M cash = 6-7 quarters.
+extract: Track quarterly operating cash flow, SGA spend (TONMYA launch costs), and
+  ending cash position. Current burn ~$30-35M/quarter with $225M cash = 6-7 quarters.
+threshold: Quarterly burn exceeding $40M or cash below $100M without offsetting revenue
+  ramp would signal accelerated timeline to next dilutive raise
+filing_types:
+- 10-K
+- 10-Q

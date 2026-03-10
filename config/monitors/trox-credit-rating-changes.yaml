@@ -1,0 +1,15 @@
+id: trox-credit-rating-changes
+type: search
+tickers:
+- TROX
+description: Track Moody's and S&P rating actions on TROX debt. Currently B2 negative
+  / B stable. A downgrade to Caa/CCC would signal imminent distress.
+extract: Track Moody's and S&P rating actions on TROX debt. Currently B2 negative
+  / B stable. A downgrade to Caa/CCC would signal imminent distress.
+threshold: Any rating change or outlook revision
+cadence: 6h
+queries:
+- '"Tronox" credit rating'
+- '"TROX" Moodys downgrade'
+- '"Tronox" S&P rating'
+search_backend: tavily

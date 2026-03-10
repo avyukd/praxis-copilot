@@ -1,0 +1,17 @@
+id: ena-v-enablence-customer-wins-or-design-ins
+type: search
+tickers:
+- ENA.V
+description: Monitor for Enablence design wins, customer announcements, or order disclosures
+  that would validate revenue trajectory. Also track SYT/Foxconn optical ecosystem
+  developments.
+extract: Monitor for Enablence design wins, customer announcements, or order disclosures
+  that would validate revenue trajectory. Also track SYT/Foxconn optical ecosystem
+  developments.
+threshold: Named customer contract, volume commitment, or revenue-bearing order announcement
+cadence: 1d
+queries:
+- '"Enablence" customer OR contract OR order OR "design win"'
+- '"ShunYun Technology" OR "SYT" optical partnership'
+- Enablence PLC datacenter
+search_backend: tavily

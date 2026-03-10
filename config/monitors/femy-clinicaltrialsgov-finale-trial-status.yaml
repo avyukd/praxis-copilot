@@ -1,0 +1,14 @@
+id: femy-clinicaltrialsgov-finale-trial-status
+type: scraper
+tickers:
+- FEMY
+description: Monitor FINALE pivotal trial (NCT likely registered) for enrollment status
+  updates, estimated completion dates, and any status changes. FDA IDE-approved trial
+  for FemBloc non-surgical permanent birth control.
+extract: Monitor FINALE pivotal trial (NCT likely registered) for enrollment status
+  updates, estimated completion dates, and any status changes. FDA IDE-approved trial
+  for FemBloc non-surgical permanent birth control.
+threshold: Enrollment status change, estimated completion date pushed >3 months, study
+  terminated/suspended, or results posted
+cadence: 1d
+source_url: https://clinicaltrials.gov/search?intr=FemBloc&spons=Femasys

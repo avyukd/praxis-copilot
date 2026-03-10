@@ -1,0 +1,15 @@
+id: bntc-clinicaltrialsgov-bb-301-status
+type: scraper
+tickers:
+- BNTC
+description: Track BB-301 trial registration (NCT number) on ClinicalTrials.gov for
+  status changes, enrollment updates, protocol amendments, and new trial registrations
+  (pivotal trial expected mid-2026). Monitor both Phase 1b/2a and any new Phase 2/3
+  registrations.
+extract: Track BB-301 trial registration (NCT number) on ClinicalTrials.gov for status
+  changes, enrollment updates, protocol amendments, and new trial registrations (pivotal
+  trial expected mid-2026). Monitor both Phase 1b/2a and any new Phase 2/3 registrations.
+threshold: Trial status change (e.g., active to completed, new trial registered),
+  enrollment milestone, or protocol amendment
+cadence: 1d
+source_url: https://clinicaltrials.gov/search?cond=OPMD&intr=BB-301&spons=Benitec

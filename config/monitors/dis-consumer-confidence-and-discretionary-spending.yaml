@@ -1,0 +1,14 @@
+id: dis-consumer-confidence-and-discretionary-spending
+type: scraper
+tickers:
+- DIS
+description: Track University of Michigan Consumer Sentiment Index from the official
+  release page. Experiences segment (57% of OI) is highly sensitive to consumer discretionary
+  health.
+extract: Track University of Michigan Consumer Sentiment Index from the official release
+  page. Experiences segment (57% of OI) is highly sensitive to consumer discretionary
+  health.
+threshold: Consumer sentiment index falls below 60 or declines more than 15% from
+  trailing 6-month average
+cadence: 1d
+source_url: https://data.sca.isr.umich.edu/fetchdoc.php?docid=sca

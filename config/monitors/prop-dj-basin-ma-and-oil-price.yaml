@@ -1,0 +1,18 @@
+id: prop-dj-basin-ma-and-oil-price
+type: search
+tickers:
+- PROP
+description: Track DJ Basin acquisition activity and oil price developments that affect
+  PROP's asset value and borrowing base. Also monitor for any PROP-specific acquisition
+  rumors.
+extract: Track DJ Basin acquisition activity and oil price developments that affect
+  PROP's asset value and borrowing base. Also monitor for any PROP-specific acquisition
+  rumors.
+threshold: DJ Basin deal at >$40K/net acre (supports PROP valuation), or oil sustained
+  below $60 (threatens borrowing base)
+cadence: 6h
+queries:
+- '"Prairie Operating" acquisition'
+- '"DJ Basin" acquisition 2026'
+- '"PROP" "borrowing base"'
+search_backend: tavily

@@ -1,0 +1,17 @@
+id: tnxp-equity-issuance-and-dilution-tracking
+type: filing
+tickers:
+- TNXP
+description: Monitor ATM sales, Lincoln Park draws, new shelf registrations, and share
+  count changes. Track remaining ATM capacity (currently ~$60M on 2025 ATM + $75M
+  Lincoln Park). Alert on new S-3 filings or prospectus supplements.
+extract: Monitor ATM sales, Lincoln Park draws, new shelf registrations, and share
+  count changes. Track remaining ATM capacity (currently ~$60M on 2025 ATM + $75M
+  Lincoln Park). Alert on new S-3 filings or prospectus supplements.
+threshold: Any single-quarter issuance exceeding 1.5M shares (~15% dilution) or new
+  shelf registration filing
+filing_types:
+- S-3
+- 424B5
+- 8-K
+- 10-Q

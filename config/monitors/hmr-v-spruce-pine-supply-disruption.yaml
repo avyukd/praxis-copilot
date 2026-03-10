@@ -1,0 +1,17 @@
+id: hmr-v-spruce-pine-supply-disruption
+type: search
+tickers:
+- HMR.V
+description: Monitor for disruptions to Spruce Pine NC high-purity quartz supply (weather
+  events, operational issues, export restrictions). Supply disruption would accelerate
+  demand for alternative HPQ sources like HMR.V's SME deposit.
+extract: Monitor for disruptions to Spruce Pine NC high-purity quartz supply (weather
+  events, operational issues, export restrictions). Supply disruption would accelerate
+  demand for alternative HPQ sources like HMR.V's SME deposit.
+threshold: Any operational disruption lasting >1 week or policy change affecting HPQ
+  exports
+cadence: 1d
+queries:
+- '"Spruce Pine" quartz disruption OR shortage OR hurricane'
+- '"high purity quartz" shortage OR supply OR constraint'
+search_backend: tavily

@@ -1,0 +1,13 @@
+id: tnxp-management-changes-and-insider-transactions
+type: filing
+tickers:
+- TNXP
+description: "Monitor Form 4 insider transactions and 8-K executive changes. Current\
+  \ insider ownership is 0.034% \u2014 any buying would be highly significant. Any\
+  \ selling or departures during launch ramp would be bearish."
+extract: "Monitor Form 4 insider transactions and 8-K executive changes. Current insider\
+  \ ownership is 0.034% \u2014 any buying would be highly significant. Any selling\
+  \ or departures during launch ramp would be bearish."
+threshold: Any insider purchase above $50K or any named executive departure
+filing_types:
+- 8-K

@@ -1,0 +1,19 @@
+id: prld-kat6a-inhibitor-competitive-landscape
+type: search
+tickers:
+- PRLD
+description: 'Monitor KAT6A/KAT6 inhibitor and degrader competitive developments.
+  Key competitors: Pfizer PF-07248144, Olema OP-3136, IDEAYA IDE251. Watch for Phase
+  1 data readouts that could validate or invalidate the selective degrader approach.'
+extract: 'Monitor KAT6A/KAT6 inhibitor and degrader competitive developments. Key
+  competitors: Pfizer PF-07248144, Olema OP-3136, IDEAYA IDE251. Watch for Phase 1
+  data readouts that could validate or invalidate the selective degrader approach.'
+threshold: Any KAT6A competitor reports Phase 1 clinical data OR new KAT6A degrader
+  program enters development
+cadence: 6h
+queries:
+- '"KAT6A" clinical trial results'
+- PF-07248144 Phase 1
+- '"Olema" OP-3136 KAT6'
+- '"KAT6A degrader"'
+search_backend: tavily

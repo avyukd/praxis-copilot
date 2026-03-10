@@ -1,0 +1,13 @@
+id: bgc-bgc-debt-maturities-and-credit-rating
+type: filing
+tickers:
+- BGC
+description: Monitor 8-K filings for credit rating changes, new debt issuances, or
+  refinancing activity. Track debt maturity schedule (2028, 2029, 2030).
+extract: Monitor 8-K filings for credit rating changes, new debt issuances, or refinancing
+  activity. Track debt maturity schedule (2028, 2029, 2030).
+threshold: Credit rating downgraded below BBB- or weighted average interest rate exceeds
+  7%
+filing_types:
+- 8-K
+- 10-K

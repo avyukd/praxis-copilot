@@ -1,0 +1,17 @@
+id: hmr-v-hmrv-solar-glass-plant-financing
+type: search
+tickers:
+- HMR.V
+description: Monitor for announcements related to project financing for the Bahia
+  solar glass plant (~EUR150M capex). BNDES approval, JV partner announcements, or
+  ECA-backed financing would be transformative catalysts.
+extract: Monitor for announcements related to project financing for the Bahia solar
+  glass plant (~EUR150M capex). BNDES approval, JV partner announcements, or ECA-backed
+  financing would be transformative catalysts.
+threshold: Any binding financing commitment exceeding C$20M or BNDES/government funding
+  approval
+cadence: 1d
+queries:
+- '"Homerun Resources" financing OR BNDES OR "solar glass" plant'
+- HMR.V "project financing" OR "joint venture"
+search_backend: tavily

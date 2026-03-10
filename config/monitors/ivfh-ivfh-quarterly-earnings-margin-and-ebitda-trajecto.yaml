@@ -1,0 +1,15 @@
+id: ivfh-ivfh-quarterly-earnings-margin-and-ebitda-trajecto
+type: filing
+tickers:
+- IVFH
+description: Monitor 10-Q and 10-K filings for gross margin trend (currently ~22-23%),
+  adjusted EBITDA (currently ~$2M annualized and deteriorating), and organic vs. acquisition-driven
+  revenue growth. Key data in MD&A and income statement.
+extract: Monitor 10-Q and 10-K filings for gross margin trend (currently ~22-23%),
+  adjusted EBITDA (currently ~$2M annualized and deteriorating), and organic vs. acquisition-driven
+  revenue growth. Key data in MD&A and income statement.
+threshold: Gross margin below 22% or above 25% for two consecutive quarters; adj.
+  EBITDA above $1M/quarter sustained
+filing_types:
+- 10-K
+- 10-Q

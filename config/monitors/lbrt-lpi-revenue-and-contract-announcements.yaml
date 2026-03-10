@@ -1,0 +1,15 @@
+id: lbrt-lpi-revenue-and-contract-announcements
+type: filing
+tickers:
+- LBRT
+description: Monitor 10-Q/10-K and 8-K filings for LPI distributed power revenue disclosure,
+  new customer contracts, MW deployed, and capital expenditure allocated to power
+  business.
+extract: Monitor 10-Q/10-K and 8-K filings for LPI distributed power revenue disclosure,
+  new customer contracts, MW deployed, and capital expenditure allocated to power
+  business.
+threshold: Any disclosed LPI revenue >$10M/quarter or new contract >200 MW
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

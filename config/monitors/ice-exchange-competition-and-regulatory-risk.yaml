@@ -1,0 +1,16 @@
+id: ice-exchange-competition-and-regulatory-risk
+type: search
+tickers:
+- ICE
+description: Monitor for SEC fee cap regulation, Texas Stock Exchange launch progress,
+  and DeFi derivatives institutional adoption that could threaten ICE exchange economics.
+extract: Monitor for SEC fee cap regulation, Texas Stock Exchange launch progress,
+  and DeFi derivatives institutional adoption that could threaten ICE exchange economics.
+threshold: SEC proposes new exchange fee rules; TXSE announces first listing date;
+  DeFi derivatives volume exceeds 5% of CME equivalent
+cadence: 1d
+queries:
+- '"SEC exchange fee" regulation 2026'
+- '"Texas Stock Exchange" launch'
+- '"ICE" "Intercontinental Exchange" regulation'
+search_backend: tavily

@@ -1,0 +1,18 @@
+id: vtix-us-tariff-policy-on-chinese-electronics
+type: search
+tickers:
+- VTIX
+description: VTIX manufactures in Zhuhai, China with 17.5-35% tariff exposure on COGS.
+  Monitor for Section 301 tariff changes, IEEPA tariff extensions/modifications, and
+  any consumer electronics exemptions that could affect landed cost of VR hardware.
+extract: VTIX manufactures in Zhuhai, China with 17.5-35% tariff exposure on COGS.
+  Monitor for Section 301 tariff changes, IEEPA tariff extensions/modifications, and
+  any consumer electronics exemptions that could affect landed cost of VR hardware.
+threshold: Tariff rate change of +/- 5% on relevant HTS codes OR new exemption/exclusion
+  for VR/gaming hardware
+cadence: 6h
+queries:
+- '"Section 301" tariff consumer electronics 2026'
+- '"IEEPA tariff" China electronics'
+- tariff VR gaming hardware China
+search_backend: tavily

@@ -1,0 +1,13 @@
+id: bgc-bgc-quarterly-earnings-and-fenics-revenue
+type: filing
+tickers:
+- BGC
+description: Monitor 10-Q and 10-K filings for Fenics segment revenue growth rate,
+  adjusted EPS, and FMX UST market share disclosures in MD&A.
+extract: Monitor 10-Q and 10-K filings for Fenics segment revenue growth rate, adjusted
+  EPS, and FMX UST market share disclosures in MD&A.
+threshold: Fenics revenue growth below 10% YoY or adjusted EPS declining QoQ for 2+
+  quarters
+filing_types:
+- 10-K
+- 10-Q

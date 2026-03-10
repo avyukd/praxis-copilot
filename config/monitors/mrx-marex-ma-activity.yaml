@@ -1,0 +1,14 @@
+id: mrx-marex-ma-activity
+type: search
+tickers:
+- MRX
+description: Monitor for new acquisition announcements. Key risk is transition from
+  disciplined distressed-seller M&A to overpaying in competitive auctions.
+extract: Monitor for new acquisition announcements. Key risk is transition from disciplined
+  distressed-seller M&A to overpaying in competitive auctions.
+threshold: Any acquisition announced at >2.5x revenue or >12x earnings
+cadence: 6h
+queries:
+- '"Marex Group" acquisition'
+- '"Marex Group" acquire'
+search_backend: tavily
