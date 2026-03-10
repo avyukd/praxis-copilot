@@ -1,16 +1,19 @@
-"""MCP server for querying fundamentals data during Claude Code research sessions.
+"""MCP server for querying fundamentals and price data during Claude Code research sessions.
 
 Loads a fundamentals.json file and exposes tools for targeted queries,
 so Claude never needs to read the full 700KB+ file into context.
+Also provides a price tool for fetching current/delayed quotes.
 
 Usage (stdio transport, configured automatically by `praxis stage`):
     python -m cli.fundamentals_server /path/to/fundamentals.json
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
+import requests
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("praxis-fundamentals")
@@ -220,6 +223,57 @@ def search_fundamentals(keyword: str) -> dict:
 
     _search(_raw)
     return matches
+
+
+# ---------------------------------------------------------------------------
+# Price tool
+# ---------------------------------------------------------------------------
+
+EODHD_BASE = "https://eodhd.com/api"
+
+
+@mcp.tool()
+def get_price(ticker: str) -> dict:
+    """Get current/delayed price data for a ticker.
+
+    Returns price, previous close, change %, volume, and volume ratio.
+    Uses EODHD delayed quotes (15-20 min delay during market hours).
+
+    Args:
+        ticker: Stock ticker symbol (e.g. "NVDA", "AAPL")
+    """
+    api_key = os.environ.get("EODHD_API_KEY", "").strip()
+    if not api_key:
+        return {"error": "EODHD_API_KEY not set — cannot fetch price data"}
+
+    symbol = ticker.strip().upper()
+    if "." not in symbol:
+        symbol = f"{symbol}.US"
+
+    try:
+        resp = requests.get(
+            f"{EODHD_BASE}/real-time/{symbol}",
+            params={"api_token": api_key, "fmt": "json"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        return {"error": f"Failed to fetch price for {ticker}: {e}"}
+
+    price = float(data.get("close") or data.get("price") or 0)
+    prev_close = float(data.get("previousClose") or data.get("previousClosePrice") or price)
+    change_pct = float(data.get("change_p") or data.get("changePercent") or 0)
+    volume = int(data.get("volume") or 0)
+
+    return {
+        "ticker": ticker.upper(),
+        "price": price,
+        "previous_close": prev_close,
+        "change_pct": round(change_pct, 2),
+        "volume": volume,
+        "timestamp": data.get("timestamp"),
+    }
 
 
 # ---------------------------------------------------------------------------

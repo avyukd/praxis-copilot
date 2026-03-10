@@ -36,6 +36,7 @@ from cli.pipeline_status import (
     summarize_pipeline_items,
 )
 from cli.research_prompt import ResearchBudget, generate_research_prompt
+from cli.research_run import build_run_prompt, fetch_tactical_context, launch_session
 from cli.s3 import (
     BUCKET,
     download_file,
@@ -428,14 +429,17 @@ def _stage_ticker(ticker: str, config_dir: Path, registry_cfg, s3, macro_files: 
     has_fundamentals_mcp = fundamentals_path.exists()
     if has_fundamentals_mcp:
         server_script = str(Path(__file__).parent / "fundamentals_server.py")
-        mcp_config = {
-            "mcpServers": {
-                "fundamentals": {
-                    "command": sys.executable,
-                    "args": [server_script, str(fundamentals_path)],
-                }
-            }
+        server_env = {}
+        eodhd_key = os.environ.get("EODHD_API_KEY", "")
+        if eodhd_key:
+            server_env["EODHD_API_KEY"] = eodhd_key
+        mcp_server_def: dict = {
+            "command": sys.executable,
+            "args": [server_script, str(fundamentals_path)],
         }
+        if server_env:
+            mcp_server_def["env"] = server_env
+        mcp_config = {"mcpServers": {"fundamentals": mcp_server_def}}
         mcp_path = workspace / ".mcp.json"
         mcp_path.write_text(json.dumps(mcp_config, indent=2))
         click.echo(f"  Configured fundamentals MCP server")
@@ -1048,6 +1052,47 @@ def research_sync(tickers: tuple[str, ...]):
                 f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
                 f"Workspace preserved at {local_dir}"
             )
+
+
+@research.command("run")
+@click.argument("ticker")
+@click.option("--tactical", is_flag=True, help="Pull latest alerts/analyses and add tactical overlay")
+def research_run(ticker: str, tactical: bool):
+    """Launch a Claude Code research session for TICKER.
+
+    Default mode: analyze using CLAUDE.md process with ingested data.
+    With --tactical: pulls latest monitor snapshots, filing analyses,
+    and press release analyses, then asks for a tactical read.
+
+    \b
+    Examples:
+      praxis research run BNTC
+      praxis research run BNTC --tactical
+    """
+    ticker = ticker.upper()
+    repo_root = find_repo_root()
+    workspace = repo_root / "workspace" / ticker
+
+    if not workspace.exists():
+        click.echo(f"No workspace for {ticker}. Run 'praxis stage {ticker}' first.")
+        return
+
+    if not (workspace / "CLAUDE.md").exists():
+        click.echo(f"No CLAUDE.md in {workspace}. Run 'praxis stage {ticker}' first.")
+        return
+
+    tactical_context = ""
+    if tactical:
+        click.echo(f"Pulling tactical context for {ticker}...")
+        tactical_context = fetch_tactical_context(ticker)
+        if tactical_context:
+            click.echo(f"  Found context ({len(tactical_context)} chars)")
+        else:
+            click.echo(f"  WARNING: No recent alerts/analyses found for {ticker}")
+
+    prompt = build_run_prompt(ticker, tactical, tactical_context)
+    click.echo(f"\nLaunching Claude Code in {workspace}/\n")
+    launch_session(workspace, prompt)
 
 
 # ---------------------------------------------------------------------------

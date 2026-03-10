@@ -143,10 +143,10 @@ Only generate missing outputs. If the user explicitly requests a rerun, replace 
     mcp_section = ""
     if has_fundamentals_mcp:
         mcp_section = """
-## Fundamentals MCP Tools
+## MCP Tools (Fundamentals + Price)
 
-An MCP server is configured for querying financial data. **Do NOT read `fundamentals.json` directly**
-— it's 700KB+ and will waste context. Instead:
+An MCP server is configured for querying financial data and price quotes.
+**Do NOT read `fundamentals.json` directly** — it's 700KB+ and will waste context. Instead:
 
 1. Read `data/fundamentals/summary.md` for orientation (key metrics, valuation, recent financials)
 2. Use MCP tools to drill into specifics:
@@ -160,16 +160,24 @@ An MCP server is configured for querying financial data. **Do NOT read `fundamen
 | `get_earnings(count)` | Recent earnings history + estimates |
 | `get_holders()` | Institutional/insider holdings |
 | `search_fundamentals(keyword)` | Find fields by keyword |
+| `get_price(ticker)` | **Current/delayed price, change %, volume** |
 
 **statement** values: `"income"`, `"balance"`, `"cashflow"`
 **period_type** values: `"yearly"`, `"quarterly"`
 
+### Price Data
+
+**Always use `get_price(ticker)` for current prices** — do NOT web search for stock prices.
+This returns delayed quotes (15-20 min during market hours) with price, previous close,
+change %, and volume. Use this for valuation context and any price-related analysis.
+
 Example workflow:
 ```
-1. Read summary.md → see revenue is $216B, margins expanding
-2. get_financial_data("income", ["totalRevenue", "grossProfit", "operatingIncome"], "quarterly", 8)
+1. get_price("NVDA") → current price $142.50, +2.3% today
+2. Read summary.md → see revenue is $216B, margins expanding
+3. get_financial_data("income", ["totalRevenue", "grossProfit", "operatingIncome"], "quarterly", 8)
    → get quarterly trend
-3. get_financial_data("balance", ["longTermDebt", "cashAndShortTermInvestments"], "yearly", 5)
+4. get_financial_data("balance", ["longTermDebt", "cashAndShortTermInvestments"], "yearly", 5)
    → check leverage trajectory
 ```
 
