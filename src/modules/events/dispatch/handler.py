@@ -3,7 +3,6 @@
 Triggered by S3 PUTs on:
   - data/raw/filings/{cik}/{accession}/extracted.json
   - data/raw/press_releases/{source}/{ticker}/{release_id}/extracted.json
-  - data/news/{date}/digest/{hour}.yaml
 
 Pure routing -- deterministic, no LLM.
 """
@@ -186,17 +185,6 @@ def _parse_trigger(key: str) -> ParsedTrigger | None:
         except IndexError:
             return None
 
-    # data/news/{date}/digest/{hour}.yaml
-    if key.startswith("data/news/") and "/digest/" in key and key.endswith(".yaml"):
-        try:
-            return ParsedTrigger(
-                source="news-scanner",
-                data_type="news",
-                date=parts[2],
-            )
-        except IndexError:
-            return None
-
     return None
 
 
@@ -238,26 +226,6 @@ def _resolve_tickers(bucket: str, key: str, parsed: ParsedTrigger) -> list[str]:
         except Exception:
             pass
         return []
-
-    # News scanner: parse digest for material tickers
-    if parsed.source == "news-scanner":
-        try:
-            resp = _get_s3_client().get_object(Bucket=bucket, Key=key)
-            content = resp["Body"].read().decode("utf-8")
-            digest = yaml.safe_load(content) or {}
-            tickers = []
-            for item in digest.get("material", []):
-                single_ticker = item.get("ticker")
-                if isinstance(single_ticker, str) and single_ticker:
-                    tickers.append(single_ticker)
-
-                item_tickers = item.get("tickers", [])
-                if isinstance(item_tickers, list):
-                    tickers.extend(t for t in item_tickers if isinstance(t, str) and t)
-            return list(set(tickers))
-        except Exception:
-            logger.exception(f"Failed to parse news digest: {key}")
-            return []
 
     return []
 
