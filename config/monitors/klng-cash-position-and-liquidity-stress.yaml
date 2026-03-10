@@ -1,0 +1,13 @@
+id: klng-cash-position-and-liquidity-stress
+type: filing
+tickers:
+- KLNG
+description: Track cash balance, AR factoring facility usage, and working capital
+  changes in quarterly filings. Cash was $1.9M at Q3 2025 with $703K factoring drawn.
+extract: Track cash balance, AR factoring facility usage, and working capital changes
+  in quarterly filings. Cash was $1.9M at Q3 2025 with $703K factoring drawn.
+threshold: Cash below $1M OR factoring facility balance exceeds $1.5M OR new debt
+  facility announced
+filing_types:
+- 10-K
+- 10-Q

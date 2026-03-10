@@ -1,0 +1,16 @@
+id: ivfh-us-foods-specialty-sourcing-strategy
+type: search
+tickers:
+- IVFH
+description: Track whether US Foods is building internal specialty sourcing capabilities
+  or changing vendor relationships that could threaten IVFH's core revenue stream.
+extract: Track whether US Foods is building internal specialty sourcing capabilities
+  or changing vendor relationships that could threaten IVFH's core revenue stream.
+threshold: Any announcement of US Foods internal specialty division, new specialty
+  vendor partnerships, or vertical integration moves
+cadence: 1d
+queries:
+- '"US Foods" specialty sourcing'
+- '"US Foods" artisan OR gourmet vendor'
+- '"US Foods" specialty distribution'
+search_backend: tavily

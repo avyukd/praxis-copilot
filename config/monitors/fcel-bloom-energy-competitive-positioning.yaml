@@ -1,0 +1,14 @@
+id: fcel-bloom-energy-competitive-positioning
+type: scraper
+tickers:
+- FCEL
+description: Track Bloom Energy's data center contract wins and gross margin trajectory
+  as the primary competitor benchmark. Bloom winning data center deals while FCEL
+  does not confirms the bear thesis.
+extract: Track Bloom Energy's data center contract wins and gross margin trajectory
+  as the primary competitor benchmark. Bloom winning data center deals while FCEL
+  does not confirms the bear thesis.
+threshold: Bloom announces >$100M in new data center contracts; Bloom gross margins
+  exceed 30%; Bloom enters carbon capture market
+cadence: 1d
+source_url: https://www.bloomenergy.com/newsroom/

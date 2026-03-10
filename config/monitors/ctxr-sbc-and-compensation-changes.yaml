@@ -1,0 +1,15 @@
+id: ctxr-sbc-and-compensation-changes
+type: filing
+tickers:
+- CTXR
+description: "Track stock-based compensation expense in quarterly filings. Currently\
+  \ $4.28M/quarter ($17M annualized) \u2014 exceeds revenue. Monitor for new equity\
+  \ award grants at CTXR or CTOR level."
+extract: "Track stock-based compensation expense in quarterly filings. Currently $4.28M/quarter\
+  \ ($17M annualized) \u2014 exceeds revenue. Monitor for new equity award grants\
+  \ at CTXR or CTOR level."
+threshold: Alert if quarterly SBC exceeds $5M or if new large equity grants are disclosed
+  (>1M shares).
+filing_types:
+- 10-Q
+- 10-K

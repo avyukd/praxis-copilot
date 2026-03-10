@@ -1,0 +1,14 @@
+id: iehc-gold-price-trend
+type: scraper
+tickers:
+- IEHC
+description: Track gold spot price from Kitco. Gold is IEH's primary raw material
+  cost driver. Sustained gold above $2,500/oz compresses margins; decline below $2,000
+  would be strongly margin-positive.
+extract: Track gold spot price from Kitco. Gold is IEH's primary raw material cost
+  driver. Sustained gold above $2,500/oz compresses margins; decline below $2,000
+  would be strongly margin-positive.
+threshold: Gold moves above $3,000/oz (margin risk) OR below $2,000/oz (margin tailwind)
+  OR moves >15% in either direction within 30 days
+cadence: 1d
+source_url: https://www.kitco.com/charts/livegold.html

@@ -1,0 +1,16 @@
+id: su-wcs-wti-differential-tracking
+type: scraper
+tickers:
+- SU
+description: Track Western Canadian Select discount to WTI. Post-TMX, differential
+  should stabilize at $10-14/bbl (quality discount only). Widening beyond $18 signals
+  pipeline or market access problems; narrowing below $8 signals exceptional upstream
+  value capture.
+extract: Track Western Canadian Select discount to WTI. Post-TMX, differential should
+  stabilize at $10-14/bbl (quality discount only). Widening beyond $18 signals pipeline
+  or market access problems; narrowing below $8 signals exceptional upstream value
+  capture.
+threshold: WCS-WTI differential widens beyond $18/bbl or narrows below $8/bbl for
+  5+ consecutive trading days
+cadence: 1d
+source_url: https://www.neb-one.gc.ca/nrg/ntgrtd/mrkt/snpsht/index-eng.html

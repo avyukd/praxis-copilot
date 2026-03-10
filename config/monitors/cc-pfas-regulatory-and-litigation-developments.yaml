@@ -1,0 +1,18 @@
+id: cc-pfas-regulatory-and-litigation-developments
+type: search
+tickers:
+- CC
+description: Track new state AG PFAS enforcement actions, federal PFAS regulation
+  (drinking water standards, CERCLA designation), and major PFAS class action rulings
+  that could expand CC's liability beyond current accruals.
+extract: Track new state AG PFAS enforcement actions, federal PFAS regulation (drinking
+  water standards, CERCLA designation), and major PFAS class action rulings that could
+  expand CC's liability beyond current accruals.
+threshold: New state enforcement action naming Chemours; federal PFAS regulation expanding
+  liable party scope; settlement or verdict exceeding $100M
+cadence: 6h
+queries:
+- Chemours PFAS settlement
+- Chemours environmental enforcement
+- PFAS regulation Chemours
+search_backend: tavily

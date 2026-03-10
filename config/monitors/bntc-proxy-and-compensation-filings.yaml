@@ -1,0 +1,14 @@
+id: bntc-proxy-and-compensation-filings
+type: filing
+tickers:
+- BNTC
+description: "Monitor DEF 14A for equity plan expansions (2020 Plan currently at 8.2M\
+  \ authorized shares), executive compensation changes, and board composition changes.\
+  \ SBC is running $20-25M/year \u2014 watch for further plan expansions."
+extract: "Monitor DEF 14A for equity plan expansions (2020 Plan currently at 8.2M\
+  \ authorized shares), executive compensation changes, and board composition changes.\
+  \ SBC is running $20-25M/year \u2014 watch for further plan expansions."
+threshold: Equity plan authorization increase >20%, new executive option grants >2M
+  shares, or board seat changes
+filing_types:
+- DEF 14A

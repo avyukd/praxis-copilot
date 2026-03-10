@@ -1,0 +1,16 @@
+id: bntc-insider-and-institutional-transaction-filings
+type: filing
+tickers:
+- BNTC
+description: "Monitor Form 4 and 13D/13G amendments for insider transactions and Suvretta\
+  \ Capital position changes. Suvretta at 33.6% is the key holder \u2014 any reduction\
+  \ is a major signal. Also track RA Capital (5.4%) and other new Q4 2025 positions."
+extract: "Monitor Form 4 and 13D/13G amendments for insider transactions and Suvretta\
+  \ Capital position changes. Suvretta at 33.6% is the key holder \u2014 any reduction\
+  \ is a major signal. Also track RA Capital (5.4%) and other new Q4 2025 positions."
+threshold: Suvretta reduces position by >5%, any insider sells >$500K, or RA Capital
+  exits entirely
+filing_types:
+- SC 13D/A
+- SC 13G/A
+- '4'

@@ -1,0 +1,12 @@
+id: dis-orlando-theme-park-attendance-and-spending-trends
+type: scraper
+tickers:
+- DIS
+description: Track Visit Orlando monthly tourism statistics for Orlando-area visitor
+  counts and spending. Disney's domestic parks are the core profit driver.
+extract: Track Visit Orlando monthly tourism statistics for Orlando-area visitor counts
+  and spending. Disney's domestic parks are the core profit driver.
+threshold: Orlando-area visitor counts decline more than 5% YoY or average daily spending
+  declines
+cadence: 1d
+source_url: https://www.visitorlando.com/research-and-statistics/

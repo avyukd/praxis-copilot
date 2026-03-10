@@ -1,0 +1,14 @@
+id: fcel-fcel-8-k-filings-capital-raises-contracts-impairme
+type: filing
+tickers:
+- FCEL
+description: Monitor 8-K filings for ATM equity issuances, new shelf registrations,
+  material contract announcements (especially data center or carbon capture), asset
+  impairments, and management changes.
+extract: Monitor 8-K filings for ATM equity issuances, new shelf registrations, material
+  contract announcements (especially data center or carbon capture), asset impairments,
+  and management changes.
+threshold: Any equity raise >$25M; new contract announcement >$20M; additional asset
+  impairment; CEO/CFO change
+filing_types:
+- 8-K

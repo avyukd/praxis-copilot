@@ -1,0 +1,15 @@
+id: lbrt-quarterly-earnings-and-frac-margins
+type: filing
+tickers:
+- LBRT
+description: 'Monitor 10-Q/10-K filings for operating income margins, adjusted EBITDA,
+  and frac pricing trends. Key metrics: operating margin (currently 2%), Adj. EBITDA
+  margin (currently 16%), revenue per fleet.'
+extract: 'Monitor 10-Q/10-K filings for operating income margins, adjusted EBITDA,
+  and frac pricing trends. Key metrics: operating margin (currently 2%), Adj. EBITDA
+  margin (currently 16%), revenue per fleet.'
+threshold: Operating margin below 0% for two consecutive quarters or above 10% (recovery
+  signal)
+filing_types:
+- 10-K
+- 10-Q

@@ -1,0 +1,15 @@
+id: trox-quarterly-earnings-and-ebitda-trajectory
+type: filing
+tickers:
+- TROX
+description: Track adjusted EBITDA, gross margin, TiO2 ASPs, and volume trends from
+  quarterly filings. The EBITDA recovery path from $33M (2025) toward mid-cycle is
+  the single most important variable.
+extract: Track adjusted EBITDA, gross margin, TiO2 ASPs, and volume trends from quarterly
+  filings. The EBITDA recovery path from $33M (2025) toward mid-cycle is the single
+  most important variable.
+threshold: Quarterly adjusted EBITDA above $100M (annualized $400M+) or below $40M
+  (deterioration from Q1 2026 guide)
+filing_types:
+- 10-K
+- 10-Q

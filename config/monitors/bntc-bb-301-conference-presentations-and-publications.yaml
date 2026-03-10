@@ -1,0 +1,15 @@
+id: bntc-bb-301-conference-presentations-and-publications
+type: search
+tickers:
+- BNTC
+description: Track new clinical data presentations at medical conferences (MDA, WMS,
+  ASGCT, ASHG) and peer-reviewed publications related to BB-301 or OPMD therapeutics.
+extract: Track new clinical data presentations at medical conferences (MDA, WMS, ASGCT,
+  ASHG) and peer-reviewed publications related to BB-301 or OPMD therapeutics.
+threshold: New BB-301 data presentation, peer-reviewed publication, or invited lecture
+  at major conference
+cadence: 1d
+queries:
+- '"BB-301" OR "Benitec" OPMD data OR results'
+- '"oculopharyngeal" gene therapy conference OR presentation 2026'
+search_backend: tavily

@@ -1,0 +1,15 @@
+id: apyx-sbc-and-diluted-share-count
+type: filing
+tickers:
+- APYX
+description: Track stock-based compensation expense, shares outstanding, warrant exercises,
+  and option grants in note_stock_comp. Current trajectory is positive (SBC down 70%
+  from peak) but any reversal or large ATM issuance changes the equity story.
+extract: Track stock-based compensation expense, shares outstanding, warrant exercises,
+  and option grants in note_stock_comp. Current trajectory is positive (SBC down 70%
+  from peak) but any reversal or large ATM issuance changes the equity story.
+threshold: Quarterly SBC exceeding $1M; diluted share count above 45M; new warrant
+  issuances
+filing_types:
+- 10-Q
+- 10-K

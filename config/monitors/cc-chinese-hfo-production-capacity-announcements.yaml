@@ -1,0 +1,13 @@
+id: cc-chinese-hfo-production-capacity-announcements
+type: scraper
+tickers:
+- CC
+description: 'Monitor Chinese fluorochemical producer capacity expansion announcements
+  for R-1234yf and other HFO refrigerants. Leading indicator of post-patent TSS margin
+  pressure. Key producers: Sinochem, Dongyue, Juhua.'
+extract: 'Monitor Chinese fluorochemical producer capacity expansion announcements
+  for R-1234yf and other HFO refrigerants. Leading indicator of post-patent TSS margin
+  pressure. Key producers: Sinochem, Dongyue, Juhua.'
+threshold: Any announced HFO capacity exceeding 20 kt/year from a Chinese producer
+cadence: 1d
+source_url: https://www.fluorchemie.com/news

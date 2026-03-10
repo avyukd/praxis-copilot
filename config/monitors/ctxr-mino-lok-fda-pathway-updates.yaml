@@ -1,0 +1,18 @@
+id: ctxr-mino-lok-fda-pathway-updates
+type: search
+tickers:
+- CTXR
+description: Monitor for Mino-Lok NDA submission, FDA meeting announcements, or partnership
+  activity. FDA provided 'clear, actionable' guidance per 10-Q but the program is
+  unfunded.
+extract: Monitor for Mino-Lok NDA submission, FDA meeting announcements, or partnership
+  activity. FDA provided 'clear, actionable' guidance per 10-Q but the program is
+  unfunded.
+threshold: NDA submission announcement, FDA meeting disclosure, or licensing deal
+  for Mino-Lok.
+cadence: 6h
+queries:
+- '"Mino-Lok" FDA'
+- '"Mino-Lok" NDA submission'
+- '"catheter-related bloodstream" Citius'
+search_backend: tavily

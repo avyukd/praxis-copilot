@@ -1,0 +1,13 @@
+id: bgc-bgc-equity-compensation-and-dilution
+type: filing
+tickers:
+- BGC
+description: Monitor 10-Q/10-K for equity-based compensation charges, share count
+  changes, and net buyback effectiveness in equity notes and compensation footnotes.
+extract: Monitor 10-Q/10-K for equity-based compensation charges, share count changes,
+  and net buyback effectiveness in equity notes and compensation footnotes.
+threshold: Diluted share count increases above 485M or GAAP-to-adjusted gap exceeds
+  $500M annually
+filing_types:
+- 10-K
+- 10-Q

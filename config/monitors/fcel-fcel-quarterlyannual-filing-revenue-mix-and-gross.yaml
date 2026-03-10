@@ -1,0 +1,16 @@
+id: fcel-fcel-quarterlyannual-filing-revenue-mix-and-gross
+type: filing
+tickers:
+- FCEL
+description: Monitor 10-K and 10-Q filings for gross margin trajectory, GGE Korea
+  revenue contribution, generation portfolio margins, and manufacturing utilization
+  rates. Key data in MD&A (Item 7/Item 2), revenue notes, and segment notes.
+extract: Monitor 10-K and 10-Q filings for gross margin trajectory, GGE Korea revenue
+  contribution, generation portfolio margins, and manufacturing utilization rates.
+  Key data in MD&A (Item 7/Item 2), revenue notes, and segment notes.
+threshold: Gross margin turns positive in any segment; GGE revenue concentration drops
+  below 30% with replacement revenue identified; generation portfolio margins improve
+  above -20%
+filing_types:
+- 10-K
+- 10-Q

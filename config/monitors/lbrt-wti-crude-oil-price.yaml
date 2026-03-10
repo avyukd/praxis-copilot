@@ -1,0 +1,12 @@
+id: lbrt-wti-crude-oil-price
+type: scraper
+tickers:
+- LBRT
+description: Monitor WTI front-month price. Every $5/bbl move translates to ~$75-100M
+  in LBRT EBITDA. The stock is 80% an oil price bet.
+extract: Monitor WTI front-month price. Every $5/bbl move translates to ~$75-100M
+  in LBRT EBITDA. The stock is 80% an oil price bet.
+threshold: "WTI sustained below $55 for 2+ weeks (bearish \u2014 triggers covenant\
+  \ concern) or above $75 (bullish \u2014 recovery catalyst)"
+cadence: 1d
+source_url: https://www.eia.gov/dnav/pet/pet_pri_spt_s1_d.htm

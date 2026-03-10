@@ -1,0 +1,17 @@
+id: reop-reop-news-and-corporate-activity
+type: search
+tickers:
+- REOP
+description: "Monitor for any news about Reo Plastics \u2014 acquisitions, management\
+  \ changes, facility expansion, customer wins/losses, or regulatory actions. Given\
+  \ zero analyst coverage, any news is material."
+extract: "Monitor for any news about Reo Plastics \u2014 acquisitions, management\
+  \ changes, facility expansion, customer wins/losses, or regulatory actions. Given\
+  \ zero analyst coverage, any news is material."
+threshold: Any substantive news article or corporate announcement
+cadence: 6h
+queries:
+- '"Reo Plastics"'
+- '"REO Plastics" Maple Grove'
+- REOP stock plastics
+search_backend: tavily

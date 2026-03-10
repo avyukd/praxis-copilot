@@ -1,0 +1,14 @@
+id: su-operating-cost-per-barrel-trend
+type: filing
+tickers:
+- SU
+description: Oil sands cash operating costs per barrel reported in quarterly supplements.
+  Kruger-era improvements (targeting sub-C$26/bbl) are a key competitive factor. Cost
+  regression would signal operational deterioration.
+extract: Oil sands cash operating costs per barrel reported in quarterly supplements.
+  Kruger-era improvements (targeting sub-C$26/bbl) are a key competitive factor. Cost
+  regression would signal operational deterioration.
+threshold: Cash operating costs exceed C$28/bbl for two consecutive quarters
+filing_types:
+- 40-F
+- 6-K

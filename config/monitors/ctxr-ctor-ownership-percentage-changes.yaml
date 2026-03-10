@@ -1,0 +1,12 @@
+id: ctxr-ctor-ownership-percentage-changes
+type: filing
+tickers:
+- CTXR
+description: Track CTXR's ownership stake in CTOR (currently ~78%) in quarterly filings.
+  CTOR-level raises dilute CTXR's ownership of the only revenue-generating asset.
+extract: Track CTXR's ownership stake in CTOR (currently ~78%) in quarterly filings.
+  CTOR-level raises dilute CTXR's ownership of the only revenue-generating asset.
+threshold: Alert if CTXR ownership of CTOR drops below 70%.
+filing_types:
+- 10-Q
+- 10-K

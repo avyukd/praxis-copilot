@@ -1,0 +1,17 @@
+id: ena-v-north-american-optical-reshoring-and-tariff-policy
+type: search
+tickers:
+- ENA.V
+description: Track US tariff policy changes on Chinese optical components and CHIPS
+  Act funding for photonics. ENA.V's competitive position depends partly on tariff-derived
+  advantage over Chinese PLC makers.
+extract: Track US tariff policy changes on Chinese optical components and CHIPS Act
+  funding for photonics. ENA.V's competitive position depends partly on tariff-derived
+  advantage over Chinese PLC makers.
+threshold: Tariff reduction on Chinese optical components or CHIPS Act photonics funding
+  >$50M
+cadence: 6h
+queries:
+- US tariff optical components China 2026
+- CHIPS Act photonics funding
+search_backend: tavily

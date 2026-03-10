@@ -1,0 +1,16 @@
+id: su-us-tariffs-on-canadian-crude-oil
+type: search
+tickers:
+- SU
+description: Track US trade policy regarding tariffs on Canadian energy imports. Suncor's
+  integration provides a hedge vs. pure-plays, but tariffs would still impact upstream
+  netbacks on exported barrels.
+extract: Track US trade policy regarding tariffs on Canadian energy imports. Suncor's
+  integration provides a hedge vs. pure-plays, but tariffs would still impact upstream
+  netbacks on exported barrels.
+threshold: Tariff on Canadian crude enacted or formally proposed above 5%
+cadence: 6h
+queries:
+- '"Canadian crude" tariff US energy'
+- Canada oil imports tariff trade policy
+search_backend: tavily

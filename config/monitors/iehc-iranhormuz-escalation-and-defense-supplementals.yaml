@@ -1,0 +1,18 @@
+id: iehc-iranhormuz-escalation-and-defense-supplementals
+type: search
+tickers:
+- IEHC
+description: "Monitor for Iran military escalation, Strait of Hormuz disruption, and\
+  \ US defense supplemental appropriations. A prolonged conflict would surge demand\
+  \ for PATRIOT, THAAD, AMRAAM \u2014 all IEH programs."
+extract: "Monitor for Iran military escalation, Strait of Hormuz disruption, and US\
+  \ defense supplemental appropriations. A prolonged conflict would surge demand for\
+  \ PATRIOT, THAAD, AMRAAM \u2014 all IEH programs."
+threshold: US military strikes on Iran OR Hormuz shipping disrupted OR defense supplemental
+  >$20B introduced in Congress
+cadence: 1d
+queries:
+- '"defense supplemental" appropriations munitions'
+- '"Strait of Hormuz" military operations'
+- PATRIOT missile production surge
+search_backend: tavily

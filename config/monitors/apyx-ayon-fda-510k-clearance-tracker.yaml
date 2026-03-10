@@ -1,0 +1,13 @@
+id: apyx-ayon-fda-510k-clearance-tracker
+type: scraper
+tickers:
+- APYX
+description: Monitor FDA 510(k) premarket notification database for Apyx Medical submissions.
+  The AYON power-assisted liposuction 510(k) was submitted and is expected mid-2026.
+  Clearance is a major catalyst; rejection or delay is a significant negative.
+extract: Monitor FDA 510(k) premarket notification database for Apyx Medical submissions.
+  The AYON power-assisted liposuction 510(k) was submitted and is expected mid-2026.
+  Clearance is a major catalyst; rejection or delay is a significant negative.
+threshold: Any new 510(k) clearance or refuse-to-accept letter for Apyx Medical
+cadence: 1d
+source_url: https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfpmn/pmn.cfm?start_search=1&Center=&Panel=&ProductCode=&KNumber=&Applicant=apyx+medical&DeviceName=&Type=&ThirdPartyReviewed=&ClinicalTrials=&Decision=&DecisionDateFrom=&DecisionDateTo=&IVDProducts=&Rone=&Rtwo=&Rthree=&Rfour=&Rfive=&Rsix=&Rseven=&Reight=&Rnine=&Rten=&ESSION=&ESSION=&Session=

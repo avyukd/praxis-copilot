@@ -1,0 +1,17 @@
+id: klng-steel-tariff-and-trade-policy-changes
+type: search
+tickers:
+- KLNG
+description: Monitor for changes to Section 232 steel/aluminum tariffs and derivative
+  product scope. Current 50% tariffs are a margin headwind on fixed-price subsea equipment
+  contracts.
+extract: Monitor for changes to Section 232 steel/aluminum tariffs and derivative
+  product scope. Current 50% tariffs are a margin headwind on fixed-price subsea equipment
+  contracts.
+threshold: Any tariff rate change on steel/specialty alloys or new exemption programs
+  for energy equipment
+cadence: 6h
+queries:
+- Section 232 steel tariff energy equipment
+- steel tariff subsea offshore exemption
+search_backend: tavily

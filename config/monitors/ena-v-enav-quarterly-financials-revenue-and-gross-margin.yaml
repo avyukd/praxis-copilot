@@ -1,0 +1,17 @@
+id: ena-v-enav-quarterly-financials-revenue-and-gross-margin
+type: filing
+tickers:
+- ENA.V
+description: "Monitor SEDAR quarterly filings for revenue trajectory toward gross\
+  \ margin breakeven (~$10-13M annualized). Track cash position and burn rate \u2014\
+  \ company has ~2 quarters runway. Key metrics: quarterly revenue vs $2M/quarter\
+  \ current, gross margin trend, cash balance, any new financing."
+extract: "Monitor SEDAR quarterly filings for revenue trajectory toward gross margin\
+  \ breakeven (~$10-13M annualized). Track cash position and burn rate \u2014 company\
+  \ has ~2 quarters runway. Key metrics: quarterly revenue vs $2M/quarter current,\
+  \ gross margin trend, cash balance, any new financing."
+threshold: Revenue >$3M/quarter (inflection signal) or cash <$1M (liquidity crisis
+  signal)
+filing_types:
+- quarterly
+- annual

@@ -1,0 +1,15 @@
+id: femy-euinternational-fembloc-revenue
+type: filing
+tickers:
+- FEMY
+description: Track quarterly revenue from FemBloc international commercialization
+  (CE mark EU, UK MHRA, NZ). Revenue trajectory is a leading indicator of physician
+  acceptance and commercial viability pre-US approval.
+extract: Track quarterly revenue from FemBloc international commercialization (CE
+  mark EU, UK MHRA, NZ). Revenue trajectory is a leading indicator of physician acceptance
+  and commercial viability pre-US approval.
+threshold: FemBloc-specific revenue >$500K/quarter (would indicate meaningful adoption)
+  or revenue decline for 2 consecutive quarters
+filing_types:
+- 10-K
+- 10-Q

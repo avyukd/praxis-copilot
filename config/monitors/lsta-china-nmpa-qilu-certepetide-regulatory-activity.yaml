@@ -1,0 +1,12 @@
+id: lsta-china-nmpa-qilu-certepetide-regulatory-activity
+type: scraper
+tickers:
+- LSTA
+description: Monitor China's Center for Drug Evaluation (CDE) for certepetide-related
+  IND/NDA filings by Qilu Pharmaceutical. A Chinese NDA filing would trigger the CVR.
+extract: Monitor China's Center for Drug Evaluation (CDE) for certepetide-related
+  IND/NDA filings by Qilu Pharmaceutical. A Chinese NDA filing would trigger the CVR.
+threshold: Any new clinical trial approval, NDA acceptance, or regulatory milestone
+  for certepetide/iRGD in China.
+cadence: 1d
+source_url: https://www.cde.org.cn/main/xxgk/listpage/2f78f372d351c6851af7431c7710a731

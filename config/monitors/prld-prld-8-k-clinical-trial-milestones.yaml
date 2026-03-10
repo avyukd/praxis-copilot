@@ -1,0 +1,14 @@
+id: prld-prld-8-k-clinical-trial-milestones
+type: filing
+tickers:
+- PRLD
+description: Monitor 8-K filings for PRT12396 Phase 1 first patient dosed, dose escalation
+  updates, safety signals, or clinical holds. Also watch for PRT13722 KAT6A IND filing
+  confirmation.
+extract: Monitor 8-K filings for PRT12396 Phase 1 first patient dosed, dose escalation
+  updates, safety signals, or clinical holds. Also watch for PRT13722 KAT6A IND filing
+  confirmation.
+threshold: Any 8-K mentioning PRT12396 clinical data, patient enrollment, safety events,
+  or PRT13722 IND submission
+filing_types:
+- 8-K

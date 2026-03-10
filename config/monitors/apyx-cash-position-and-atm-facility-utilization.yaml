@@ -1,0 +1,16 @@
+id: apyx-cash-position-and-atm-facility-utilization
+type: filing
+tickers:
+- APYX
+description: Track cash and equivalents, operating cash flow, and any ATM share issuances
+  in quarterly filings and 8-K prospectus supplements. ATM utilization at current
+  prices (~$3.40) implies ~28% dilution for full $40M draw.
+extract: Track cash and equivalents, operating cash flow, and any ATM share issuances
+  in quarterly filings and 8-K prospectus supplements. ATM utilization at current
+  prices (~$3.40) implies ~28% dilution for full $40M draw.
+threshold: Cash below $15M; any ATM share issuance; quarterly operating cash burn
+  exceeding $3M
+filing_types:
+- 10-Q
+- 10-K
+- 8-K

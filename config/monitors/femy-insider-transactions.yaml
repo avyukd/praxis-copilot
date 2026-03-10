@@ -1,0 +1,14 @@
+id: femy-insider-transactions
+type: filing
+tickers:
+- FEMY
+description: Monitor Form 4 filings for insider buying or selling. Management buying
+  at current levels ($0.50 range) would be a meaningful alignment signal. CEO bought
+  at $1.02 in May 2025 offering.
+extract: Monitor Form 4 filings for insider buying or selling. Management buying at
+  current levels ($0.50 range) would be a meaningful alignment signal. CEO bought
+  at $1.02 in May 2025 offering.
+threshold: Any insider purchase >$50K or any insider sale
+filing_types:
+- '4'
+- '144'

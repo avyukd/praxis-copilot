@@ -1,0 +1,13 @@
+id: cc-tio2-industry-pricing-indicators
+type: scraper
+tickers:
+- CC
+description: Track TiPMC (or ICIS) TiO2 price index for chloride-process pigment in
+  North America and Europe. TiO2 pricing is the leading indicator of CC's TT segment
+  recovery.
+extract: Track TiPMC (or ICIS) TiO2 price index for chloride-process pigment in North
+  America and Europe. TiO2 pricing is the leading indicator of CC's TT segment recovery.
+threshold: Two consecutive monthly price increases exceeding 2% or price decline exceeding
+  5%
+cadence: 1d
+source_url: https://www.icis.com/explore/commodities/chemicals/titanium-dioxide/

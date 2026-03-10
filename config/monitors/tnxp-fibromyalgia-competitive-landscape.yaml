@@ -1,0 +1,17 @@
+id: tnxp-fibromyalgia-competitive-landscape
+type: search
+tickers:
+- TNXP
+description: Monitor for new fibromyalgia drug approvals, competing cyclobenzaprine
+  formulations, or generic ANDA filings against TONMYA. Also track any M&A interest
+  in TNXP.
+extract: Monitor for new fibromyalgia drug approvals, competing cyclobenzaprine formulations,
+  or generic ANDA filings against TONMYA. Also track any M&A interest in TNXP.
+threshold: Any ANDA filing referencing TONMYA, any Phase 3 readout for competing fibromyalgia
+  therapy, or any credible acquisition rumor
+cadence: 6h
+queries:
+- '"TONMYA" OR "tonix pharmaceuticals" acquisition'
+- '"cyclobenzaprine sublingual" ANDA OR generic'
+- '"fibromyalgia" FDA approval OR "phase 3" results 2026'
+search_backend: tavily

@@ -1,0 +1,17 @@
+id: femy-capital-raises-and-dilution-events
+type: filing
+tickers:
+- FEMY
+description: Monitor for new equity offerings, convertible note issuances, warrant
+  exercises, and Alumni Capital equity line draws. Track shares outstanding, conversion
+  prices, and warrant terms to update fully diluted share count.
+extract: Monitor for new equity offerings, convertible note issuances, warrant exercises,
+  and Alumni Capital equity line draws. Track shares outstanding, conversion prices,
+  and warrant terms to update fully diluted share count.
+threshold: Any new capital raise at <$0.50/share, cumulative dilution pushing fully
+  diluted count >120M shares, or senior secured debt issuance
+filing_types:
+- 8-K
+- S-1
+- S-3
+- 424B

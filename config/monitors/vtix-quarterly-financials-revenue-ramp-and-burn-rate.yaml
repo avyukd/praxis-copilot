@@ -1,0 +1,17 @@
+id: vtix-quarterly-financials-revenue-ramp-and-burn-rate
+type: filing
+tickers:
+- VTIX
+description: 'Monitor 10-Q/10-K filings for revenue trajectory (need >$2M/quarter
+  to validate growth), gross margin sustainability (target 40% vs tariff risk), and
+  cash burn rate vs runway. Key line items: revenue by segment, gross margin, operating
+  cash flow, cash balance.'
+extract: 'Monitor 10-Q/10-K filings for revenue trajectory (need >$2M/quarter to validate
+  growth), gross margin sustainability (target 40% vs tariff risk), and cash burn
+  rate vs runway. Key line items: revenue by segment, gross margin, operating cash
+  flow, cash balance.'
+threshold: Revenue exceeds $2M/quarter OR gross margin falls below 20% OR cash balance
+  drops below $3M
+filing_types:
+- 10-K
+- 10-Q

@@ -1,0 +1,15 @@
+id: bgc-us-treasury-clearing-mandate-implementation
+type: search
+tickers:
+- BGC
+description: Track SEC Treasury clearing mandate implementation timeline and any changes
+  that could benefit or hinder FMX UST's competitive position.
+extract: Track SEC Treasury clearing mandate implementation timeline and any changes
+  that could benefit or hinder FMX UST's competitive position.
+threshold: Mandate implementation delayed beyond 2026 or exemptions granted that reduce
+  clearing volumes
+cadence: 1d
+queries:
+- '"treasury clearing" SEC mandate 2026'
+- '"central clearing" "U.S. treasuries" regulation'
+search_backend: tavily

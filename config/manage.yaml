@@ -33,7 +33,7 @@ defaults:
   # Catches sudden bursts of activity even on otherwise normal-volume days.
   # Example: ADTV = 50M → expected per-period ≈ 1.9M.
   #          multiplier = 2 → alert when 15-min volume >= 3.8M.
-  volume_velocity_multiplier: 2.0
+  volume_velocity_multiplier: 20.0
 
 # Per-ticker overrides — same keys as defaults, applied on top.
 # Useful for volatile names that would otherwise spam alerts.

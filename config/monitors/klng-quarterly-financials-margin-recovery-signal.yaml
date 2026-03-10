@@ -1,0 +1,15 @@
+id: klng-quarterly-financials-margin-recovery-signal
+type: filing
+tickers:
+- KLNG
+description: Monitor 10-Q and 10-K filings for gross margin trajectory and revenue
+  mix (fixed-price vs service contracts). The load-bearing variable is whether fixed-price
+  backlog converts at 35%+ gross margins.
+extract: Monitor 10-Q and 10-K filings for gross margin trajectory and revenue mix
+  (fixed-price vs service contracts). The load-bearing variable is whether fixed-price
+  backlog converts at 35%+ gross margins.
+threshold: Gross margin below 30% for two consecutive quarters OR above 36% (recovery
+  confirmed)
+filing_types:
+- 10-K
+- 10-Q

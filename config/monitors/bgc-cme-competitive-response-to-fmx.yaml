@@ -1,0 +1,17 @@
+id: bgc-cme-competitive-response-to-fmx
+type: search
+tickers:
+- BGC
+description: Monitor CME Group's competitive responses to FMX including fee changes,
+  cross-margining initiatives, or regulatory actions that could affect FMX's value
+  proposition.
+extract: Monitor CME Group's competitive responses to FMX including fee changes, cross-margining
+  initiatives, or regulatory actions that could affect FMX's value proposition.
+threshold: CME launches cross-margining with cash Treasuries or cuts SOFR futures
+  fees by >20%
+cadence: 1d
+queries:
+- '"CME" "cross-margining" treasury'
+- '"CME" SOFR futures fee'
+- '"CME" "FMX" competition'
+search_backend: tavily

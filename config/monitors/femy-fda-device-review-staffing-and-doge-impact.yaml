@@ -1,0 +1,14 @@
+id: femy-fda-device-review-staffing-and-doge-impact
+type: scraper
+tickers:
+- FEMY
+description: "Monitor FDA CDRH staffing levels and review performance metrics. DOGE\
+  \ cuts have gutted device review division \u2014 directly threatens FemBloc PMA\
+  \ review timeline."
+extract: "Monitor FDA CDRH staffing levels and review performance metrics. DOGE cuts\
+  \ have gutted device review division \u2014 directly threatens FemBloc PMA review\
+  \ timeline."
+threshold: Further staff reductions >5%, PDUFA/MDUFA deadline miss rate >20%, or CDRH
+  leadership change
+cadence: 1d
+source_url: https://www.fda.gov/about-fda/fda-organization/center-devices-and-radiological-health

@@ -1,0 +1,18 @@
+id: apyx-glp-1-body-contouring-demand-signal
+type: search
+tickers:
+- APYX
+description: Track emerging data on GLP-1 patient conversion to body contouring procedures.
+  Rising conversion rates validate APYX's TAM expansion thesis; declining rates suggest
+  the narrative is overblown.
+extract: Track emerging data on GLP-1 patient conversion to body contouring procedures.
+  Rising conversion rates validate APYX's TAM expansion thesis; declining rates suggest
+  the narrative is overblown.
+threshold: Published data showing GLP-1-to-contouring conversion rate trending above
+  30% or below 10%; major insurer coverage changes for post-weight-loss body contouring
+cadence: 1d
+queries:
+- '"GLP-1" "body contouring" procedures data'
+- Ozempic Wegovy "loose skin" surgery volume
+- '"post-bariatric" body contouring 2026 trends'
+search_backend: tavily

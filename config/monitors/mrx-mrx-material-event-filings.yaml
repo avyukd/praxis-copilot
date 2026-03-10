@@ -1,0 +1,13 @@
+id: mrx-mrx-material-event-filings
+type: filing
+tickers:
+- MRX
+description: Monitor 8-K equivalent filings (reported via 6-K for foreign private
+  issuers) for M&A announcements, management changes, litigation updates, or material
+  agreements.
+extract: Monitor 8-K equivalent filings (reported via 6-K for foreign private issuers)
+  for M&A announcements, management changes, litigation updates, or material agreements.
+threshold: Any acquisition >$100M, CEO/CFO departure, or litigation settlement/adverse
+  ruling
+filing_types:
+- 6-K

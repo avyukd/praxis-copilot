@@ -1,0 +1,15 @@
+id: dis-espn-dtc-subscriber-and-revenue-metrics
+type: filing
+tickers:
+- DIS
+description: Track ESPN Flagship DTC subscriber count, ARPU, and Sports segment operating
+  income from quarterly filings. Key metric is whether DTC revenue growth offsets
+  linear affiliate fee declines in the Sports segment.
+extract: Track ESPN Flagship DTC subscriber count, ARPU, and Sports segment operating
+  income from quarterly filings. Key metric is whether DTC revenue growth offsets
+  linear affiliate fee declines in the Sports segment.
+threshold: Sports segment operating income declines YoY for two consecutive quarters
+  or ESPN linear subscriber declines accelerate beyond 8% YoY
+filing_types:
+- 10-K
+- 10-Q

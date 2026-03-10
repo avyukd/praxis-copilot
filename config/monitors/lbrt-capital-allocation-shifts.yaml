@@ -1,0 +1,15 @@
+id: lbrt-capital-allocation-shifts
+type: filing
+tickers:
+- LBRT
+description: Monitor quarterly filings for buyback activity, dividend changes, capex
+  breakdown between frac maintenance and LPI growth. Buybacks collapsed from $203M
+  (2023) to $24M (2025).
+extract: Monitor quarterly filings for buyback activity, dividend changes, capex breakdown
+  between frac maintenance and LPI growth. Buybacks collapsed from $203M (2023) to
+  $24M (2025).
+threshold: Buyback resumption >$25M/quarter (bullish signal) or dividend cut (bearish
+  signal)
+filing_types:
+- 10-K
+- 10-Q

@@ -1,0 +1,15 @@
+id: vtix-streeterville-conversion-and-dilution-events
+type: filing
+tickers:
+- VTIX
+description: Track 8-K filings for Streeterville note conversions (share issuances
+  at 90% of VWAP), additional advances under the facility, warrant exercises, and
+  any amendments to the convertible note terms. Critical for monitoring death spiral
+  dynamics.
+extract: Track 8-K filings for Streeterville note conversions (share issuances at
+  90% of VWAP), additional advances under the facility, warrant exercises, and any
+  amendments to the convertible note terms. Critical for monitoring death spiral dynamics.
+threshold: Any conversion at effective price below $5.00 OR cumulative dilution exceeds
+  15% of shares outstanding OR new advance drawn
+filing_types:
+- 8-K

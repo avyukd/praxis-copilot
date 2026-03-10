@@ -1,0 +1,20 @@
+id: vtix-meta-vr-ecosystem-strategic-shifts
+type: search
+tickers:
+- VTIX
+description: "Monitor for Meta Reality Labs strategic changes that affect VR headset\
+  \ ecosystem \u2014 Quest discontinuation signals, VR-to-AR pivot acceleration, Made\
+  \ for Meta program changes, or Meta developing/acquiring locomotion technology (existential\
+  \ risk)."
+extract: "Monitor for Meta Reality Labs strategic changes that affect VR headset ecosystem\
+  \ \u2014 Quest discontinuation signals, VR-to-AR pivot acceleration, Made for Meta\
+  \ program changes, or Meta developing/acquiring locomotion technology (existential\
+  \ risk)."
+threshold: Meta announces Quest discontinuation or major pivot away from VR headsets
+  OR Meta develops/acquires competing locomotion solution
+cadence: 1d
+queries:
+- '"Meta Quest" discontinue OR pivot OR "Reality Labs" restructuring'
+- Meta VR locomotion treadmill acquisition
+- '"Made for Meta" program changes'
+search_backend: tavily

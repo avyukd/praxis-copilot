@@ -1,0 +1,17 @@
+id: prop-prop-sec-filings-10-k10-q8-k
+type: filing
+tickers:
+- PROP
+description: Monitor all PROP SEC filings for borrowing base redetermination results,
+  Series F preferred conversion/redemption activity, production updates, and any material
+  events. The spring 2026 borrowing base redetermination is the key catalyst.
+extract: Monitor all PROP SEC filings for borrowing base redetermination results,
+  Series F preferred conversion/redemption activity, production updates, and any material
+  events. The spring 2026 borrowing base redetermination is the key catalyst.
+threshold: Any 8-K mentioning borrowing base, credit facility amendment, preferred
+  stock redemption, or conversion. Any 10-Q showing change in Series F preferred outstanding
+  or credit facility drawn amount.
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

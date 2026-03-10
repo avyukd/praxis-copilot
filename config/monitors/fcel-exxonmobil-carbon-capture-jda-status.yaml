@@ -1,0 +1,18 @@
+id: fcel-exxonmobil-carbon-capture-jda-status
+type: search
+tickers:
+- FCEL
+description: Monitor for news about the ExxonMobil/EMTEC carbon capture JDA (expires
+  Dec 2026), Rotterdam pilot commissioning progress, and any JDA extension or commercial
+  follow-on orders.
+extract: Monitor for news about the ExxonMobil/EMTEC carbon capture JDA (expires Dec
+  2026), Rotterdam pilot commissioning progress, and any JDA extension or commercial
+  follow-on orders.
+threshold: JDA extension or termination announcement; Rotterdam pilot commissioning
+  milestone; commercial carbon capture order from any customer
+cadence: 1d
+queries:
+- '"FuelCell Energy" "carbon capture"'
+- '"FuelCell Energy" "ExxonMobil"'
+- '"FCEL" "Rotterdam" pilot'
+search_backend: tavily

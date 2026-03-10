@@ -1,0 +1,12 @@
+id: ctxr-dlbcl-phase-2-trial-progression
+type: scraper
+tickers:
+- CTXR
+description: Monitor ClinicalTrials.gov for LYMPHIR + CAR-T DLBCL trial (NCT04855253)
+  status updates, enrollment changes, new trial registrations, or Phase 2 expansion.
+extract: Monitor ClinicalTrials.gov for LYMPHIR + CAR-T DLBCL trial (NCT04855253)
+  status updates, enrollment changes, new trial registrations, or Phase 2 expansion.
+threshold: Any change in trial status, enrollment count, or new trial registration
+  containing 'denileukin diftitox' or 'LYMPHIR' in DLBCL/lymphoma.
+cadence: 1d
+source_url: https://clinicaltrials.gov/study/NCT04855253

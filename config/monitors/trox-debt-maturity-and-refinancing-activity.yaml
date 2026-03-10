@@ -1,0 +1,16 @@
+id: trox-debt-maturity-and-refinancing-activity
+type: filing
+tickers:
+- TROX
+description: Monitor any refinancing, debt exchange, amendment, or new issuance activity
+  related to the $1.83B 2029 maturity wall. Watch for springing provision triggers
+  and revolver utilization above $122.5M.
+extract: Monitor any refinancing, debt exchange, amendment, or new issuance activity
+  related to the $1.83B 2029 maturity wall. Watch for springing provision triggers
+  and revolver utilization above $122.5M.
+threshold: Any refinancing announcement, credit facility amendment, or revolver draw
+  above 35% of commitments
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

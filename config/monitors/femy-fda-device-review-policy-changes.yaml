@@ -1,0 +1,18 @@
+id: femy-fda-device-review-policy-changes
+type: search
+tickers:
+- FEMY
+description: Monitor for legislative or policy changes affecting FDA device review
+  timelines, MDUFA reauthorization issues, or DOGE-related FDA restructuring that
+  could impact PMA review capacity.
+extract: Monitor for legislative or policy changes affecting FDA device review timelines,
+  MDUFA reauthorization issues, or DOGE-related FDA restructuring that could impact
+  PMA review capacity.
+threshold: New legislation affecting device review timelines, MDUFA funding changes,
+  or FDA commissioner statements on device review capacity
+cadence: 6h
+queries:
+- '"FDA device review" staffing OR delays OR DOGE'
+- MDUFA reauthorization 2026
+- '"CDRH" review backlog'
+search_backend: tavily

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 
 import boto3
 from botocore.exceptions import ClientError
@@ -13,7 +14,7 @@ from .models import SerpResponse
 
 logger = logging.getLogger(__name__)
 
-BUCKET = "praxis-copilot"
+BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 HASHES_KEY = "data/state/news_hashes.json"
 
 

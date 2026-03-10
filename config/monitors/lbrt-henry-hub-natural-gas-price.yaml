@@ -1,0 +1,14 @@
+id: lbrt-henry-hub-natural-gas-price
+type: scraper
+tickers:
+- LBRT
+description: Monitor Henry Hub spot price. Gas-directed completions growth is the
+  most underappreciated demand catalyst. Rising gas prices also support LPI distributed
+  power economics.
+extract: Monitor Henry Hub spot price. Gas-directed completions growth is the most
+  underappreciated demand catalyst. Rising gas prices also support LPI distributed
+  power economics.
+threshold: "Henry Hub sustained above $4.50 (bullish for gas completions) or below\
+  \ $2.50 (bearish \u2014 gas activity declines)"
+cadence: 1d
+source_url: https://www.eia.gov/dnav/ng/ng_pri_sum_dcu_nus_m.htm

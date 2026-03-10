@@ -1,0 +1,14 @@
+id: ivfh-ivfh-material-events-customer-concentration-and-ma
+type: filing
+tickers:
+- IVFH
+description: Monitor 8-K filings for material customer changes (US Foods relationship),
+  new acquisitions, debt covenant amendments, management changes (CEO contract expired
+  Dec 2025), or asset sales.
+extract: Monitor 8-K filings for material customer changes (US Foods relationship),
+  new acquisitions, debt covenant amendments, management changes (CEO contract expired
+  Dec 2025), or asset sales.
+threshold: Any 8-K indicating change in major customer relationship, new acquisition,
+  or management departure
+filing_types:
+- 8-K

@@ -1,0 +1,11 @@
+id: trox-chinese-tio2-export-volumes
+type: scraper
+tickers:
+- TROX
+description: Monitor Chinese TiO2 export data from China customs statistics. Chinese
+  export pressure is the primary driver of global TiO2 pricing.
+extract: Monitor Chinese TiO2 export data from China customs statistics. Chinese export
+  pressure is the primary driver of global TiO2 pricing.
+threshold: Monthly Chinese TiO2 exports change +/-15% YoY or sequential quarter-over-quarter
+cadence: 1d
+source_url: https://www.customs.gov.cn/customs/302249/zfxxgk/2799825/302274/index.html

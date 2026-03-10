@@ -1,0 +1,19 @@
+id: femy-non-surgical-sterilization-competitive-landscape
+type: search
+tickers:
+- FEMY
+description: Monitor for any new entrants developing non-surgical permanent contraception
+  devices, new FDA IDE applications in the space, or major pharma/device company announcements.
+  Currently zero competition post-Essure withdrawal.
+extract: Monitor for any new entrants developing non-surgical permanent contraception
+  devices, new FDA IDE applications in the space, or major pharma/device company announcements.
+  Currently zero competition post-Essure withdrawal.
+threshold: Any new IDE application for non-surgical sterilization, acquisition interest
+  in FEMY, or competitor clinical trial initiation
+cadence: 6h
+queries:
+- '"non-surgical sterilization" FDA'
+- '"permanent contraception" device approval'
+- '"FemBloc" OR "Femasys" clinical trial'
+- '"tubal occlusion" device development'
+search_backend: tavily

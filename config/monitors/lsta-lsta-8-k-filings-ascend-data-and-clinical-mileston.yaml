@@ -1,0 +1,14 @@
+id: lsta-lsta-8-k-filings-ascend-data-and-clinical-mileston
+type: filing
+tickers:
+- LSTA
+description: Monitor 8-K filings for announcement of final ASCEND Phase 2b data (expected
+  Q1 2026), any Phase 3 plans, Breakthrough Therapy Designation application, or Qilu
+  partnership updates.
+extract: Monitor 8-K filings for announcement of final ASCEND Phase 2b data (expected
+  Q1 2026), any Phase 3 plans, Breakthrough Therapy Designation application, or Qilu
+  partnership updates.
+threshold: Any clinical data release, regulatory designation, or development milestone
+  announcement.
+filing_types:
+- 8-K

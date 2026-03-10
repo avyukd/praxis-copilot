@@ -8,6 +8,7 @@ Two-layer architecture:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -23,7 +24,7 @@ from .models import NewsScannerConfig
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-BUCKET = "praxis-copilot"
+BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 CONFIG_KEY = "config/news.yaml"
 REGISTRY_KEY = "config/ticker_registry.yaml"
 
@@ -114,12 +115,23 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         logger.warning("No tickers in registry")
         return {"status": "skipped", "reason": "no_tickers"}
 
-    # Get SERP API key from SSM
-    try:
-        api_key = _get_serp_api_key(ssm, config.serp_api_key_param)
-    except ClientError as e:
-        logger.error("Failed to retrieve SERP API key from SSM: %s", e)
-        return {"status": "error", "reason": "ssm_key_retrieval_failed"}
+    # Get API key: try env var first (TAVILY_API_KEY or SERPAPI_KEY), then SSM
+    api_key = ""
+    if config.serp_api == "tavily":
+        api_key = os.environ.get("TAVILY_API_KEY", "")
+    elif config.serp_api == "serpapi":
+        api_key = os.environ.get("SERPAPI_KEY", "")
+
+    if not api_key:
+        try:
+            api_key = _get_serp_api_key(ssm, config.serp_api_key_param)
+        except ClientError as e:
+            logger.error("Failed to retrieve SERP API key from SSM: %s", e)
+            return {"status": "error", "reason": "ssm_key_retrieval_failed"}
+
+    if not api_key:
+        logger.error("No API key available for provider %s", config.serp_api)
+        return {"status": "error", "reason": "no_api_key"}
 
     # Initialize SERP provider
     provider = serp.get_provider(config.serp_api, api_key)

@@ -1,0 +1,14 @@
+id: mrx-mrx-annualquarterly-sec-filings
+type: filing
+tickers:
+- MRX
+description: Monitor 20-F and 6-K filings for audit opinion, NII trajectory, segment
+  revenue breakdown, and any restatements or accounting changes. The 20-F is the critical
+  clearing event for NINGI allegations.
+extract: Monitor 20-F and 6-K filings for audit opinion, NII trajectory, segment revenue
+  breakdown, and any restatements or accounting changes. The 20-F is the critical
+  clearing event for NINGI allegations.
+threshold: Any audit qualification, restatement, or NII decline >15% YoY
+filing_types:
+- 20-F
+- 6-K

@@ -1,0 +1,16 @@
+id: cc-debt-refinancing-and-maturity-management
+type: filing
+tickers:
+- CC
+description: 'Monitor debt note disclosures for refinancing activity on the 2027 ($505M),
+  2028 ($1.3B), and 2029 ($631M) maturities. Track new issuances, rate terms, and
+  covenant compliance language. Source: SEC filings, debt footnotes.'
+extract: 'Monitor debt note disclosures for refinancing activity on the 2027 ($505M),
+  2028 ($1.3B), and 2029 ($631M) maturities. Track new issuances, rate terms, and
+  covenant compliance language. Source: SEC filings, debt footnotes.'
+threshold: Any new debt issuance or refinancing announcement; covenant compliance
+  horizon shortening below 12 months; refinancing rate above 8.5%
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

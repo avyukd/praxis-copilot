@@ -1,0 +1,16 @@
+id: tnxp-tonmya-revenue-and-trx-disclosure
+type: filing
+tickers:
+- TNXP
+description: Track TONMYA net revenue, gross-to-net ratio, and any TRx/NBRx data disclosed
+  in quarterly earnings. Q4 2025 (March 16) is first quarter with any revenue. Compare
+  against Street estimates ($94M avg 2026E).
+extract: Track TONMYA net revenue, gross-to-net ratio, and any TRx/NBRx data disclosed
+  in quarterly earnings. Q4 2025 (March 16) is first quarter with any revenue. Compare
+  against Street estimates ($94M avg 2026E).
+threshold: Q4 2025 TONMYA revenue above $1M would be bullish surprise; below $0.1M
+  bearish. By Q2 2026, annualized run rate below $20M signals Savella-like trajectory.
+filing_types:
+- 10-K
+- 10-Q
+- 8-K

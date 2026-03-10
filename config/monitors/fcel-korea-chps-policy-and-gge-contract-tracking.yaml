@@ -1,0 +1,14 @@
+id: fcel-korea-chps-policy-and-gge-contract-tracking
+type: scraper
+tickers:
+- FCEL
+description: Monitor South Korea's Clean Hydrogen Portfolio Standard program updates
+  and GGE/Korean fuel cell market developments. FCEL's largest revenue source depends
+  on Korean policy support.
+extract: Monitor South Korea's Clean Hydrogen Portfolio Standard program updates and
+  GGE/Korean fuel cell market developments. FCEL's largest revenue source depends
+  on Korean policy support.
+threshold: CHPS policy changes affecting fuel cell eligibility; GGE contract modifications
+  or new Korean utility orders >$20M
+cadence: 1d
+source_url: https://www.motie.go.kr/en/po/energy/bbs/bbsView.do

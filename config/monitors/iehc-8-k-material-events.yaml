@@ -1,0 +1,13 @@
+id: iehc-8-k-material-events
+type: filing
+tickers:
+- IEHC
+description: Monitor 8-K filings for backlog announcements (IEH has historically issued
+  press releases on record backlogs), management changes, relisting announcements,
+  SEC proceedings, or extraordinary transactions.
+extract: Monitor 8-K filings for backlog announcements (IEH has historically issued
+  press releases on record backlogs), management changes, relisting announcements,
+  SEC proceedings, or extraordinary transactions.
+threshold: "Any 8-K filed \u2014 all are material for a company this small"
+filing_types:
+- 8-K

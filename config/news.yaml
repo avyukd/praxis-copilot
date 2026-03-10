@@ -1,6 +1,6 @@
 # News scanner configuration
-# API selection, sweep config
-
-sweep_interval_hours: 1
-api: serp  # serp or google
-max_results_per_query: 10
+enabled: true
+serp_api: tavily
+results_per_ticker: 10
+lookback_hours: 24
+market_hours_only: true

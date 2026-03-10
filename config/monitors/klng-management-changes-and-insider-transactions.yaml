@@ -1,0 +1,14 @@
+id: klng-management-changes-and-insider-transactions
+type: filing
+tickers:
+- KLNG
+description: Track CFO stability (two transitions in 12 months is a yellow flag),
+  board changes, and insider buying/selling patterns. Intelligent Fanatics holds ~12.7%.
+extract: Track CFO stability (two transitions in 12 months is a yellow flag), board
+  changes, and insider buying/selling patterns. Intelligent Fanatics holds ~12.7%.
+threshold: Any C-suite departure OR insider sales exceeding 100K shares OR new 10%+
+  holder
+filing_types:
+- 8-K
+- SC 13D
+- Form 4

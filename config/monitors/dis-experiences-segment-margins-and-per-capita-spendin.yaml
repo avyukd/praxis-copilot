@@ -1,0 +1,15 @@
+id: dis-experiences-segment-margins-and-per-capita-spendin
+type: filing
+tickers:
+- DIS
+description: Track Experiences segment operating income margin and per-capita guest
+  spending growth from 10-Q/10-K filings. These are reported in Item 2 MD&A under
+  the Experiences segment discussion.
+extract: Track Experiences segment operating income margin and per-capita guest spending
+  growth from 10-Q/10-K filings. These are reported in Item 2 MD&A under the Experiences
+  segment discussion.
+threshold: Operating margin below 24% or per-capita spending growth below 1% for two
+  consecutive quarters
+filing_types:
+- 10-K
+- 10-Q

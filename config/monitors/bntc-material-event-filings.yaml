@@ -1,0 +1,14 @@
+id: bntc-material-event-filings
+type: filing
+tickers:
+- BNTC
+description: Monitor 8-K filings for clinical data announcements, FDA meeting outcomes
+  (especially mid-2026 Type B meeting on pivotal design), ATM usage, new offerings,
+  executive changes, and Suvretta transactions.
+extract: Monitor 8-K filings for clinical data announcements, FDA meeting outcomes
+  (especially mid-2026 Type B meeting on pivotal design), ATM usage, new offerings,
+  executive changes, and Suvretta transactions.
+threshold: 'Any 8-K related to: clinical results, FDA correspondence, securities offerings,
+  director/officer changes, or Suvretta ownership changes'
+filing_types:
+- 8-K

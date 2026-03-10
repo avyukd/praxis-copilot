@@ -1,0 +1,14 @@
+id: dis-parks-capex-actual-vs-plan
+type: filing
+tickers:
+- DIS
+description: Track total capex and Experiences-specific capex from quarterly cash
+  flow statements and MD&A capex discussion. Compare to $9B FY26 guidance and $60B/10-year
+  plan.
+extract: Track total capex and Experiences-specific capex from quarterly cash flow
+  statements and MD&A capex discussion. Compare to $9B FY26 guidance and $60B/10-year
+  plan.
+threshold: Annual capex exceeds $10B or management raises the $60B multi-year target
+filing_types:
+- 10-K
+- 10-Q

@@ -45,9 +45,13 @@ ANALYZER_FUNCTION="${ANALYZER_FUNCTION:-filing-analyzer}"
 ALERTS_FUNCTION="${ALERTS_FUNCTION:-filing-alerts}"
 DISPATCH_FUNCTION="${DISPATCH_FUNCTION:-event-dispatch}"
 MONITOR_EVALUATOR_FUNCTION="${MONITOR_EVALUATOR_FUNCTION:-praxis-monitor-evaluator}"
+NEWS_SCANNER_FUNCTION="${NEWS_SCANNER_FUNCTION:-praxis-news-scanner}"
 
 SEC_POLLER_RULE="${SEC_POLLER_RULE:-sec-filings-poller-cron}"
 PRESS_POLLER_RULE="${PRESS_POLLER_RULE:-press-releases-poller-cron}"
+NEWS_SCANNER_RULE="${NEWS_SCANNER_RULE:-praxis-news-scanner-hourly}"
+# Hourly during extended US market hours (UTC 12-22 covers ~7am-5pm ET across DST)
+NEWS_SCANNER_CRON="${NEWS_SCANNER_CRON:-cron(0 12-22 ? * MON-FRI *)}"
 
 LEGACY_FUNCTIONS=(
   "8k-scanner-poller"
@@ -132,6 +136,7 @@ ALERTS_ENV="{${COMMON_VARS},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},FILING_ANALYZER_ENABL
 DISPATCH_ENV="{S3_BUCKET=${S3_BUCKET},MONITOR_EVALUATOR_LAMBDA=${MONITOR_EVALUATOR_FUNCTION},FILING_ANALYZER_LAMBDA=${ANALYZER_FUNCTION}}"
 TAVILY_API_KEY="${TAVILY_API_KEY:-}"
 MONITOR_EVALUATOR_ENV="{S3_BUCKET=${S3_BUCKET},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},TAVILY_API_KEY=${TAVILY_API_KEY}}"
+NEWS_SCANNER_ENV="{S3_BUCKET=${S3_BUCKET},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},SNS_TOPIC_ARN=${SNS_TOPIC_ARN},TAVILY_API_KEY=${TAVILY_API_KEY}}"
 
 create_or_update_lambda() {
   local func_name="$1"
@@ -178,6 +183,25 @@ create_or_update_lambda "${ALERTS_FUNCTION}" "src.modules.events.eight_k_scanner
 create_or_update_lambda "${DISPATCH_FUNCTION}" "src.modules.events.dispatch.handler.lambda_handler" "${DISPATCH_ENV}"
 create_or_update_lambda "${MONITOR_EVALUATOR_FUNCTION}" "src.modules.monitor.evaluator.handler.handler" "${MONITOR_EVALUATOR_ENV}"
 
+# News scanner and evaluator need higher timeout/memory for large ticker universe
+echo "--- Configuring higher limits for evaluator and news scanner ---"
+for fn in "${MONITOR_EVALUATOR_FUNCTION}" "${NEWS_SCANNER_FUNCTION}"; do
+  aws lambda wait function-updated --function-name "${fn}" --region "${REGION}" 2>/dev/null || true
+done
+create_or_update_lambda "${NEWS_SCANNER_FUNCTION}" "src.modules.events.news_scanner.handler.handler" "${NEWS_SCANNER_ENV}"
+
+aws lambda wait function-updated --function-name "${MONITOR_EVALUATOR_FUNCTION}" --region "${REGION}"
+aws lambda update-function-configuration \
+  --function-name "${MONITOR_EVALUATOR_FUNCTION}" \
+  --timeout 900 --memory-size 1024 \
+  --region "${REGION}" >/dev/null
+
+aws lambda wait function-updated --function-name "${NEWS_SCANNER_FUNCTION}" --region "${REGION}"
+aws lambda update-function-configuration \
+  --function-name "${NEWS_SCANNER_FUNCTION}" \
+  --timeout 600 --memory-size 1024 \
+  --region "${REGION}" >/dev/null
+
 ensure_rule_target() {
   local rule_name="$1"
   local func_name="$2"
@@ -210,6 +234,44 @@ echo "--- EventBridge cron rules ---"
 ensure_rule_target "${SEC_POLLER_RULE}" "${SEC_POLLER_FUNCTION}" "eventbridge-sec-filings-cron"
 ensure_rule_target "${PRESS_POLLER_RULE}" "${PRESS_POLLER_FUNCTION}" "eventbridge-press-releases-cron"
 
+# News scanner: hourly during market hours (separate cron)
+aws events put-rule \
+  --name "${NEWS_SCANNER_RULE}" \
+  --schedule-expression "${NEWS_SCANNER_CRON}" \
+  --state ENABLED \
+  --description "Hourly news scanner sweep during market hours" \
+  --region "${REGION}" >/dev/null
+
+news_scanner_arn=$(aws lambda get-function --function-name "${NEWS_SCANNER_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
+
+aws lambda add-permission \
+  --function-name "${NEWS_SCANNER_FUNCTION}" \
+  --statement-id "eventbridge-news-scanner-cron" \
+  --action "lambda:InvokeFunction" \
+  --principal events.amazonaws.com \
+  --source-arn "arn:aws:events:${REGION}:${ACCOUNT_ID}:rule/${NEWS_SCANNER_RULE}" \
+  --region "${REGION}" >/dev/null 2>&1 || true
+
+aws events put-targets \
+  --rule "${NEWS_SCANNER_RULE}" \
+  --targets "[{\"Id\":\"news-scanner\",\"Arn\":\"${news_scanner_arn}\"}]" \
+  --region "${REGION}" >/dev/null
+
+# IAM: allow SSM read for SerpAPI key
+aws iam put-role-policy \
+  --role-name "${ROLE_NAME}" \
+  --policy-name "AllowSSMReadSerpApiKey" \
+  --policy-document "{
+    \"Version\": \"2012-10-17\",
+    \"Statement\": [
+      {
+        \"Effect\": \"Allow\",
+        \"Action\": [\"ssm:GetParameter\"],
+        \"Resource\": \"arn:aws:ssm:${REGION}:${ACCOUNT_ID}:parameter/praxis/serpapi_key\"
+      }
+    ]
+  }" >/dev/null 2>&1 || echo "WARN: could not attach SSM read policy"
+
 extractor_arn=$(aws lambda get-function --function-name "${EXTRACTOR_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 analyzer_arn=$(aws lambda get-function --function-name "${ANALYZER_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
 alerts_arn=$(aws lambda get-function --function-name "${ALERTS_FUNCTION}" --region "${REGION}" --query 'Configuration.FunctionArn' --output text)
@@ -231,6 +293,7 @@ add_s3_permission "${EXTRACTOR_FUNCTION}" "s3-trigger-filings-extractor"
 add_s3_permission "${ANALYZER_FUNCTION}" "s3-trigger-filing-analyzer"
 add_s3_permission "${ALERTS_FUNCTION}" "s3-trigger-filing-alerts"
 add_s3_permission "${DISPATCH_FUNCTION}" "s3-trigger-event-dispatch"
+add_s3_permission "${DISPATCH_FUNCTION}" "s3-trigger-news-digest"
 
 echo "--- S3 notification wiring (${S3_BUCKET}) ---"
 aws s3api put-bucket-notification-configuration \
@@ -291,6 +354,15 @@ aws s3api put-bucket-notification-configuration \
           {\"Name\": \"Prefix\", \"Value\": \"data/raw/press_releases/\"},
           {\"Name\": \"Suffix\", \"Value\": \"extracted.json\"}
         ]}}
+      },
+      {
+        \"Id\": \"dispatch-news-digest\",
+        \"LambdaFunctionArn\": \"${dispatch_arn}\",
+        \"Events\": [\"s3:ObjectCreated:*\"],
+        \"Filter\": {\"Key\": {\"FilterRules\": [
+          {\"Name\": \"Prefix\", \"Value\": \"data/news/\"},
+          {\"Name\": \"Suffix\", \"Value\": \".yaml\"}
+        ]}}
       }
     ]
   }"
@@ -322,6 +394,6 @@ for f in "${LEGACY_FUNCTIONS[@]}"; do
 done
 
 echo "=== Deploy complete ==="
-echo "Functions: ${SEC_POLLER_FUNCTION}, ${PRESS_POLLER_FUNCTION}, ${EXTRACTOR_FUNCTION}, ${ANALYZER_FUNCTION}, ${ALERTS_FUNCTION}, ${DISPATCH_FUNCTION}"
-echo "Rules: ${SEC_POLLER_RULE}, ${PRESS_POLLER_RULE}"
+echo "Functions: ${SEC_POLLER_FUNCTION}, ${PRESS_POLLER_FUNCTION}, ${EXTRACTOR_FUNCTION}, ${ANALYZER_FUNCTION}, ${ALERTS_FUNCTION}, ${DISPATCH_FUNCTION}, ${MONITOR_EVALUATOR_FUNCTION}, ${NEWS_SCANNER_FUNCTION}"
+echo "Rules: ${SEC_POLLER_RULE}, ${PRESS_POLLER_RULE}, ${NEWS_SCANNER_RULE}"
 echo "Next: run scripts/release_smoke_check.sh"

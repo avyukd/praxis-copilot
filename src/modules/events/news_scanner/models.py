@@ -79,7 +79,7 @@ class NewsScannerConfig(BaseModel):
     """News scanner configuration loaded from S3."""
 
     enabled: bool = True
-    serp_api: str = "serpapi"
+    serp_api: str = "tavily"
     serp_api_key_param: str = "/praxis/serpapi_key"
     results_per_ticker: int = 10
     lookback_hours: int = 24

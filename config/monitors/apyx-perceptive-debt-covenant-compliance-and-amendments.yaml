@@ -1,0 +1,18 @@
+id: apyx-perceptive-debt-covenant-compliance-and-amendments
+type: filing
+tickers:
+- APYX
+description: Monitor note_debt and note_commitments in quarterly filings for any covenant
+  amendments, waivers, or breaches. Watch for changes to the revenue covenant targets,
+  OpEx caps, minimum cash requirement, or interest rate terms. Any amendment likely
+  signals distress.
+extract: Monitor note_debt and note_commitments in quarterly filings for any covenant
+  amendments, waivers, or breaches. Watch for changes to the revenue covenant targets,
+  OpEx caps, minimum cash requirement, or interest rate terms. Any amendment likely
+  signals distress.
+threshold: Any covenant amendment, waiver request, or reported breach; change in prepayment
+  penalty terms
+filing_types:
+- 10-Q
+- 10-K
+- 8-K

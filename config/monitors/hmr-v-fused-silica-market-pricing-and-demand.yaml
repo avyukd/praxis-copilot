@@ -1,0 +1,14 @@
+id: hmr-v-fused-silica-market-pricing-and-demand
+type: scraper
+tickers:
+- HMR.V
+description: Track semiconductor-grade fused silica pricing and demand signals via
+  industry reports and major producer commentary. Tightening supply/rising prices
+  strengthens the case for new entrants.
+extract: Track semiconductor-grade fused silica pricing and demand signals via industry
+  reports and major producer commentary. Tightening supply/rising prices strengthens
+  the case for new entrants.
+threshold: Fused silica component prices rising >10% YoY or major producer announcing
+  capacity constraints
+cadence: 1d
+source_url: https://www.semi.org/en/resources/market-data

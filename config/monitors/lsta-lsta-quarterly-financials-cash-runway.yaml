@@ -1,0 +1,13 @@
+id: lsta-lsta-quarterly-financials-cash-runway
+type: filing
+tickers:
+- LSTA
+description: "Track cash and short-term investments balance in 10-Q/10-K filings.\
+  \ If deal delays, cash runway becomes critical \u2014 LSTA burns ~$4M/quarter."
+extract: "Track cash and short-term investments balance in 10-Q/10-K filings. If deal\
+  \ delays, cash runway becomes critical \u2014 LSTA burns ~$4M/quarter."
+threshold: Cash + ST investments below $8M (would indicate insufficient runway if
+  deal delays past Q3 2026).
+filing_types:
+- 10-Q
+- 10-K

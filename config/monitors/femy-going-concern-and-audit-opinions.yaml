@@ -1,0 +1,12 @@
+id: femy-going-concern-and-audit-opinions
+type: filing
+tickers:
+- FEMY
+description: Track KPMG going concern language in annual filing. Removal of going
+  concern would be a major positive signal; escalation or auditor change would be
+  negative.
+extract: Track KPMG going concern language in annual filing. Removal of going concern
+  would be a major positive signal; escalation or auditor change would be negative.
+threshold: Change in going concern status or auditor change
+filing_types:
+- 10-K

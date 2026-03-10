@@ -1,0 +1,15 @@
+id: dis-streaming-profitability-and-subscriber-trajectory
+type: filing
+tickers:
+- DIS
+description: "Track Entertainment segment operating income and any disclosed DTC metrics\
+  \ (ARPU, subscribers if reported) from quarterly filings. Disney stopped reporting\
+  \ sub counts in Q1 FY26 \u2014 monitor for any resumption or new disclosure."
+extract: "Track Entertainment segment operating income and any disclosed DTC metrics\
+  \ (ARPU, subscribers if reported) from quarterly filings. Disney stopped reporting\
+  \ sub counts in Q1 FY26 \u2014 monitor for any resumption or new disclosure."
+threshold: Entertainment segment operating margin below 8% or return to DTC operating
+  losses
+filing_types:
+- 10-K
+- 10-Q

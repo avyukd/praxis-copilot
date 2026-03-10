@@ -1,0 +1,13 @@
+id: dis-content-spend-and-programming-costs
+type: filing
+tickers:
+- DIS
+description: Track programming and production costs in the income statement and content
+  amortization in cash flow. FY25 was ~$22.3B in programming/production costs.
+extract: Track programming and production costs in the income statement and content
+  amortization in cash flow. FY25 was ~$22.3B in programming/production costs.
+threshold: Annual content spend exceeds $26B or content impairment charges exceed
+  $1B
+filing_types:
+- 10-K
+- 10-Q

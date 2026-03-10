@@ -1,0 +1,14 @@
+id: mrx-cftc-fcm-financial-data
+type: scraper
+tickers:
+- MRX
+description: Monthly CFTC report on FCM customer funds in segregation and net capital.
+  Tracks industry-wide client balance trends that drive NII and monitors FCM count
+  for consolidation pace.
+extract: Monthly CFTC report on FCM customer funds in segregation and net capital.
+  Tracks industry-wide client balance trends that drive NII and monitors FCM count
+  for consolidation pace.
+threshold: Industry customer funds decline >10% from peak or FCM count drops below
+  60
+cadence: 1d
+source_url: https://www.cftc.gov/MarketReports/financialfcmdata/index.htm

@@ -1,0 +1,15 @@
+id: cc-tss-segment-performance-and-opteon-growth
+type: filing
+tickers:
+- CC
+description: 'Track TSS revenue growth rate, EBITDA margin, and Opteon volume/price
+  mix disclosures in quarterly filings. Key metric: whether TSS EBITDA margin stays
+  above 30%. Source: segment data in 10-Q/10-K.'
+extract: 'Track TSS revenue growth rate, EBITDA margin, and Opteon volume/price mix
+  disclosures in quarterly filings. Key metric: whether TSS EBITDA margin stays above
+  30%. Source: segment data in 10-Q/10-K.'
+threshold: TSS revenue growth decelerating below 8% YoY or EBITDA margin falling below
+  28%
+filing_types:
+- 10-K
+- 10-Q

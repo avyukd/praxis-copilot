@@ -1,0 +1,13 @@
+id: klng-petrobras-capex-plan-updates
+type: scraper
+tickers:
+- KLNG
+description: Track Petrobras investor relations page for revisions to the 5-year business
+  plan, FPSO delivery schedule, and pre-salt production targets. Brazil is KLNG's
+  primary growth market.
+extract: Track Petrobras investor relations page for revisions to the 5-year business
+  plan, FPSO delivery schedule, and pre-salt production targets. Brazil is KLNG's
+  primary growth market.
+threshold: E&P capex plan revised down >5% or FPSO delivery delayed >6 months
+cadence: 1d
+source_url: https://www.investidorpetrobras.com.br/en/results-and-announcements/business-plan/

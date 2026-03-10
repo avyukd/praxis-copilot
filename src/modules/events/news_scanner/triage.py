@@ -7,6 +7,7 @@ Produces a triaged digest identifying material news.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import anthropic
@@ -18,7 +19,7 @@ from .models import Monitor, SerpResponse, TriageDigest
 
 logger = logging.getLogger(__name__)
 
-BUCKET = "praxis-copilot"
+BUCKET = os.environ.get("S3_BUCKET", "praxis-copilot")
 MODEL = "claude-sonnet-4-20250514"
 
 
@@ -94,16 +95,25 @@ def _load_monitors(s3_client: boto3.client, ticker: str) -> list[Monitor]:
                 monitor = yaml.safe_load(body)
                 if not isinstance(monitor, dict):
                     continue
-                # Check if this monitor listens to this ticker
-                listen_list = monitor.get("listen", [])
-                for listen_item in listen_list:
-                    if isinstance(listen_item, str) and listen_item.startswith(f"{ticker}:"):
-                        monitors.append(Monitor(
-                            id=monitor.get("id", key.split("/")[-1].replace(".yaml", "")),
-                            description=monitor.get("description", ""),
-                            listen=listen_list,
-                        ))
-                        break
+                # Check if this monitor covers this ticker
+                matched = False
+                # New schema: tickers list
+                monitor_tickers = monitor.get("tickers", [])
+                if isinstance(monitor_tickers, list) and ticker in monitor_tickers:
+                    matched = True
+                # Legacy schema: listen keys
+                if not matched:
+                    listen_list = monitor.get("listen", [])
+                    for listen_item in listen_list:
+                        if isinstance(listen_item, str) and listen_item.startswith(f"{ticker}:"):
+                            matched = True
+                            break
+                if matched:
+                    monitors.append(Monitor(
+                        id=monitor.get("id", key.split("/")[-1].replace(".yaml", "")),
+                        description=monitor.get("description", ""),
+                        listen=monitor.get("listen", []),
+                    ))
     except ClientError as e:
         logger.error("S3 error loading monitors for %s: %s", ticker, e)
     except Exception:

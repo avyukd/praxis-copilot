@@ -1,0 +1,13 @@
+id: cc-credit-rating-actions
+type: filing
+tickers:
+- CC
+description: 'Monitor for credit rating changes from Moody''s (Ba3) or S&P (BB-),
+  both currently negative outlook. A downgrade to B+/B1 would materially increase
+  refinancing costs. Source: 8-K filings on rating agency actions.'
+extract: 'Monitor for credit rating changes from Moody''s (Ba3) or S&P (BB-), both
+  currently negative outlook. A downgrade to B+/B1 would materially increase refinancing
+  costs. Source: 8-K filings on rating agency actions.'
+threshold: Any rating downgrade or outlook change from either Moody's or S&P
+filing_types:
+- 8-K

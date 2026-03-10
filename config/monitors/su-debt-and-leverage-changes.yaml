@@ -1,0 +1,14 @@
+id: su-debt-and-leverage-changes
+type: filing
+tickers:
+- SU
+description: "Monitor for any re-leveraging \u2014 new debt issuance, credit facility\
+  \ draws, or M&A-related borrowing. Balance sheet is fortress-level at 0.33x net\
+  \ debt/EBITDA; any material increase signals strategic shift."
+extract: "Monitor for any re-leveraging \u2014 new debt issuance, credit facility\
+  \ draws, or M&A-related borrowing. Balance sheet is fortress-level at 0.33x net\
+  \ debt/EBITDA; any material increase signals strategic shift."
+threshold: Net debt/EBITDA exceeds 0.6x or new long-term debt issuance >C$2B
+filing_types:
+- 40-F
+- 6-K

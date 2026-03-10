@@ -1,0 +1,15 @@
+id: prld-prld-quarterlyannual-filings-cash-burn-and-runway
+type: filing
+tickers:
+- PRLD
+description: 'Monitor 10-Q and 10-K filings for cash position, operating cash burn,
+  and updated runway guidance. Key metrics: cash + marketable securities, quarterly
+  operating cash flow, R&D expense run-rate, any changes to Q2 2027 runway guidance.'
+extract: 'Monitor 10-Q and 10-K filings for cash position, operating cash burn, and
+  updated runway guidance. Key metrics: cash + marketable securities, quarterly operating
+  cash flow, R&D expense run-rate, any changes to Q2 2027 runway guidance.'
+threshold: Cash burn exceeds $25M/quarter (vs. current ~$18-22M run-rate) OR runway
+  guidance pulled forward from Q2 2027
+filing_types:
+- 10-K
+- 10-Q

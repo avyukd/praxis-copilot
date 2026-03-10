@@ -1,0 +1,14 @@
+id: apyx-fda-safety-communications-energy-based-devices
+type: scraper
+tickers:
+- APYX
+description: Monitor FDA safety communications page for any new notices related to
+  energy-based surgical devices, plasma devices, or body contouring devices. The 2022
+  Safety Communication was near-fatal for Renuvion adoption; any repeat would be devastating.
+extract: Monitor FDA safety communications page for any new notices related to energy-based
+  surgical devices, plasma devices, or body contouring devices. The 2022 Safety Communication
+  was near-fatal for Renuvion adoption; any repeat would be devastating.
+threshold: Any new safety communication mentioning plasma, helium, Renuvion, body
+  contouring, or subdermal energy devices
+cadence: 1d
+source_url: https://www.fda.gov/medical-devices/safety-communications

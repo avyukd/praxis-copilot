@@ -1,0 +1,17 @@
+id: hmr-v-uc-davis-fjh-fused-silica-research-validation
+type: search
+tickers:
+- HMR.V
+description: Monitor for peer-reviewed publications, UC Davis press releases, or third-party
+  engineering reports validating the Fast Joule Heating fused silica glass process.
+  This is the key technology de-risk catalyst.
+extract: Monitor for peer-reviewed publications, UC Davis press releases, or third-party
+  engineering reports validating the Fast Joule Heating fused silica glass process.
+  This is the key technology de-risk catalyst.
+threshold: Any peer-reviewed publication or independent engineering validation of
+  FJH fused silica at pilot/commercial scale
+cadence: 1d
+queries:
+- '"fast joule heating" fused silica "UC Davis"'
+- '"Homerun Resources" "fused silica" validation OR publication OR pilot'
+search_backend: tavily

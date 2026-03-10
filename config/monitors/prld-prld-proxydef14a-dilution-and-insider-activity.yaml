@@ -1,0 +1,16 @@
+id: prld-prld-proxydef14a-dilution-and-insider-activity
+type: filing
+tickers:
+- PRLD
+description: Monitor proxy filings for changes to equity compensation plans, ATM facility
+  utilization, share count changes, and insider transactions. Track total dilution
+  overhang vs. current ~36%.
+extract: Monitor proxy filings for changes to equity compensation plans, ATM facility
+  utilization, share count changes, and insider transactions. Track total dilution
+  overhang vs. current ~36%.
+threshold: Shares outstanding increases >10% from 76M base OR new equity facility
+  filed
+filing_types:
+- DEF 14A
+- S-3
+- 424B5

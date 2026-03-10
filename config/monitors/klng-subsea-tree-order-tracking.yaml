@@ -1,0 +1,11 @@
+id: klng-subsea-tree-order-tracking
+type: scraper
+tickers:
+- KLNG
+description: Track Westwood Global Energy subsea tree order reports as a leading indicator
+  of subsea tieback activity. 2025 demand was revised down 7%.
+extract: Track Westwood Global Energy subsea tree order reports as a leading indicator
+  of subsea tieback activity. 2025 demand was revised down 7%.
+threshold: Annual tree demand forecast revised down >10% YoY or below 250 units/year
+cadence: 1d
+source_url: https://www.westwoodenergy.com/reports/subsea-markets

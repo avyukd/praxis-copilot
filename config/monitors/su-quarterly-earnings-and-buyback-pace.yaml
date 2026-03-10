@@ -1,0 +1,15 @@
+id: su-quarterly-earnings-and-buyback-pace
+type: filing
+tickers:
+- SU
+description: "Monitor quarterly filings for FCF, buyback spend, shares retired, and\
+  \ average purchase price. The buyback accretion thesis depends on management showing\
+  \ discipline \u2014 continuing to buy at $57+ would be value-destructive."
+extract: "Monitor quarterly filings for FCF, buyback spend, shares retired, and average\
+  \ purchase price. The buyback accretion thesis depends on management showing discipline\
+  \ \u2014 continuing to buy at $57+ would be value-destructive."
+threshold: Buyback average purchase price exceeds $55 USD while FCF payout ratio stays
+  above 80%
+filing_types:
+- 40-F
+- 6-K

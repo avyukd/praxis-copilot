@@ -1,0 +1,14 @@
+id: hmr-v-hmrv-quarterly-financials-revenue-trajectory-and-c
+type: filing
+tickers:
+- HMR.V
+description: 'Monitor SEDAR+ filings for quarterly/annual financial statements. Track:
+  (1) commercial revenue vs grant income split, (2) cash balance and working capital,
+  (3) operating cash burn rate, (4) share count and dilution from Sorbie/warrant settlements.'
+extract: 'Monitor SEDAR+ filings for quarterly/annual financial statements. Track:
+  (1) commercial revenue vs grant income split, (2) cash balance and working capital,
+  (3) operating cash burn rate, (4) share count and dilution from Sorbie/warrant settlements.'
+threshold: Commercial revenue exceeding C$500K/quarter or cash dropping below C$1M
+filing_types:
+- 10-Q
+- 10-K

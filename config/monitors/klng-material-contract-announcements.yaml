@@ -1,0 +1,13 @@
+id: klng-material-contract-announcements
+type: filing
+tickers:
+- KLNG
+description: Monitor 8-K filings for new contract awards, especially from Brazil operations
+  or large fixed-price manufacturing contracts. Jan 2026 'significant contract' for
+  integrated SDS is the precedent.
+extract: Monitor 8-K filings for new contract awards, especially from Brazil operations
+  or large fixed-price manufacturing contracts. Jan 2026 'significant contract' for
+  integrated SDS is the precedent.
+threshold: Any single contract exceeding $3M or first identified Brazil-sourced contract
+filing_types:
+- 8-K

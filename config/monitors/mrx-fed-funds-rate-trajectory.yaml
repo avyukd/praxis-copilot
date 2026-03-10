@@ -1,0 +1,11 @@
+id: mrx-fed-funds-rate-trajectory
+type: scraper
+tickers:
+- MRX
+description: Track CME FedWatch tool for implied probability of rate cuts. Each 25bps
+  cut compresses MRX NII by estimated $15-25M annually.
+extract: Track CME FedWatch tool for implied probability of rate cuts. Each 25bps
+  cut compresses MRX NII by estimated $15-25M annually.
+threshold: Implied probability of 3+ cuts in next 12 months exceeds 60%
+cadence: 1d
+source_url: https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html

@@ -1,0 +1,14 @@
+id: iehc-boeing-737-max-production-rate
+type: scraper
+tickers:
+- IEHC
+description: Monitor Boeing's monthly delivery data for 737 MAX production rates.
+  IEH supplies connectors for commercial aerospace programs; Boeing recovery from
+  38/month toward 47-63/month is a meaningful revenue driver starting FY2027.
+extract: Monitor Boeing's monthly delivery data for 737 MAX production rates. IEH
+  supplies connectors for commercial aerospace programs; Boeing recovery from 38/month
+  toward 47-63/month is a meaningful revenue driver starting FY2027.
+threshold: 737 MAX production exceeds 47/month (bull case activating) OR drops below
+  30/month (headwind)
+cadence: 1d
+source_url: https://www.boeing.com/commercial/orders-deliveries
