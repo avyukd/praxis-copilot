@@ -44,6 +44,7 @@ class AlertType(str, Enum):
     TARGET_REACHED = "target_reached"
     ENTRY_OPPORTUNITY = "entry_opportunity"
     EXIT_SIGNAL = "exit_signal"
+    OPTIONS_LARGE_BET = "options_large_bet"
 
 
 class Severity(str, Enum):
@@ -100,6 +101,8 @@ class IntradayState(BaseModel):
 
     date: str = ""  # YYYY-MM-DD, auto-resets when date changes
     tickers: dict[str, IntradayTickerState] = Field(default_factory=dict)
+    # Options flow dedup: set of contract keys ("TICKER:STRIKE:TYPE:EXP") already alerted today
+    options_alerts_fired: set[str] = Field(default_factory=set)
 
 
 class ManageResult(BaseModel):

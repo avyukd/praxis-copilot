@@ -21,7 +21,16 @@ from botocore.exceptions import ClientError
 
 from .alerts import store_alerts
 from .intraday import run_all_checks
-from .models import Alert, IntradayTickerState, ManageConfig, ManageResult, PriceData
+from .models import (
+    Alert,
+    AlertType,
+    IntradayState,
+    IntradayTickerState,
+    ManageConfig,
+    ManageResult,
+    PriceData,
+    Severity,
+)
 from .price import fetch_price_data_batch
 from .state import load_intraday_state, save_intraday_state
 from .thresholds import load_manage_config, load_valuation_anchors
@@ -113,6 +122,66 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         return ManageResult(mode=mode, errors=[f"Unknown mode: {mode}"]).model_dump()
 
 
+def _scan_options_flow(
+    tickers: list[str],
+    intraday_state: IntradayState,
+) -> list[Alert]:
+    """Scan options flow for large bets, dedup against today's state."""
+    from cli.options_flow import (
+        AlertType as OptAlertType,
+        fetch_options_chain,
+        scan_ticker,
+    )
+    import time as _time
+
+    api_key = os.environ.get("EODHD_API_KEY", "").strip()
+    if not api_key:
+        logger.warning("EODHD_API_KEY not set, skipping options flow scan")
+        return []
+
+    alerts: list[Alert] = []
+    now = datetime.now(timezone.utc)
+
+    for i, ticker in enumerate(tickers):
+        try:
+            data = fetch_options_chain(ticker, api_key)
+            opt_alerts = scan_ticker(data)
+        except Exception as e:
+            logger.debug("Options fetch failed for %s: %s", ticker, e)
+            if i < len(tickers) - 1:
+                _time.sleep(0.15)
+            continue
+
+        for oa in opt_alerts:
+            if oa.alert_type != OptAlertType.large_bet:
+                continue
+
+            # Dedup key: TICKER:detail_prefix (strike+type+exp)
+            dedup_key = f"{ticker}:{oa.detail.split('vol=')[0].strip()}"
+            if dedup_key in intraday_state.options_alerts_fired:
+                continue
+            intraday_state.options_alerts_fired.add(dedup_key)
+
+            alerts.append(Alert(
+                ticker=ticker,
+                timestamp=now,
+                alert_type=AlertType.OPTIONS_LARGE_BET,
+                severity=Severity.HIGH if oa.notional >= 5_000_000 else Severity.MEDIUM,
+                details={
+                    "contract": oa.detail,
+                    "notional": oa.notional_display,
+                    "dte": oa.dte_display,
+                    "smart_money_score": oa.score,
+                },
+            ))
+
+        if i < len(tickers) - 1:
+            _time.sleep(0.15)
+
+    logger.info("Options flow scan: %d large bet alerts across %d tickers", len(alerts), len(tickers))
+    return alerts
+
+
 def _handle_intraday() -> dict[str, Any]:
     """Intraday pass: stateful threshold checks with batch price fetching."""
     s3 = _get_s3_client()
@@ -163,6 +232,15 @@ def _handle_intraday() -> dict[str, Any]:
             msg = f"Error checking {ticker}: {e}"
             logger.error(msg)
             errors.append(msg)
+
+    # Options flow scan (large bets only, with dedup)
+    try:
+        options_alerts = _scan_options_flow(tickers, intraday_state)
+        all_alerts.extend(options_alerts)
+    except Exception as e:
+        msg = f"Options flow scan error: {e}"
+        logger.error(msg)
+        errors.append(msg)
 
     # Persist state, store alerts, notify
     try:
