@@ -71,6 +71,8 @@ LEGACY_RULES=(
   "8k-scanner-poller-cron"
   "8k-scanner-ca-poller-cron"
   "8k-scanner-us-gnw-poller-cron"
+  "praxis-monitor-daily"
+  "praxis-news-scanner-hourly"
 )
 
 echo "=== Account: ${ACCOUNT_ID}, Region: ${REGION}, Bucket: ${S3_BUCKET} ==="
