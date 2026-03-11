@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
+import subprocess
+import sys
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -136,10 +141,19 @@ def _fetch_filing_analyses(s3, ticker: str) -> str | None:
             obj = s3.get_object(Bucket=BUCKET, Key=key)
             data = json.loads(obj["Body"].read())
             form_type = data.get("form_type", "?")
-            significance = data.get("significance", "unknown")
-            summary = data.get("summary", data.get("analysis", ""))
+            significance = data.get("significance") or data.get("classification", "unknown")
+            summary = (
+                data.get("summary")
+                or data.get("new_information")
+                or data.get("analysis", "")
+            )
             if summary:
-                analyses.append(f"**{form_type}** (significance: {significance})\n{summary[:1500]}")
+                entry = f"**{form_type}** (significance: {significance})\n"
+                materiality = data.get("materiality", "")
+                if materiality:
+                    entry += f"Materiality: {materiality[:500]}\n"
+                entry += summary[:1500]
+                analyses.append(entry)
         except Exception:
             continue
 
@@ -149,32 +163,57 @@ def _fetch_filing_analyses(s3, ticker: str) -> str | None:
     return f"### Recent Filing Analyses for {ticker}\n\n" + "\n\n".join(analyses)
 
 
+def _ticker_variants(ticker: str) -> list[str]:
+    """Return ticker variants to search for in S3 (e.g. GPAC.V -> [GPAC.V, GPAC])."""
+    upper = ticker.upper()
+    variants = [upper]
+    # TSXV/TSX tickers: GPAC.V -> GPAC, ENA.TO -> ENA
+    base, _, _suffix = upper.partition(".")
+    if base and base != upper:
+        variants.append(base)
+    return variants
+
+
+PR_SOURCES = ("gnw", "bw", "prn", "newsfile")
+
+
 def _fetch_press_release_analyses(s3, ticker: str) -> str | None:
     """Fetch recent press release analyses for a ticker."""
     # Press releases are stored under data/raw/press_releases/{source}/{ticker}/
     analyses: list[str] = []
+    variants = _ticker_variants(ticker)
 
-    for source in ("gnw", "bw", "prn"):
-        prefix = f"{PRESS_RELEASES_PREFIX}/{source}/{ticker.upper()}/"
-        keys = list_prefix(s3, prefix)
-        analysis_keys = sorted(
-            [k for k in keys if k.endswith("/analysis.json")],
-            reverse=True,
-        )[:3]
+    for source in PR_SOURCES:
+        for variant in variants:
+            prefix = f"{PRESS_RELEASES_PREFIX}/{source}/{variant}/"
+            keys = list_prefix(s3, prefix)
+            analysis_keys = sorted(
+                [k for k in keys if k.endswith("/analysis.json")],
+                reverse=True,
+            )[:3]
 
-        for key in analysis_keys:
-            try:
-                obj = s3.get_object(Bucket=BUCKET, Key=key)
-                data = json.loads(obj["Body"].read())
-                significance = data.get("significance", "unknown")
-                summary = data.get("summary", data.get("analysis", ""))
-                headline = data.get("headline", data.get("title", ""))
-                if summary:
-                    entry = f"**{headline}** (significance: {significance})" if headline else f"(significance: {significance})"
-                    entry += f"\n{summary[:1500]}"
-                    analyses.append(entry)
-            except Exception:
-                continue
+            for key in analysis_keys:
+                try:
+                    obj = s3.get_object(Bucket=BUCKET, Key=key)
+                    data = json.loads(obj["Body"].read())
+                    # Support both old format (summary/significance/headline) and
+                    # new format (new_information/classification/materiality)
+                    summary = (
+                        data.get("summary")
+                        or data.get("new_information")
+                        or data.get("analysis", "")
+                    )
+                    significance = data.get("significance") or data.get("classification", "unknown")
+                    headline = data.get("headline") or data.get("title", "")
+                    if summary:
+                        entry = f"**{headline}** (significance: {significance})" if headline else f"(significance: {significance})"
+                        materiality = data.get("materiality", "")
+                        if materiality:
+                            entry += f"\nMateriality: {materiality[:500]}"
+                        entry += f"\n{summary[:1500]}"
+                        analyses.append(entry)
+                except Exception:
+                    continue
 
     if not analyses:
         return None
@@ -210,3 +249,83 @@ def write_prompt_file(workspace: Path, prompt: str) -> Path:
     prompt_path = workspace / ".research-prompt.txt"
     prompt_path.write_text(prompt)
     return prompt_path
+
+
+# ---------------------------------------------------------------------------
+# Session launcher
+# ---------------------------------------------------------------------------
+
+def _find_claude() -> str:
+    """Resolve the claude binary path."""
+    found = shutil.which("claude")
+    if found:
+        return found
+    local_bin = Path.home() / ".local" / "bin" / "claude"
+    if local_bin.exists():
+        return str(local_bin)
+    raise FileNotFoundError("Could not find 'claude' binary on PATH or ~/.local/bin/claude")
+
+
+def _run_session(
+    claude_bin: str,
+    ticker: str,
+    prompt: str,
+    session_id: str,
+    workspace: Path,
+) -> tuple[str, str, bool, str]:
+    """Run a single Claude session. Returns (ticker, session_id, success, output)."""
+    env = os.environ.copy()
+    env.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    env.pop("CLAUDECODE", None)
+
+    try:
+        result = subprocess.run(
+            [claude_bin, "-p", prompt, "--allowedTools", "*", "--session-id", session_id],
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        output = result.stdout + result.stderr
+        return (ticker, session_id, result.returncode == 0, output)
+    except Exception as e:
+        return (ticker, session_id, False, str(e))
+
+
+def launch_sessions(
+    sessions: list[tuple[str, Path, str]],
+    max_parallel: int = 4,
+    on_status: Any = None,
+    session_map: dict[str, str] | None = None,
+) -> tuple[list[tuple[str, str, bool, str]], dict[str, str]]:
+    """Launch Claude sessions in parallel.
+
+    Args:
+        sessions: List of (ticker, workspace, prompt) tuples.
+        max_parallel: Max concurrent sessions.
+        on_status: Optional callback(ticker, session_id, success) called as each finishes.
+        session_map: Optional pre-built {ticker: session_id} map. Generated if not provided.
+
+    Returns:
+        Tuple of (results list, session_map). Results are (ticker, session_id, success, output).
+    """
+    claude_bin = _find_claude()
+
+    if session_map is None:
+        session_map = {ticker: str(uuid.uuid4()) for ticker, _, _ in sessions}
+
+    results: list[tuple[str, str, bool, str]] = []
+    with ThreadPoolExecutor(max_workers=max_parallel) as pool:
+        futures = {
+            pool.submit(
+                _run_session, claude_bin, ticker, prompt, session_map[ticker], workspace
+            ): ticker
+            for ticker, workspace, prompt in sessions
+        }
+        for future in as_completed(futures):
+            ticker, sid, success, output = future.result()
+            if on_status:
+                on_status(ticker, sid, success)
+            results.append((ticker, sid, success, output))
+
+    return results, session_map

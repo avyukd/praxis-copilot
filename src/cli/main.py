@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -36,7 +37,7 @@ from cli.pipeline_status import (
     summarize_pipeline_items,
 )
 from cli.research_prompt import ResearchBudget, generate_research_prompt
-from cli.research_run import build_run_prompt, fetch_tactical_context, write_prompt_file
+from cli.research_run import build_run_prompt, fetch_tactical_context, launch_sessions, write_prompt_file
 from cli.s3 import (
     BUCKET,
     download_file,
@@ -1057,11 +1058,12 @@ def research_sync(tickers: tuple[str, ...]):
 @research.command("run")
 @click.argument("tickers", nargs=-1, required=True)
 @click.option("--tactical", is_flag=True, help="Pull latest alerts/analyses and add tactical overlay")
-def research_run(tickers: tuple[str, ...], tactical: bool):
-    """Prepare Claude Code research sessions for TICKER(s).
+@click.option("--max-parallel", type=int, default=4, help="Max concurrent Claude sessions (default: 4)")
+def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int):
+    """Launch Claude Code research sessions for TICKER(s) in parallel.
 
-    Writes the initial prompt to each workspace, then prints launch
-    commands. Run them in separate terminals for parallel research.
+    Starts Claude sessions in each ticker's workspace, running them
+    concurrently. Session IDs are printed upfront for resumability.
 
     Default mode: analyze using CLAUDE.md process with ingested data.
     With --tactical: pulls latest monitor snapshots, filing analyses,
@@ -1071,9 +1073,10 @@ def research_run(tickers: tuple[str, ...], tactical: bool):
     Examples:
       praxis research run BNTC
       praxis research run BNTC TROX LBRT --tactical
+      praxis research run BNTC TROX --max-parallel 2
     """
     repo_root = find_repo_root()
-    ready: list[tuple[str, Path]] = []
+    sessions: list[tuple[str, Path, str]] = []
 
     for raw_ticker in tickers:
         ticker = raw_ticker.upper()
@@ -1094,17 +1097,36 @@ def research_run(tickers: tuple[str, ...], tactical: bool):
 
         prompt = build_run_prompt(ticker, tactical, tactical_context)
         write_prompt_file(workspace, prompt)
-        ready.append((ticker, workspace))
+        sessions.append((ticker, workspace, prompt))
 
-    if not ready:
+    if not sessions:
         return
 
-    click.echo(f"\n{'='*40}")
-    click.echo(f"Ready to launch {len(ready)} session(s):\n")
-    for ticker, workspace in ready:
-        prompt_file = workspace / ".research-prompt.txt"
-        click.echo(f'  cd {workspace} && cat {prompt_file.name} | claude')
-    click.echo(f"\nResume any session later: cd workspace/TICKER && claude --resume")
+    # Build session map and print IDs upfront for resumability
+    session_map = {ticker: str(uuid.uuid4()) for ticker, _, _ in sessions}
+
+    click.echo(f"\nLaunching {len(sessions)} session(s), {max_parallel} at a time\n")
+    for ticker, _, _ in sessions:
+        click.echo(f"  {ticker}: {session_map[ticker]}")
+    click.echo()
+
+    # Launch sessions
+    def on_status(ticker: str, sid: str, success: bool) -> None:
+        status = "done" if success else "FAILED"
+        click.echo(f"[{ticker}] {status}")
+
+    results, _ = launch_sessions(
+        sessions, max_parallel=max_parallel, on_status=on_status,
+        session_map=session_map,
+    )
+
+    # Summary table
+    click.echo(f"\n{'Ticker':<12} {'Status':<10} {'Session ID'}")
+    click.echo("-" * 64)
+    for ticker, sid, success, _ in sorted(results):
+        status = "OK" if success else "FAIL"
+        click.echo(f"{ticker:<12} {status:<10} {sid}")
+    click.echo(f"\nResume: cd workspace/TICKER && claude --resume <session-id>")
 
 
 # ---------------------------------------------------------------------------

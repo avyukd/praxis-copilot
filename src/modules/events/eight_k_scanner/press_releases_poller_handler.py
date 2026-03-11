@@ -143,7 +143,6 @@ def _save_last_seen(last_seen: dict) -> None:
 def _process_us_gnw_releases() -> dict[str, int]:
     last_seen = _load_last_seen()
     all_releases = poll_gnw(GNW_US_FEEDS)
-    all_releases = [r for r in all_releases if r.exchange in ("NYSE", "NASDAQ")]
 
     new_releases: list[PressRelease] = []
     newest_ids: dict[str, str] = dict(last_seen) if last_seen else {}
