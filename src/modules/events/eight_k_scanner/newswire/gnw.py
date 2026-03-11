@@ -15,13 +15,14 @@ logger = logging.getLogger(__name__)
 
 USER_AGENT = "PraxisCopilot/1.0"
 
+# Pattern for body text: (Nasdaq: SHMD), (NYSE: FOO), etc.
 TICKER_RE = re.compile(
     r"\((?P<exchange>TSX|TSXV|TSX-V|NYSE|NASDAQ)\s*:\s*(?P<ticker>[A-Za-z][A-Za-z0-9.]*)\)",
     re.IGNORECASE,
 )
 
-# Looser pattern for HTML meta tags: "Nasdaq:MTSI" (no parens, no space)
-META_TICKER_RE = re.compile(
+# Looser pattern for RSS <category> and HTML meta tags: "Nasdaq:MTSI" (no parens)
+STOCK_TAG_RE = re.compile(
     r"(?P<exchange>TSX|TSXV|TSX-V|NYSE|NASDAQ)\s*:\s*(?P<ticker>[A-Za-z][A-Za-z0-9.]*)",
     re.IGNORECASE,
 )
@@ -30,7 +31,6 @@ META_TICKER_RE = re.compile(
 def poll_gnw(feed_urls: list[str]) -> list[PressRelease]:
     releases: list[PressRelease] = []
     for url in feed_urls:
-        # Infer exchange from feed URL (e.g. .../exchange/NASDAQ)
         feed_exchange = _exchange_from_feed_url(url)
         try:
             resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
@@ -64,15 +64,13 @@ def _parse_rss(xml_text: str, feed_exchange: str = "") -> list[PressRelease]:
         if not release_id:
             continue
 
-        ticker, exchange = _extract_ticker(title + " " + description)
+        # Primary: use structured <category domain=".../rss/stock"> tag from RSS.
+        # GNW provides "Exchange:TICKER" here for every item — no HTTP fetch needed.
+        ticker, exchange = _extract_ticker_from_category(item)
 
-        # If RSS fields didn't contain the ticker, try fetching the full page.
-        # The (Exchange: TICKER) tag is often only in the article body or HTML meta tags.
-        if not ticker and link:
-            try:
-                ticker, exchange = _extract_ticker_from_page(link)
-            except Exception:
-                logger.debug("Failed to fetch page for ticker extraction: %s", link)
+        # Fallback: try title + description text (parenthesized format)
+        if not ticker:
+            ticker, exchange = _extract_ticker(title + " " + description)
 
         # Use feed-level exchange as fallback (we know the feed is exchange-specific)
         if not exchange and feed_exchange:
@@ -98,6 +96,21 @@ def _parse_rss(xml_text: str, feed_exchange: str = "") -> list[PressRelease]:
     return items
 
 
+def _extract_ticker_from_category(item: ET.Element) -> tuple[str, str]:
+    """Extract ticker from RSS <category domain=".../rss/stock">Nasdaq:TICKER</category>."""
+    for cat in item.findall("category"):
+        domain = cat.get("domain", "")
+        if "rss/stock" in domain and cat.text:
+            match = STOCK_TAG_RE.search(cat.text)
+            if match:
+                exchange = match.group("exchange").upper()
+                ticker = match.group("ticker").upper()
+                if exchange == "TSX-V":
+                    exchange = "TSXV"
+                return ticker, exchange
+    return "", ""
+
+
 def _extract_release_id(url: str) -> str:
     parts = url.split("/")
     for i, part in enumerate(parts):
@@ -116,39 +129,6 @@ def _extract_ticker(text: str) -> tuple[str, str]:
         if exchange == "TSX-V":
             exchange = "TSXV"
         return ticker, exchange
-    return "", ""
-
-
-def _extract_ticker_from_page(url: str) -> tuple[str, str]:
-    """Fetch a GNW page and extract ticker from body text or HTML meta tags."""
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "lxml")
-
-    # Try meta keywords first (e.g. <meta name="keywords" content="Nasdaq:MTSI, ...">)
-    # Uses looser regex since meta tags don't have parentheses
-    meta_kw = soup.find("meta", attrs={"name": "keywords"})
-    if meta_kw and meta_kw.get("content"):
-        match = META_TICKER_RE.search(meta_kw["content"])
-        if match:
-            exchange = match.group("exchange").upper()
-            ticker = match.group("ticker").upper()
-            if exchange == "TSX-V":
-                exchange = "TSXV"
-            return ticker, exchange
-
-    # Try body text
-    body = (
-        soup.find("div", class_="main-body-container")
-        or soup.find("article")
-        or soup.find("div", id="main-body-container")
-    )
-    if body:
-        text = body.get_text(separator=" ", strip=True)[:5000]
-        ticker, exchange = _extract_ticker(text)
-        if ticker:
-            return ticker, exchange
-
     return "", ""
 
 
