@@ -20,21 +20,38 @@ TICKER_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Looser pattern for HTML meta tags: "Nasdaq:MTSI" (no parens, no space)
+META_TICKER_RE = re.compile(
+    r"(?P<exchange>TSX|TSXV|TSX-V|NYSE|NASDAQ)\s*:\s*(?P<ticker>[A-Za-z][A-Za-z0-9.]*)",
+    re.IGNORECASE,
+)
+
 
 def poll_gnw(feed_urls: list[str]) -> list[PressRelease]:
     releases: list[PressRelease] = []
     for url in feed_urls:
+        # Infer exchange from feed URL (e.g. .../exchange/NASDAQ)
+        feed_exchange = _exchange_from_feed_url(url)
         try:
             resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
             resp.raise_for_status()
-            items = _parse_rss(resp.text)
+            items = _parse_rss(resp.text, feed_exchange=feed_exchange)
             releases.extend(items)
         except Exception:
             logger.exception(f"Failed to fetch GNW feed: {url}")
     return releases
 
 
-def _parse_rss(xml_text: str) -> list[PressRelease]:
+def _exchange_from_feed_url(url: str) -> str:
+    """Extract exchange name from a GNW feed URL like .../RssFeed/exchange/NASDAQ."""
+    parts = url.rstrip("/").split("/")
+    for i, part in enumerate(parts):
+        if part.lower() == "exchange" and i + 1 < len(parts):
+            return parts[i + 1].upper()
+    return ""
+
+
+def _parse_rss(xml_text: str, feed_exchange: str = "") -> list[PressRelease]:
     items: list[PressRelease] = []
     root = ET.fromstring(xml_text)
     for item in root.iter("item"):
@@ -48,6 +65,18 @@ def _parse_rss(xml_text: str) -> list[PressRelease]:
             continue
 
         ticker, exchange = _extract_ticker(title + " " + description)
+
+        # If RSS fields didn't contain the ticker, try fetching the full page.
+        # The (Exchange: TICKER) tag is often only in the article body or HTML meta tags.
+        if not ticker and link:
+            try:
+                ticker, exchange = _extract_ticker_from_page(link)
+            except Exception:
+                logger.debug("Failed to fetch page for ticker extraction: %s", link)
+
+        # Use feed-level exchange as fallback (we know the feed is exchange-specific)
+        if not exchange and feed_exchange:
+            exchange = feed_exchange
 
         published_at = ""
         if pub_date:
@@ -87,6 +116,39 @@ def _extract_ticker(text: str) -> tuple[str, str]:
         if exchange == "TSX-V":
             exchange = "TSXV"
         return ticker, exchange
+    return "", ""
+
+
+def _extract_ticker_from_page(url: str) -> tuple[str, str]:
+    """Fetch a GNW page and extract ticker from body text or HTML meta tags."""
+    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=20)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "lxml")
+
+    # Try meta keywords first (e.g. <meta name="keywords" content="Nasdaq:MTSI, ...">)
+    # Uses looser regex since meta tags don't have parentheses
+    meta_kw = soup.find("meta", attrs={"name": "keywords"})
+    if meta_kw and meta_kw.get("content"):
+        match = META_TICKER_RE.search(meta_kw["content"])
+        if match:
+            exchange = match.group("exchange").upper()
+            ticker = match.group("ticker").upper()
+            if exchange == "TSX-V":
+                exchange = "TSXV"
+            return ticker, exchange
+
+    # Try body text
+    body = (
+        soup.find("div", class_="main-body-container")
+        or soup.find("article")
+        or soup.find("div", id="main-body-container")
+    )
+    if body:
+        text = body.get_text(separator=" ", strip=True)[:5000]
+        ticker, exchange = _extract_ticker(text)
+        if ticker:
+            return ticker, exchange
+
     return "", ""
 
 
