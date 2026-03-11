@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
+import subprocess
+import sys
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -210,3 +215,83 @@ def write_prompt_file(workspace: Path, prompt: str) -> Path:
     prompt_path = workspace / ".research-prompt.txt"
     prompt_path.write_text(prompt)
     return prompt_path
+
+
+# ---------------------------------------------------------------------------
+# Session launcher
+# ---------------------------------------------------------------------------
+
+def _find_claude() -> str:
+    """Resolve the claude binary path."""
+    found = shutil.which("claude")
+    if found:
+        return found
+    local_bin = Path.home() / ".local" / "bin" / "claude"
+    if local_bin.exists():
+        return str(local_bin)
+    raise FileNotFoundError("Could not find 'claude' binary on PATH or ~/.local/bin/claude")
+
+
+def _run_session(
+    claude_bin: str,
+    ticker: str,
+    prompt: str,
+    session_id: str,
+    workspace: Path,
+) -> tuple[str, str, bool, str]:
+    """Run a single Claude session. Returns (ticker, session_id, success, output)."""
+    env = os.environ.copy()
+    env.pop("CLAUDE_CODE_ENTRYPOINT", None)
+    env.pop("CLAUDECODE", None)
+
+    try:
+        result = subprocess.run(
+            [claude_bin, "-p", prompt, "--allowedTools", "*", "--session-id", session_id],
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        output = result.stdout + result.stderr
+        return (ticker, session_id, result.returncode == 0, output)
+    except Exception as e:
+        return (ticker, session_id, False, str(e))
+
+
+def launch_sessions(
+    sessions: list[tuple[str, Path, str]],
+    max_parallel: int = 4,
+    on_status: Any = None,
+    session_map: dict[str, str] | None = None,
+) -> tuple[list[tuple[str, str, bool, str]], dict[str, str]]:
+    """Launch Claude sessions in parallel.
+
+    Args:
+        sessions: List of (ticker, workspace, prompt) tuples.
+        max_parallel: Max concurrent sessions.
+        on_status: Optional callback(ticker, session_id, success) called as each finishes.
+        session_map: Optional pre-built {ticker: session_id} map. Generated if not provided.
+
+    Returns:
+        Tuple of (results list, session_map). Results are (ticker, session_id, success, output).
+    """
+    claude_bin = _find_claude()
+
+    if session_map is None:
+        session_map = {ticker: str(uuid.uuid4()) for ticker, _, _ in sessions}
+
+    results: list[tuple[str, str, bool, str]] = []
+    with ThreadPoolExecutor(max_workers=max_parallel) as pool:
+        futures = {
+            pool.submit(
+                _run_session, claude_bin, ticker, prompt, session_map[ticker], workspace
+            ): ticker
+            for ticker, workspace, prompt in sessions
+        }
+        for future in as_completed(futures):
+            ticker, sid, success, output = future.result()
+            if on_status:
+                on_status(ticker, sid, success)
+            results.append((ticker, sid, success, output))
+
+    return results, session_map
