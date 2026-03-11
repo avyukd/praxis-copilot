@@ -141,10 +141,19 @@ def _fetch_filing_analyses(s3, ticker: str) -> str | None:
             obj = s3.get_object(Bucket=BUCKET, Key=key)
             data = json.loads(obj["Body"].read())
             form_type = data.get("form_type", "?")
-            significance = data.get("significance", "unknown")
-            summary = data.get("summary", data.get("analysis", ""))
+            significance = data.get("significance") or data.get("classification", "unknown")
+            summary = (
+                data.get("summary")
+                or data.get("new_information")
+                or data.get("analysis", "")
+            )
             if summary:
-                analyses.append(f"**{form_type}** (significance: {significance})\n{summary[:1500]}")
+                entry = f"**{form_type}** (significance: {significance})\n"
+                materiality = data.get("materiality", "")
+                if materiality:
+                    entry += f"Materiality: {materiality[:500]}\n"
+                entry += summary[:1500]
+                analyses.append(entry)
         except Exception:
             continue
 
@@ -154,32 +163,57 @@ def _fetch_filing_analyses(s3, ticker: str) -> str | None:
     return f"### Recent Filing Analyses for {ticker}\n\n" + "\n\n".join(analyses)
 
 
+def _ticker_variants(ticker: str) -> list[str]:
+    """Return ticker variants to search for in S3 (e.g. GPAC.V -> [GPAC.V, GPAC])."""
+    upper = ticker.upper()
+    variants = [upper]
+    # TSXV/TSX tickers: GPAC.V -> GPAC, ENA.TO -> ENA
+    base, _, _suffix = upper.partition(".")
+    if base and base != upper:
+        variants.append(base)
+    return variants
+
+
+PR_SOURCES = ("gnw", "bw", "prn", "newsfile")
+
+
 def _fetch_press_release_analyses(s3, ticker: str) -> str | None:
     """Fetch recent press release analyses for a ticker."""
     # Press releases are stored under data/raw/press_releases/{source}/{ticker}/
     analyses: list[str] = []
+    variants = _ticker_variants(ticker)
 
-    for source in ("gnw", "bw", "prn"):
-        prefix = f"{PRESS_RELEASES_PREFIX}/{source}/{ticker.upper()}/"
-        keys = list_prefix(s3, prefix)
-        analysis_keys = sorted(
-            [k for k in keys if k.endswith("/analysis.json")],
-            reverse=True,
-        )[:3]
+    for source in PR_SOURCES:
+        for variant in variants:
+            prefix = f"{PRESS_RELEASES_PREFIX}/{source}/{variant}/"
+            keys = list_prefix(s3, prefix)
+            analysis_keys = sorted(
+                [k for k in keys if k.endswith("/analysis.json")],
+                reverse=True,
+            )[:3]
 
-        for key in analysis_keys:
-            try:
-                obj = s3.get_object(Bucket=BUCKET, Key=key)
-                data = json.loads(obj["Body"].read())
-                significance = data.get("significance", "unknown")
-                summary = data.get("summary", data.get("analysis", ""))
-                headline = data.get("headline", data.get("title", ""))
-                if summary:
-                    entry = f"**{headline}** (significance: {significance})" if headline else f"(significance: {significance})"
-                    entry += f"\n{summary[:1500]}"
-                    analyses.append(entry)
-            except Exception:
-                continue
+            for key in analysis_keys:
+                try:
+                    obj = s3.get_object(Bucket=BUCKET, Key=key)
+                    data = json.loads(obj["Body"].read())
+                    # Support both old format (summary/significance/headline) and
+                    # new format (new_information/classification/materiality)
+                    summary = (
+                        data.get("summary")
+                        or data.get("new_information")
+                        or data.get("analysis", "")
+                    )
+                    significance = data.get("significance") or data.get("classification", "unknown")
+                    headline = data.get("headline") or data.get("title", "")
+                    if summary:
+                        entry = f"**{headline}** (significance: {significance})" if headline else f"(significance: {significance})"
+                        materiality = data.get("materiality", "")
+                        if materiality:
+                            entry += f"\nMateriality: {materiality[:500]}"
+                        entry += f"\n{summary[:1500]}"
+                        analyses.append(entry)
+                except Exception:
+                    continue
 
     if not analyses:
         return None
