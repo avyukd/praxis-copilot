@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 USER_AGENT = "PraxisCopilot/1.0"
 
 TICKER_RE = re.compile(
-    r"\((?P<exchange>TSX|TSXV|TSX-V|NYSE|NASDAQ)\s*:\s*(?P<ticker>[A-Z][A-Z0-9.]*)\)"
+    r"\((?P<exchange>TSX|TSXV|TSX-V|NYSE|NASDAQ)\s*:\s*(?P<ticker>[A-Za-z][A-Za-z0-9.]*)\)",
+    re.IGNORECASE,
 )
 
 
@@ -81,8 +82,8 @@ def _extract_release_id(url: str) -> str:
 def _extract_ticker(text: str) -> tuple[str, str]:
     match = TICKER_RE.search(text)
     if match:
-        exchange = match.group("exchange")
-        ticker = match.group("ticker")
+        exchange = match.group("exchange").upper()
+        ticker = match.group("ticker").upper()
         if exchange == "TSX-V":
             exchange = "TSXV"
         return ticker, exchange
