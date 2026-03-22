@@ -175,7 +175,7 @@ def universe_add(tickers: tuple[str, ...], priority: int):
     added = []
 
     for raw_ticker in tickers:
-        ticker = raw_ticker.upper()
+        ticker = raw_ticker.strip("/").upper()
         click.echo(f"\n{'='*40}")
         click.echo(f"Processing {ticker}...")
 
@@ -252,7 +252,7 @@ def universe_add(tickers: tuple[str, ...], priority: int):
 @click.argument("ticker")
 def universe_remove(ticker: str):
     """Remove TICKER from the investment universe."""
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     config_dir = get_config_dir()
 
     universe_path = config_dir / "universe.yaml"
@@ -335,7 +335,7 @@ def stage(tickers: tuple[str, ...]):
 
     staged = []
     for raw_ticker in tickers:
-        ticker = raw_ticker.upper()
+        ticker = raw_ticker.strip("/").upper()
         click.echo(f"\n{'='*40}")
         click.echo(f"Staging {ticker}...")
 
@@ -542,7 +542,7 @@ def status():
 @click.option("-n", "--limit", default=10, help="Number of recent events to show")
 def events(ticker: str, limit: int):
     """List recent 8k-scanner results for TICKER."""
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     s3 = get_s3_client()
 
     # Load ticker registry to get CIK
@@ -909,7 +909,7 @@ def research_show(ticker: str, file: str | None):
         praxis research show NVDA memo.md | glow
         praxis research show NVDA memo.yaml | less
     """
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     s3 = get_s3_client()
 
     if file:
@@ -950,7 +950,7 @@ def research_pull(ticker: str):
     Downloads memo, specialist reports, and draft_monitors — everything
     except raw ingested data. After editing, run praxis sync TICKER to push back.
     """
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     s3 = get_s3_client()
     prefix = f"data/research/{ticker}/"
 
@@ -1003,7 +1003,7 @@ def research_sync(tickers: tuple[str, ...]):
         click.echo(f"Syncing all {len(tickers)} workspace(s): {', '.join(tickers)}\n")
 
     for ticker in tickers:
-        ticker = ticker.upper()
+        ticker = ticker.strip("/").upper()
         local_dir = repo_root / "workspace" / ticker
 
         if not local_dir.exists():
@@ -1079,7 +1079,7 @@ def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int):
     sessions: list[tuple[str, Path, str]] = []
 
     for raw_ticker in tickers:
-        ticker = raw_ticker.upper()
+        ticker = raw_ticker.strip("/").upper()
         workspace = repo_root / "workspace" / ticker
 
         if not workspace.exists() or not (workspace / "CLAUDE.md").exists():
@@ -1123,9 +1123,16 @@ def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int):
     # Summary table
     click.echo(f"\n{'Ticker':<12} {'Status':<10} {'Session ID'}")
     click.echo("-" * 64)
-    for ticker, sid, success, _ in sorted(results):
+    for ticker, sid, success, output in sorted(results):
         status = "OK" if success else "FAIL"
         click.echo(f"{ticker:<12} {status:<10} {sid}")
+        if not success and output:
+            # Show last 20 lines of output for failed sessions
+            lines = output.strip().splitlines()
+            tail = lines[-20:] if len(lines) > 20 else lines
+            click.echo(f"  Error output:")
+            for line in tail:
+                click.echo(f"    {line}")
     click.echo(f"\nResume: cd workspace/TICKER && claude --resume <session-id>")
 
 
@@ -1227,7 +1234,7 @@ def supplement_add(ticker: str, file_path: str | None, url: str | None, name: st
     Supplements land in S3 under data/research/{ticker}/data/supplements/
     and are pulled into the workspace by `praxis stage`.
     """
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     s3 = get_s3_client()
 
     if file_path and url:
@@ -1321,7 +1328,7 @@ def supplement_add(ticker: str, file_path: str | None, url: str | None, name: st
 @click.argument("ticker")
 def supplement_list(ticker: str):
     """List supplements for TICKER."""
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     s3 = get_s3_client()
 
     prefix = f"data/research/{ticker}/data/supplements/"
@@ -1343,7 +1350,7 @@ def supplement_list(ticker: str):
 @click.argument("filename")
 def supplement_remove(ticker: str, filename: str):
     """Remove a supplement from TICKER."""
-    ticker = ticker.upper()
+    ticker = ticker.strip("/").upper()
     s3 = get_s3_client()
 
     s3_key = f"data/research/{ticker}/data/supplements/{filename}"
