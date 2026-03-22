@@ -40,9 +40,10 @@ def run_ingestion(
         try:
             sections = ingest_sec_filings(cik, ticker)
             for section in sections:
+                period = section.period.strip("/") if section.period else "unknown"
                 s3_key = (
                     f"{base_prefix}/filings/{section.filing_type}/"
-                    f"{section.period}/{section.section_name}.txt"
+                    f"{period}/{section.section_name}.txt"
                 )
                 _upload(s3_client, s3_key, section.text)
             result.filings_count = len(sections)
