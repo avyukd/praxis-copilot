@@ -22,5 +22,13 @@ The system runs an automated monitoring pipeline that may produce artifacts you 
 
 Monitor snapshots are stored in S3 under `data/monitors/{monitor_id}/latest.yaml`. Filing analyses under `data/raw/filings/`. When you see analysis artifacts from these systems (e.g. in `--tactical` context), they are machine-generated summaries — treat them as inputs to your own analysis, not conclusions.
 
+## Claude CLI subprocess safety — CRITICAL
+When spawning Claude CLI as a subprocess (e.g. `claude -p`), you **MUST** strip all API key environment variables (`ANTHROPIC_API_KEY`, `CLAUDE_API_KEY`) from the child process environment. This forces the CLI to use the Max subscription instead of API billing. Failure to do this has previously caused hundreds of dollars in unexpected API charges.
+
+- In Python: `env.pop("ANTHROPIC_API_KEY", None)` and `env.pop("CLAUDE_API_KEY", None)` before `subprocess.run(..., env=env)`.
+- In shell scripts: `unset ANTHROPIC_API_KEY CLAUDE_API_KEY` at the top of the script.
+- **Never** pass `ANTHROPIC_API_KEY` to a Claude CLI subprocess. If the CLI can't authenticate via Max, it should fail loudly — that's the correct behavior.
+- This does NOT apply to LiteLLM calls in the monitoring pipeline (`src/modules/common/llm.py`, filing analyzers), which intentionally use the API for Lambda-deployed workloads.
+
 ## Price data
 Use the `get_price(ticker)` MCP tool for current/delayed stock prices. Do NOT web search for prices.

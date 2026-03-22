@@ -277,6 +277,10 @@ def _run_session(
     env = os.environ.copy()
     env.pop("CLAUDE_CODE_ENTRYPOINT", None)
     env.pop("CLAUDECODE", None)
+    # SAFETY: strip ALL API key env vars to prevent Claude CLI from using
+    # API billing. We want it to use the Max subscription only.
+    env.pop("ANTHROPIC_API_KEY", None)
+    env.pop("CLAUDE_API_KEY", None)
 
     try:
         result = subprocess.run(
