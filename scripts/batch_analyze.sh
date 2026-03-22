@@ -8,6 +8,13 @@
 
 set -euo pipefail
 
+# ---- SAFETY: prevent Claude CLI from using API billing ----
+# Strip any Anthropic API key so Claude CLI uses Max plan only.
+# If no Max subscription is active, the CLI will error out — which is
+# the correct behaviour (fail loudly instead of billing silently).
+unset ANTHROPIC_API_KEY 2>/dev/null || true
+unset CLAUDE_API_KEY 2>/dev/null || true
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PRAXIS="$REPO_ROOT/.venv/bin/praxis"
 UNIVERSE="$REPO_ROOT/config/universe.yaml"
