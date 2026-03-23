@@ -1023,3 +1023,251 @@ tickers:
     - '"ENA.V"'
     edgar_supported: false
     research_priority: 5
+  OBIO:
+    cik: 0001814114
+    exchange: Nasdaq
+    name: Orchestra BioMed Holdings, Inc.
+    news_queries:
+    - '"Orchestra BioMed Holdings, Inc." OR "OBIO"'
+    edgar_supported: true
+    research_priority: 5
+  CADL:
+    cik: 0001841387
+    exchange: Nasdaq
+    name: Candel Therapeutics, Inc.
+    news_queries:
+    - '"Candel Therapeutics, Inc." OR "CADL"'
+    edgar_supported: true
+    research_priority: 5
+  KLTR:
+    cik: '0001432133'
+    exchange: Nasdaq
+    name: KALTURA INC
+    news_queries:
+    - '"KALTURA INC" OR "KLTR"'
+    edgar_supported: true
+    research_priority: 5
+  IPSC:
+    cik: 0001850119
+    exchange: Nasdaq
+    name: Century Therapeutics, Inc.
+    news_queries:
+    - '"Century Therapeutics, Inc." OR "IPSC"'
+    edgar_supported: true
+    research_priority: 5
+  AGIG:
+    cik: '0001156041'
+    exchange: NYSE
+    name: ABUNDIA GLOBAL IMPACT GROUP, INC.
+    news_queries:
+    - '"ABUNDIA GLOBAL IMPACT GROUP, INC." OR "AGIG"'
+    edgar_supported: true
+    research_priority: 5
+  AMTX:
+    cik: 0000738214
+    exchange: Nasdaq
+    name: AEMETIS, INC
+    news_queries:
+    - '"AEMETIS, INC" OR "AMTX"'
+    edgar_supported: true
+    research_priority: 5
+  DARE:
+    cik: 0001401914
+    exchange: Nasdaq
+    name: Dare Bioscience, Inc.
+    news_queries:
+    - '"Dare Bioscience, Inc." OR "DARE"'
+    edgar_supported: true
+    research_priority: 5
+  ADUR:
+    cik: 0001863934
+    exchange: Nasdaq
+    name: ADURO CLEAN TECHNOLOGIES INC.
+    news_queries:
+    - '"ADURO CLEAN TECHNOLOGIES INC." OR "ADUR"'
+    edgar_supported: true
+    research_priority: 5
+  IXHL:
+    cik: 0001873875
+    exchange: Nasdaq
+    name: Incannex Healthcare Inc.
+    news_queries:
+    - '"Incannex Healthcare Inc." OR "IXHL"'
+    edgar_supported: true
+    research_priority: 5
+  BKYI:
+    cik: 0001019034
+    exchange: Nasdaq
+    name: BIO KEY INTERNATIONAL INC
+    news_queries:
+    - '"BIO KEY INTERNATIONAL INC" OR "BKYI"'
+    edgar_supported: true
+    research_priority: 5
+  BMR:
+    cik: 0001899005
+    exchange: Nasdaq
+    name: Beamr Imaging Ltd.
+    news_queries:
+    - '"Beamr Imaging Ltd." OR "BMR"'
+    edgar_supported: true
+    research_priority: 5
+  VFF:
+    cik: 0001584549
+    exchange: Nasdaq
+    name: Village Farms International, Inc.
+    news_queries:
+    - '"Village Farms International, Inc." OR "VFF"'
+    edgar_supported: true
+    research_priority: 5
+  RPID:
+    cik: 0001380106
+    exchange: Nasdaq
+    name: RAPID MICRO BIOSYSTEMS, INC.
+    news_queries:
+    - '"RAPID MICRO BIOSYSTEMS, INC." OR "RPID"'
+    edgar_supported: true
+    research_priority: 5
+  PHAR:
+    cik: 0001828316
+    exchange: Nasdaq
+    name: Pharming Group N.V.
+    news_queries:
+    - '"Pharming Group N.V." OR "PHAR"'
+    edgar_supported: true
+    research_priority: 5
+  WAM.V:
+    cik: WAM.V
+    exchange: NON_US
+    name: WAM.V
+    news_queries:
+    - '"WAM.V"'
+    edgar_supported: false
+    research_priority: 5
+  JG:
+    cik: 0001737339
+    exchange: Nasdaq
+    name: Aurora Mobile Ltd
+    news_queries:
+    - '"Aurora Mobile Ltd" OR "JG"'
+    edgar_supported: true
+    research_priority: 5
+  YYGH:
+    cik: 0001985337
+    exchange: Nasdaq
+    name: YY Group Holding Ltd.
+    news_queries:
+    - '"YY Group Holding Ltd." OR "YYGH"'
+    edgar_supported: true
+    research_priority: 5
+  SYNX:
+    cik: 0001976443
+    exchange: NYSE
+    name: Silynxcom Ltd.
+    news_queries:
+    - '"Silynxcom Ltd." OR "SYNX"'
+    edgar_supported: true
+    research_priority: 5
+  AIDX:
+    cik: 0001139685
+    exchange: Nasdaq
+    name: 20/20 Biolabs, Inc.
+    news_queries:
+    - '"20/20 Biolabs, Inc." OR "AIDX"'
+    edgar_supported: true
+    research_priority: 5
+  OGEN:
+    cik: 0001174940
+    exchange: NYSE
+    name: ORAGENICS INC
+    news_queries:
+    - '"ORAGENICS INC" OR "OGEN"'
+    edgar_supported: true
+    research_priority: 5
+  SPRC:
+    cik: '0001611746'
+    exchange: Nasdaq
+    name: SciSparc Ltd.
+    news_queries:
+    - '"SciSparc Ltd." OR "SPRC"'
+    edgar_supported: true
+    research_priority: 5
+  USEA:
+    cik: 0001912847
+    exchange: Nasdaq
+    name: United Maritime Corp
+    news_queries:
+    - '"United Maritime Corp" OR "USEA"'
+    edgar_supported: true
+    research_priority: 5
+  GLEN.L:
+    cik: GLEN.L
+    exchange: NON_US
+    name: GLEN.L
+    news_queries:
+    - '"GLEN.L"'
+    edgar_supported: false
+    research_priority: 5
+  NKT.CO:
+    cik: NKT.CO
+    exchange: NON_US
+    name: NKT.CO
+    news_queries:
+    - '"NKT.CO"'
+    edgar_supported: false
+    research_priority: 5
+  PRYMY:
+    cik: PRYMY
+    exchange: NON_US
+    name: PRYMY
+    news_queries:
+    - '"PRYMY"'
+    edgar_supported: false
+    research_priority: 5
+  ALOT:
+    cik: 0000008146
+    exchange: Nasdaq
+    name: AstroNova, Inc.
+    news_queries:
+    - '"AstroNova, Inc." OR "ALOT"'
+    edgar_supported: true
+    research_priority: 5
+  PTAL.L:
+    cik: PTAL.L
+    exchange: NON_US
+    name: PTAL.L
+    news_queries:
+    - '"PTAL.L"'
+    edgar_supported: false
+    research_priority: 5
+  CYBT:
+    cik: CYBT
+    exchange: NON_US
+    name: CYBT
+    news_queries:
+    - '"CYBT"'
+    edgar_supported: false
+    research_priority: 5
+  HCC:
+    cik: 0001691303
+    exchange: NYSE
+    name: WARRIOR MET COAL, INC.
+    news_queries:
+    - '"WARRIOR MET COAL, INC." OR "HCC"'
+    edgar_supported: true
+    research_priority: 5
+  KPLUY:
+    cik: KPLUY
+    exchange: NON_US
+    name: KPLUY
+    news_queries:
+    - '"KPLUY"'
+    edgar_supported: false
+    research_priority: 5
+  IFA.TO:
+    cik: IFA.TO
+    exchange: NON_US
+    name: IFA.TO
+    news_queries:
+    - '"IFA.TO"'
+    edgar_supported: false
+    research_priority: 5
