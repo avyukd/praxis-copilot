@@ -9,4 +9,6 @@ build/
 .env.deploy
 .pytest_cache/
 workspace/
+data/
+logs/
 .claude/
