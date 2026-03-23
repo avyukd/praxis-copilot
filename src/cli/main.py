@@ -1059,11 +1059,15 @@ def research_sync(tickers: tuple[str, ...]):
 @click.argument("tickers", nargs=-1, required=True)
 @click.option("--tactical", is_flag=True, help="Pull latest alerts/analyses and add tactical overlay")
 @click.option("--max-parallel", type=int, default=4, help="Max concurrent Claude sessions (default: 4)")
-def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int):
+@click.option("--max-retries", type=int, default=1, help="Max retries for sessions missing required artifacts (default: 1)")
+def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int, max_retries: int):
     """Launch Claude Code research sessions for TICKER(s) in parallel.
 
     Starts Claude sessions in each ticker's workspace, running them
     concurrently. Session IDs are printed upfront for resumability.
+
+    After each session, checks for required artifacts (memo.md, memo.yaml).
+    Sessions missing artifacts are automatically retried up to --max-retries times.
 
     Default mode: analyze using CLAUDE.md process with ingested data.
     With --tactical: pulls latest monitor snapshots, filing analyses,
@@ -1074,6 +1078,7 @@ def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int):
       praxis research run BNTC
       praxis research run BNTC TROX LBRT --tactical
       praxis research run BNTC TROX --max-parallel 2
+      praxis research run BNTC --max-retries 2
     """
     repo_root = find_repo_root()
     sessions: list[tuple[str, Path, str]] = []
@@ -1110,30 +1115,50 @@ def research_run(tickers: tuple[str, ...], tactical: bool, max_parallel: int):
         click.echo(f"  {ticker}: {session_map[ticker]}")
     click.echo()
 
-    # Launch sessions
-    def on_status(ticker: str, sid: str, success: bool) -> None:
-        status = "done" if success else "FAILED"
-        click.echo(f"[{ticker}] {status}")
+    # Launch sessions with artifact validation and retry
+    def on_status(ticker: str, sid: str, success: bool, found: set[str], missing: set[str]) -> None:
+        if success:
+            click.echo(f"[{ticker}] done ({len(found)} artifacts)")
+        elif missing:
+            click.echo(f"[{ticker}] INCOMPLETE — missing: {', '.join(sorted(missing))}")
+        else:
+            click.echo(f"[{ticker}] FAILED")
 
-    results, _ = launch_sessions(
-        sessions, max_parallel=max_parallel, on_status=on_status,
-        session_map=session_map,
+    results, session_map = launch_sessions(
+        sessions, max_parallel=max_parallel, max_retries=max_retries,
+        on_status=on_status, session_map=session_map,
     )
 
     # Summary table
-    click.echo(f"\n{'Ticker':<12} {'Status':<10} {'Session ID'}")
-    click.echo("-" * 64)
-    for ticker, sid, success, output in sorted(results):
-        status = "OK" if success else "FAIL"
-        click.echo(f"{ticker:<12} {status:<10} {sid}")
+    click.echo(f"\n{'Ticker':<10} {'Status':<12} {'Artifacts':<6} {'Missing':<30} {'Session ID'}")
+    click.echo("-" * 100)
+    for ticker, sid, success, output, found, missing in sorted(results):
+        if success:
+            status = "OK"
+        elif missing:
+            status = "INCOMPLETE"
+        else:
+            status = "FAIL"
+        missing_str = ", ".join(sorted(missing)) if missing else ""
+        click.echo(f"{ticker:<10} {status:<12} {len(found):<6} {missing_str:<30} {sid}")
         if not success and output:
             # Show last 20 lines of output for failed sessions
             lines = output.strip().splitlines()
             tail = lines[-20:] if len(lines) > 20 else lines
-            click.echo(f"  Error output:")
+            click.echo(f"  Output tail:")
             for line in tail:
                 click.echo(f"    {line}")
-    click.echo(f"\nResume: cd workspace/TICKER && claude --resume <session-id>")
+
+    # Final summary
+    ok_count = sum(1 for _, _, s, _, _, _ in results if s)
+    fail_count = len(results) - ok_count
+    click.echo(f"\n{ok_count}/{len(results)} sessions produced all required artifacts.")
+    if fail_count:
+        click.echo(f"\nTo retry failed sessions manually:")
+        for ticker, sid, success, _, _, _ in sorted(results):
+            if not success:
+                click.echo(f"  cd workspace/{ticker} && claude --resume {sid}")
+    click.echo()
 
 
 # ---------------------------------------------------------------------------

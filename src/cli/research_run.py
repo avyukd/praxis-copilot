@@ -24,6 +24,35 @@ MONITORS_PREFIX = "data/monitors"
 FILINGS_PREFIX = "data/raw/filings"
 PRESS_RELEASES_PREFIX = "data/raw/press_releases"
 
+# Minimum artifacts that a successful research session must produce.
+REQUIRED_ARTIFACTS = {"memo.md", "memo.yaml"}
+# All possible research artifacts (specialist reports + decision outputs).
+ALL_ARTIFACTS = {
+    "memo.md",
+    "memo.yaml",
+    "draft_monitors.yaml",
+    "rigorous-financial-analyst.md",
+    "business-moat-analyst.md",
+    "industry-structure-cycle-analyst.md",
+    "capital-allocation-analyst.md",
+    "geopolitical-risk-analyst.md",
+    "macro-analyst.md",
+    "supplement-reader-analyst.md",
+}
+
+
+def check_artifacts(workspace: Path) -> tuple[set[str], set[str]]:
+    """Check which research artifacts exist in a workspace.
+
+    Returns (found, missing_required).
+    """
+    found = set()
+    for name in ALL_ARTIFACTS:
+        if (workspace / name).exists():
+            found.add(name)
+    missing_required = REQUIRED_ARTIFACTS - found
+    return found, missing_required
+
 
 def fetch_tactical_context(ticker: str) -> str:
     """Pull latest monitor snapshots, filing analyses, and press release analyses for a ticker.
@@ -272,8 +301,12 @@ def _run_session(
     prompt: str,
     session_id: str,
     workspace: Path,
-) -> tuple[str, str, bool, str]:
-    """Run a single Claude session. Returns (ticker, session_id, success, output)."""
+) -> tuple[str, str, bool, str, set[str], set[str]]:
+    """Run a single Claude session.
+
+    Returns (ticker, session_id, success, output, artifacts_found, missing_required).
+    Success requires both exit code 0 AND all required artifacts present.
+    """
     env = os.environ.copy()
     env.pop("CLAUDE_CODE_ENTRYPOINT", None)
     env.pop("CLAUDECODE", None)
@@ -291,45 +324,89 @@ def _run_session(
             env=env,
         )
         output = result.stdout + result.stderr
-        return (ticker, session_id, result.returncode == 0, output)
+        found, missing_required = check_artifacts(workspace)
+        # Success = exit code 0 AND required artifacts exist
+        success = result.returncode == 0 and not missing_required
+        return (ticker, session_id, success, output, found, missing_required)
     except Exception as e:
-        return (ticker, session_id, False, str(e))
+        return (ticker, session_id, False, str(e), set(), REQUIRED_ARTIFACTS.copy())
 
 
 def launch_sessions(
     sessions: list[tuple[str, Path, str]],
     max_parallel: int = 4,
+    max_retries: int = 1,
     on_status: Any = None,
     session_map: dict[str, str] | None = None,
-) -> tuple[list[tuple[str, str, bool, str]], dict[str, str]]:
-    """Launch Claude sessions in parallel.
+) -> tuple[list[tuple[str, str, bool, str, set[str], set[str]]], dict[str, str]]:
+    """Launch Claude sessions in parallel with automatic retry for missing artifacts.
 
     Args:
         sessions: List of (ticker, workspace, prompt) tuples.
         max_parallel: Max concurrent sessions.
-        on_status: Optional callback(ticker, session_id, success) called as each finishes.
+        max_retries: Max retry attempts for sessions missing required artifacts.
+        on_status: Optional callback(ticker, session_id, success, artifacts, missing) called
+            as each finishes.
         session_map: Optional pre-built {ticker: session_id} map. Generated if not provided.
 
     Returns:
-        Tuple of (results list, session_map). Results are (ticker, session_id, success, output).
+        Tuple of (results list, session_map).
+        Results are (ticker, session_id, success, output, artifacts_found, missing_required).
     """
     claude_bin = _find_claude()
 
     if session_map is None:
         session_map = {ticker: str(uuid.uuid4()) for ticker, _, _ in sessions}
 
-    results: list[tuple[str, str, bool, str]] = []
-    with ThreadPoolExecutor(max_workers=max_parallel) as pool:
-        futures = {
-            pool.submit(
-                _run_session, claude_bin, ticker, prompt, session_map[ticker], workspace
-            ): ticker
-            for ticker, workspace, prompt in sessions
-        }
-        for future in as_completed(futures):
-            ticker, sid, success, output = future.result()
-            if on_status:
-                on_status(ticker, sid, success)
-            results.append((ticker, sid, success, output))
+    final_results: dict[str, tuple[str, str, bool, str, set[str], set[str]]] = {}
+    remaining = list(sessions)
 
-    return results, session_map
+    for attempt in range(1 + max_retries):
+        if not remaining:
+            break
+
+        if attempt > 0:
+            logger.info(f"Retry attempt {attempt}/{max_retries} for {len(remaining)} session(s)")
+
+        results: list[tuple[str, str, bool, str, set[str], set[str]]] = []
+        with ThreadPoolExecutor(max_workers=max_parallel) as pool:
+            futures = {
+                pool.submit(
+                    _run_session, claude_bin, ticker, prompt, session_map[ticker], workspace
+                ): (ticker, workspace, prompt)
+                for ticker, workspace, prompt in remaining
+            }
+            for future in as_completed(futures):
+                ticker, sid, success, output, found, missing = future.result()
+                if on_status:
+                    on_status(ticker, sid, success, found, missing)
+                results.append((ticker, sid, success, output, found, missing))
+
+        # Separate successes from failures needing retry
+        next_remaining = []
+        for ticker, sid, success, output, found, missing in results:
+            if success:
+                final_results[ticker] = (ticker, sid, success, output, found, missing)
+            else:
+                # Check if we have retries left
+                if attempt < max_retries:
+                    # Build a retry prompt that references the existing session
+                    for t, workspace, prompt in remaining:
+                        if t == ticker:
+                            retry_prompt = (
+                                f"The previous research session for {ticker} did not produce "
+                                f"all required artifacts. Missing: {', '.join(sorted(missing))}. "
+                                f"Found so far: {', '.join(sorted(found)) or 'none'}. "
+                                f"Please complete the analysis and produce the missing artifacts."
+                            )
+                            # New session ID for retry
+                            new_sid = str(uuid.uuid4())
+                            session_map[ticker] = new_sid
+                            next_remaining.append((ticker, workspace, retry_prompt))
+                            break
+                else:
+                    final_results[ticker] = (ticker, sid, success, output, found, missing)
+
+        remaining = next_remaining
+
+    return list(final_results.values()), session_map
