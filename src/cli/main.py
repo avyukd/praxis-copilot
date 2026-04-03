@@ -117,6 +117,57 @@ def cli_health():
         click.echo(f"  {name:<20} {status}")
 
 
+@cli.command("audit")
+@click.argument("ticker", required=False)
+def cli_audit(ticker: str | None):
+    """View coordinator decisions for research sessions.
+
+    \b
+    Shows early exits, checkpoint decisions, and final outcomes.
+    Use this to review what the coordinator decided and override if needed.
+
+    \b
+    Examples:
+      praxis audit           # Show all recent coordinator logs
+      praxis audit IMMX      # Show coordinator log for a specific ticker
+    """
+    repo_root = find_repo_root()
+    workspace = repo_root / "workspace"
+
+    if ticker:
+        ticker = ticker.strip("/").upper()
+        log_path = workspace / ticker / "coordinator_log.md"
+        if log_path.exists():
+            click.echo(f"Coordinator log for {ticker}:\n")
+            click.echo(log_path.read_text())
+        else:
+            click.echo(f"No coordinator log for {ticker}.")
+            memo_path = workspace / ticker / "memo.yaml"
+            if memo_path.exists():
+                click.echo("(Research ran before coordinator was added)")
+        return
+
+    # Show all coordinator logs
+    logs_found = 0
+    for ticker_dir in sorted(workspace.iterdir()):
+        if not ticker_dir.is_dir() or ticker_dir.name in ("queue", "analyst", "macro"):
+            continue
+        log_path = ticker_dir / "coordinator_log.md"
+        if log_path.exists():
+            content = log_path.read_text().strip()
+            first_line = content.split("\n")[0] if content else "(empty)"
+            early_exit = "EARLY EXIT" in content.upper()
+            marker = " ⚠ EARLY EXIT" if early_exit else ""
+            click.echo(f"  {ticker_dir.name:<12} {first_line[:70]}{marker}")
+            logs_found += 1
+
+    if logs_found == 0:
+        click.echo("No coordinator logs found yet. They'll appear after research runs with the new flow.")
+    else:
+        click.echo(f"\n{logs_found} coordinator log(s). Use 'praxis audit TICKER' for details.")
+        click.echo("To force re-research: praxis research run TICKER --tactical")
+
+
 @cli.command("usage")
 @click.option("--date", "date_str", default=None, help="Date YYYY-MM-DD (default: today)")
 @click.option("--json", "as_json", is_flag=True, help="Output raw JSON")

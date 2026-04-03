@@ -400,10 +400,17 @@ monitors:
 
 ## Execution Flow
 
-### Step 1 — Read Data First
+You are the **COORDINATOR**. You manage the research pipeline, decide what to run,
+and can early-exit if something is clearly uninvestable. You also serve as the
+investment decision maker at the end.
 
-Before running any agent, read the ingested data to understand what's available. At minimum:
-- `data/fundamentals/summary.md` — key financial metrics overview (use MCP tools for drill-down)
+**All decisions must be logged to `coordinator_log.md`** — this file is auditable by the
+human. Write one line per decision: timestamp, what you decided, and why.
+
+### Step 1 — Read Data & Quick Screen
+
+Read the ingested data to understand what's available:
+- `data/fundamentals/summary.md` — key financial metrics overview
 - Latest `data/filings/10-K/*/item7_mda.txt` — management's own narrative
 - Latest `data/filings/10-K/*/item1_business.txt` — business description
 - Any `data/transcripts/` files if they exist
@@ -411,26 +418,68 @@ Before running any agent, read the ingested data to understand what's available.
 **IMPORTANT:** Do NOT read `data/fundamentals/fundamentals.json` directly — it's 700KB+ raw JSON.
 Use `summary.md` + the fundamentals MCP tools instead.
 
-### Step 2 — Run Specialist Agents (In Parallel)
+**Quick screen** — After reading the data, ask yourself: is this **100% clearly uninvestable?**
 
-Launch applicable agents concurrently. When launching each agent, include these constraints
-verbatim in the prompt:
+This is a VERY high bar. Early exit ONLY if ALL of these are true:
+- No real business (shell company, blank check, no operations)
+- No data to analyze (no filings, no financials, no meaningful information)
+- No conceivable investment thesis exists
+
+If you early exit, write `coordinator_log.md` explaining why, then produce a minimal
+`memo.md` and `memo.yaml` with decision "Too Hard" and move to Step 5.
+
+**Most companies should NOT be early-exited.** Small revenue, penny stock price, high
+burn rate — these are NOT reasons to exit. Many great investments start as "uninvestable"
+looking companies. When in doubt, continue.
+
+### Step 2 — Run Financial Analyst First
+
+Run **rigorous-financial-analyst** first (not in parallel with others). This agent is most
+likely to surface fundamental dealbreakers.
+
+Include in its prompt:
+- "Your output MUST be under {budget.specialist_words:,} words."
+- "Read the local data files first. {web_constraint}"
+- "Lead with findings, not setup. No preambles. Tables over prose for comparable data."
+- "At the end of your analysis, add a line: INVESTABILITY: [CONTINUE|STOP] with a one-sentence reason."
+
+### Step 3 — Coordinator Checkpoint
+
+Read `rigorous-financial-analyst.md`. Check the INVESTABILITY line.
+
+If STOP and the reason is a clear fundamental dealbreaker (going concern with <1 month
+cash, proven fraud, delisted with no path back), you MAY skip remaining agents.
+Log your decision to `coordinator_log.md`.
+
+**Again, this is a high bar.** Negative earnings, dilution risk, competitive pressure —
+these are NOT reasons to stop. Most companies should CONTINUE.
+
+If CONTINUE (or if in doubt): proceed to Step 4.
+
+### Step 4 — Run Remaining Specialists
+
+Launch the remaining applicable agents. These CAN run in parallel since the coordinator
+already approved continuation.
+
+{agent_selection}
+
+Include in each agent's prompt:
 - "Your output MUST be under {budget.specialist_words:,} words."
 - "Read the local data files first. {web_constraint}"
 - "Lead with findings, not setup. No preambles. Tables over prose for comparable data."
 
-{agent_selection}
+### Step 5 — Coordinator Synthesizes (Investment Decision)
 
-### Step 3 — Run Investment Decision Maker
+Once all specialist files exist (or after early exit), you ARE the investment decision maker.
+Read all specialist reports and produce memo.md, memo.yaml, and draft_monitors.yaml.
 
-Once all specialist files exist, run investment-decision-maker. It reads all specialist reports
-and produces memo.md, memo.yaml, and draft_monitors.yaml.
+Include: "Your memo MUST be under {budget.memo_words:,} words."
 
-Include in its prompt: "Your memo MUST be under {budget.memo_words:,} words."
+Log your final decision to `coordinator_log.md`.
 
-### Step 4 — Summary
+### Step 6 — Summary
 
-After all agents complete, print a brief summary of what was produced and any gaps.
+Print a brief summary: what was produced, any early exits, and any gaps.
 
 ---
 

@@ -893,6 +893,11 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                 _time.sleep(300)
                 continue
 
+            # No work on weekends
+            if now.weekday() >= 5:
+                _time.sleep(600)
+                continue
+
             in_market_window = start_hour <= now.hour < end_hour
             in_after_hours = (
                 after_hours_sweep

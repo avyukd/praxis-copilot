@@ -30,6 +30,7 @@ REQUIRED_ARTIFACTS = {"memo.md", "memo.yaml"}
 ALL_ARTIFACTS = {
     "memo.md",
     "memo.yaml",
+    "coordinator_log.md",
     "draft_monitors.yaml",
     "rigorous-financial-analyst.md",
     "business-moat-analyst.md",

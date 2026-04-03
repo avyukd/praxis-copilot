@@ -797,9 +797,9 @@ def run_analyst(
                 state.digest_findings = []
                 state.processed_alert_keys = []
 
-            # Only work 6 AM - 11 PM ET
-            if now_et.hour < 6 or now_et.hour >= 23:
-                time.sleep(300)
+            # No work on weekends (Sat=5, Sun=6) or outside market hours
+            if now_et.weekday() >= 5 or now_et.hour < 6 or now_et.hour >= 23:
+                time.sleep(600)
                 continue
 
             # Morning briefing at 8 AM ET

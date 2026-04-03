@@ -466,6 +466,11 @@ def run_daemon(
             now_et = datetime.now(ET)
             current_hour = now_et.hour + now_et.minute / 60.0
 
+            # No work on weekends
+            if now_et.weekday() >= 5:
+                time.sleep(600)
+                continue
+
             # Check if we're past the window and have no pending research
             past_window = current_hour >= end_hour
             if past_window and not pending_futures:
