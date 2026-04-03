@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "praxis": {
+      "command": "/Users/avyukdixit/dev/praxis-copilot/.venv/bin/python",
+      "args": ["/Users/avyukdixit/dev/praxis-copilot/src/cli/praxis_mcp.py"]
+    }
+  }
+}
