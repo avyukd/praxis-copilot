@@ -135,6 +135,9 @@ def run_daemon(
     dry_run: bool = False,
 ) -> None:
     """Main daemon loop: poll GitHub, check capacity, run research."""
+    from cli.env_loader import load_env
+    load_env()
+
     state = _load_state()
 
     click.echo("Research queue daemon started")

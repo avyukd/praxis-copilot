@@ -431,6 +431,8 @@ def run_daemon(
 ) -> None:
     """Main daemon loop: poll for filings, evaluate, launch research."""
     import os
+    from cli.env_loader import load_env
+    load_env()
 
     now_et = datetime.now(ET)
     run_date = date_str or now_et.strftime("%Y-%m-%d")

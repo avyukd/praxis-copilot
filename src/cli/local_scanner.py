@@ -871,11 +871,28 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
     click.echo(f"  Alert threshold: {alert_threshold} | Model: {model}")
     click.echo()
 
+    from cli.env_loader import load_env
+    load_env()
+
     after_hours_done_today = False
     last_date = ""
+    was_throttled = False
 
     from cli.queue_capacity import CapacityTracker
     capacity = CapacityTracker()
+
+    def _market_cadence(now) -> int:
+        """Return poll interval based on market hours (ET-aware)."""
+        from zoneinfo import ZoneInfo
+        now_et = now.astimezone(ZoneInfo("America/New_York")) if now.tzinfo else now
+        h = now_et.hour + now_et.minute / 60.0
+        if 6.5 <= h < 9.5:    # Pre-market + open: aggressive
+            return 300         # 5 min
+        if 9.5 <= h < 16.0:   # Market hours
+            return 600         # 10 min
+        if 16.0 <= h < 20.0:  # After-hours
+            return 900         # 15 min
+        return poll_interval   # Default (off-hours)
 
     try:
         while True:
@@ -887,16 +904,31 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                 after_hours_done_today = False
                 last_date = today
 
-            # Check capacity — back off if rate limited
-            if not capacity.should_run():
-                click.echo(f"[{now.strftime('%H:%M:%S')}] Rate limited, backing off...")
-                _time.sleep(300)
-                continue
-
             # No work on weekends
             if now.weekday() >= 5:
                 _time.sleep(600)
                 continue
+
+            # Check capacity — back off if rate limited
+            if not capacity.should_run():
+                click.echo(f"[{now.strftime('%H:%M:%S')}] Capacity throttled (backoff={capacity.current_backoff_seconds}s, hits={len(capacity.rate_limit_hits)}), waiting...")
+                was_throttled = True
+                _time.sleep(300)
+                continue
+
+            # Coming back from throttle — backfill missed items FIRST
+            if was_throttled:
+                click.echo(f"\n[{now.strftime('%H:%M:%S')}] Back online after throttle — backfilling missed items...")
+                try:
+                    scan_unanalyzed(
+                        lookback_hours=6,
+                        max_parallel=max_parallel,
+                        prescreen=True,
+                        model=model,
+                    )
+                except Exception as e:
+                    logger.error("Post-throttle backfill failed: %s", e)
+                was_throttled = False
 
             in_market_window = start_hour <= now.hour < end_hour
             in_after_hours = (
@@ -914,7 +946,7 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                 click.echo(f"  Catching everything since market close...")
                 try:
                     run_full_pipeline(
-                        lookback_minutes=480,  # 8 hours back
+                        lookback_minutes=480,
                         max_parallel=max_parallel,
                         prescreen=True,
                         alert_threshold=alert_threshold,
@@ -934,11 +966,12 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                 _time.sleep(poll_interval)
                 continue
 
-            # Regular market hours scan
-            click.echo(f"\n[{now.strftime('%H:%M:%S')}] Starting scan cycle...")
+            # Regular market hours scan with adaptive cadence
+            current_cadence = _market_cadence(now)
+            click.echo(f"\n[{now.strftime('%H:%M:%S')}] Scan cycle (cadence: {current_cadence}s)...")
             try:
                 run_full_pipeline(
-                    lookback_minutes=max(poll_interval // 60 + 30, 60),
+                    lookback_minutes=max(current_cadence // 60 + 30, 60),
                     max_parallel=max_parallel,
                     prescreen=True,
                     alert_threshold=alert_threshold,
@@ -954,8 +987,8 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                 logger.error("Scan cycle failed: %s", e)
                 click.echo(f"  ERROR: {e}")
 
-            click.echo(f"\n[{datetime.now().strftime('%H:%M:%S')}] Sleeping {poll_interval}s until next cycle...")
-            _time.sleep(poll_interval)
+            click.echo(f"\n[{datetime.now().strftime('%H:%M:%S')}] Sleeping {current_cadence}s until next cycle...")
+            _time.sleep(current_cadence)
 
     except KeyboardInterrupt:
         click.echo("\nScanner daemon stopped.")

@@ -141,6 +141,10 @@ class CapacityTracker:
         # Only keep recent hits (last 2 hours)
         cutoff = datetime.now(ET) - timedelta(hours=2)
         self.rate_limit_hits = [h for h in self.rate_limit_hits if h > cutoff]
+        # Reset backoff if no recent rate limits (clean slate for new day)
+        if not self.rate_limit_hits:
+            self.current_backoff_seconds = 0
+            self.base_batch_size = max(self.base_batch_size, 5)
         data = {
             "rate_limit_hits": [h.isoformat() for h in self.rate_limit_hits],
             "current_backoff_seconds": self.current_backoff_seconds,

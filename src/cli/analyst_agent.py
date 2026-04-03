@@ -790,6 +790,9 @@ def run_analyst(
     dry_run: bool = False,
 ) -> None:
     """Main reactive analyst daemon loop."""
+    from cli.env_loader import load_env
+    load_env()
+
     state = _load_state()
     portfolio = _load_portfolio()
     s3 = get_s3_client()
