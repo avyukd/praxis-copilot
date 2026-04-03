@@ -709,6 +709,29 @@ def _send_urgent_email(reaction: AlertReaction, finding: dict) -> None:
         logger.error("Urgent email failed: %s", e)
 
 
+def _send_desktop_finding_email(finding) -> None:
+    """Send email for an urgent Desktop finding."""
+    topic_arn = os.environ.get("SNS_TOPIC_ARN")
+    if not topic_arn:
+        return
+    try:
+        import boto3
+        sns = boto3.client("sns", region_name="us-east-1")
+        ticker_str = f"{finding.ticker}: " if finding.ticker else ""
+        subject = f"[PRAXIS DESKTOP] {ticker_str}{finding.content[:60]}"
+        body = (
+            f"DESKTOP FINDING\n\n"
+            f"Ticker: {finding.ticker or 'N/A'}\n"
+            f"Actionability: {finding.actionability}\n"
+            f"Urgency: {finding.urgency}\n"
+            f"Source: {finding.source}\n\n"
+            f"{finding.content}"
+        )
+        sns.publish(TopicArn=topic_arn, Subject=subject[:100], Message=body)
+    except Exception as e:
+        logger.error("Desktop finding email failed: %s", e)
+
+
 def _compile_and_send_digest(state: AnalystState) -> None:
     """Compile and send daily digest of all alert reactions."""
     topic_arn = os.environ.get("SNS_TOPIC_ARN")
@@ -857,6 +880,28 @@ def run_analyst(
                 run_entry_check()
             except Exception as e:
                 logger.debug("Entry watchdog error: %s", e)
+
+            # Check IPC inbox for Desktop findings
+            try:
+                from cli.ipc import get_unprocessed_findings, mark_finding_processed
+                desktop_findings = get_unprocessed_findings()
+                for path, finding in desktop_findings:
+                    if finding.urgency == "high" or finding.actionability in ("trade_idea", "research_deeper"):
+                        click.echo(f"  DESKTOP FINDING: [{finding.ticker}] {finding.content[:80]}")
+                        # Add to digest
+                        state.digest_findings.append({
+                            "ticker": finding.ticker,
+                            "task_type": "desktop",
+                            "finding": finding.content[:200],
+                            "actionability": finding.actionability,
+                            "urgency": finding.urgency,
+                        })
+                        # Email if urgent
+                        if finding.urgency == "high":
+                            _send_desktop_finding_email(finding)
+                    mark_finding_processed(path)
+            except Exception as e:
+                logger.debug("IPC inbox check failed: %s", e)
 
             # Poll for new alerts
             state.last_poll_at = now_et

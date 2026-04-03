@@ -84,6 +84,72 @@ cli.add_command(portfolio_cli, "portfolio")
 cli.add_command(watches_cli, "watches")
 
 
+@cli.group("desktop")
+def desktop():
+    """IPC with Claude Desktop — create tasks, check findings."""
+    pass
+
+
+@desktop.command("browse")
+@click.argument("url")
+@click.option("--ticker", "-t", default="", help="Ticker symbol")
+@click.option("--desc", "-d", default="", help="What to look for")
+def desktop_browse(url: str, ticker: str, desc: str):
+    """Create a browse task for Claude Desktop.
+
+    \b
+    Examples:
+      praxis desktop browse "https://x.com/search?q=%24CLMT" -t CLMT -d "Check sentiment"
+    """
+    from cli.ipc import create_task
+    task = create_task("browse", desc or f"Browse and report findings from: {url}", ticker=ticker, url=url, created_by="user")
+    click.echo(f"Browse task created: {task.id}. Desktop will pick it up.")
+
+
+@desktop.command("search")
+@click.argument("query")
+@click.option("--ticker", "-t", default="", help="Ticker symbol")
+@click.option("--sources", "-s", default="twitter,stocktwits", help="Comma-separated sources")
+def desktop_search(query: str, ticker: str, sources: str):
+    """Create a search task for Claude Desktop.
+
+    \b
+    Examples:
+      praxis desktop search "$CLMT RVO" -t CLMT -s twitter,microcapclub
+    """
+    from cli.ipc import create_task
+    source_list = [s.strip() for s in sources.split(",")]
+    task = create_task("search", f"Search for: {query}", ticker=ticker, search_query=query, sources=source_list, created_by="user")
+    click.echo(f"Search task created: {task.id}. Sources: {', '.join(source_list)}")
+
+
+@desktop.command("tasks")
+def desktop_tasks():
+    """Show pending IPC tasks for Desktop."""
+    from cli.ipc import get_pending_tasks
+    tasks = get_pending_tasks()
+    if not tasks:
+        click.echo("No pending tasks.")
+        return
+    for t in tasks:
+        click.echo(f"  {t.id} [{t.priority}] {t.type}: {t.description[:60]}")
+
+
+@desktop.command("inbox")
+@click.option("--limit", "-n", type=int, default=10, help="Max findings")
+def desktop_inbox(limit: int):
+    """Show recent findings from Desktop."""
+    from cli.ipc import read_inbox
+    findings = read_inbox(limit)
+    if not findings:
+        click.echo("No findings in inbox.")
+        return
+    for f in findings:
+        ticker = f"[{f.ticker}] " if f.ticker else ""
+        click.echo(f"  {ticker}{f.content[:80]}")
+        click.echo(f"    {f.actionability} | {f.urgency} | {f.source}")
+
+
 @cli.command("briefing")
 def cli_briefing():
     """Send the morning briefing email now.

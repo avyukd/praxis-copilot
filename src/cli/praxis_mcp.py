@@ -250,5 +250,185 @@ async def read_memo_yaml(ticker: str) -> str:
     return f"No memo.yaml found for {ticker}."
 
 
+# ---------------------------------------------------------------------------
+# IPC Tools — Claude Code ↔ Claude Desktop communication
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def ipc_check_tasks() -> str:
+    """Check for pending IPC tasks that need to be processed.
+
+    Desktop should call this periodically to pick up work from Code.
+    Tasks include: browse URLs, take screenshots, search social media.
+    """
+    from cli.ipc import get_pending_tasks
+    tasks = get_pending_tasks()
+    if not tasks:
+        return "No pending tasks."
+
+    lines = [f"{len(tasks)} pending task(s):\n"]
+    for t in tasks:
+        lines.append(
+            f"  ID: {t.id}\n"
+            f"  Type: {t.type} | Priority: {t.priority}\n"
+            f"  Ticker: {t.ticker or 'N/A'}\n"
+            f"  Description: {t.description}\n"
+            f"  URL: {t.url or 'N/A'}\n"
+            f"  ---"
+        )
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def ipc_claim_task(task_id: str) -> str:
+    """Mark a task as in-progress. Call this before starting work on a task.
+
+    Args:
+        task_id: The task ID from ipc_check_tasks.
+    """
+    from cli.ipc import claim_task
+    if claim_task(task_id):
+        return f"Task {task_id} claimed. Start processing."
+    return f"Task {task_id} not found."
+
+
+@mcp.tool()
+async def ipc_submit_result(
+    task_id: str,
+    finding: str,
+    ticker: str = "",
+    actionability: str = "none",
+    urgency: str = "low",
+) -> str:
+    """Submit a result for a completed task. Call when done processing.
+
+    Args:
+        task_id: The task ID being completed.
+        finding: What you found — markdown text.
+        ticker: Ticker symbol if relevant.
+        actionability: none, monitor, research_deeper, or trade_idea.
+        urgency: low, medium, or high.
+    """
+    from cli.ipc import submit_result
+    result = submit_result(
+        task_id, finding,
+        ticker=ticker, actionability=actionability, urgency=urgency,
+    )
+    return f"Result submitted for task {task_id}. Actionability: {actionability}, Urgency: {urgency}"
+
+
+@mcp.tool()
+async def ipc_write_finding(
+    content: str,
+    ticker: str = "",
+    actionability: str = "none",
+    urgency: str = "low",
+) -> str:
+    """Write a free-form finding to the inbox. Use this for proactive discoveries.
+
+    Call this when you browse social media, forums, or news and find something
+    interesting — even without a specific task. The analyst agent will pick it up.
+
+    Args:
+        content: What you found — markdown text with sources.
+        ticker: Ticker symbol if relevant (e.g., "CLMT").
+        actionability: none, monitor, research_deeper, or trade_idea.
+        urgency: low, medium, or high.
+    """
+    from cli.ipc import write_finding
+    path = write_finding(content, ticker=ticker, actionability=actionability, urgency=urgency)
+    return f"Finding saved to inbox. Analyst will pick it up."
+
+
+@mcp.tool()
+async def ipc_list_findings(limit: int = 10) -> str:
+    """List recent findings from the inbox.
+
+    Args:
+        limit: Max findings to show.
+    """
+    from cli.ipc import read_inbox
+    findings = read_inbox(limit)
+    if not findings:
+        return "No findings in inbox."
+
+    lines = [f"{len(findings)} recent finding(s):\n"]
+    for f in findings:
+        ticker_str = f"[{f.ticker}] " if f.ticker else ""
+        lines.append(f"  {ticker_str}{f.content[:100]}...")
+        lines.append(f"  Actionability: {f.actionability} | Urgency: {f.urgency} | Source: {f.source}")
+        lines.append(f"  ---")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def ipc_create_browse_task(
+    url: str,
+    description: str,
+    ticker: str = "",
+    priority: str = "medium",
+) -> str:
+    """Create a task for Desktop to browse a URL and report findings.
+
+    Args:
+        url: The URL to browse.
+        description: What to look for.
+        ticker: Ticker symbol if relevant.
+        priority: low, medium, or high.
+    """
+    from cli.ipc import create_task
+    task = create_task(
+        "browse", description,
+        ticker=ticker, url=url, priority=priority, created_by="mcp",
+    )
+    return f"Browse task created: {task.id}. Desktop will pick it up."
+
+
+@mcp.tool()
+async def ipc_create_search_task(
+    query: str,
+    description: str = "",
+    ticker: str = "",
+    sources: str = "twitter,stocktwits",
+) -> str:
+    """Create a task for Desktop to search social media / forums.
+
+    Args:
+        query: Search query (e.g., "$CLMT RVO").
+        description: What you're looking for.
+        ticker: Ticker symbol if relevant.
+        sources: Comma-separated sources to check (twitter, stocktwits, microcapclub, etc).
+    """
+    from cli.ipc import create_task, get_source_url
+    source_list = [s.strip() for s in sources.split(",")]
+
+    task = create_task(
+        "search",
+        description or f"Search for: {query}",
+        ticker=ticker,
+        search_query=query,
+        sources=source_list,
+        created_by="mcp",
+    )
+    return f"Search task created: {task.id}. Sources: {', '.join(source_list)}"
+
+
+@mcp.tool()
+async def ipc_browse_sources() -> str:
+    """List configured browse sources (Twitter, StockTwits, forums, etc)."""
+    from cli.ipc import load_sources
+    sources = load_sources().get("sources", {})
+    if not sources:
+        return "No sources configured."
+
+    lines = [f"{len(sources)} sources:\n"]
+    for name, info in sources.items():
+        proactive = " [PROACTIVE]" if info.get("proactive") else ""
+        lines.append(f"  {name}: {info.get('description', '')}{proactive}")
+        lines.append(f"    Cadence: {info.get('cadence', 'manual')} | URL: {info.get('url_template', '')[:60]}")
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")
