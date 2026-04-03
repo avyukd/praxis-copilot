@@ -324,6 +324,28 @@ def _run_research_job(
     return success, artifacts, sid
 
 
+def _maybe_extract_watches(ticker: str) -> None:
+    """Auto-extract thesis watches from a completed memo."""
+    repo_root = find_repo_root()
+    memo_path = repo_root / "workspace" / ticker / "memo.yaml"
+    if not memo_path.exists():
+        return
+    try:
+        memo = yaml.safe_load(memo_path.read_text()) or {}
+        from cli.thesis_monitors import extract_watches_from_memo, load_watches, save_watches, notify_new_watches
+        new_watches = extract_watches_from_memo(ticker, memo)
+        if new_watches:
+            existing = load_watches()
+            # Remove old watches for this ticker
+            existing = [w for w in existing if w.ticker.upper() != ticker.upper()]
+            existing.extend(new_watches)
+            save_watches(existing)
+            notify_new_watches(ticker, new_watches)
+            logger.info("Extracted %d thesis watches for %s", len(new_watches), ticker)
+    except Exception as e:
+        logger.debug("Watch extraction failed for %s: %s", ticker, e)
+
+
 def _maybe_email_memo(ticker: str) -> None:
     """Email the user if a completed research memo has a BUY decision."""
     repo_root = find_repo_root()
@@ -534,6 +556,8 @@ def run_daemon(
                 del pending_futures[ticker]
                 # Email promising memos (BUY decisions)
                 _maybe_email_memo(ticker)
+                # Auto-extract thesis watches from new memo
+                _maybe_extract_watches(ticker)
 
             # Auto-regenerate HTML report when research completes
             if completed_tickers:

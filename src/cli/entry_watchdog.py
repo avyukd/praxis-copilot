@@ -397,9 +397,74 @@ def run_entry_check() -> list[dict]:
         click.echo(f"  ENTRY: {entry['ticker']} at ${entry['price']:.2f} ({entry['zone']})")
 
     state["alerted"] = alerted
+
+    # Also check thesis price-level watches (invalidation levels)
+    try:
+        from cli.thesis_monitors import get_price_watches
+        price_watches = get_price_watches()
+        watch_alerted = state.get("watch_alerted", {})
+
+        for w in price_watches:
+            watch_key = f"{w.ticker}_{w.direction}_{w.level}"
+            if watch_key in watch_alerted:
+                prev_date = watch_alerted[watch_key].get("date", "")
+                try:
+                    if prev_date and (date.today() - date.fromisoformat(prev_date)).days < 3:
+                        continue
+                except ValueError:
+                    pass
+
+            price = _get_price(w.ticker)
+            if price is None:
+                continue
+
+            hit = False
+            if w.direction == "below" and price <= w.level:
+                hit = True
+            elif w.direction == "above" and price >= w.level:
+                hit = True
+
+            if hit:
+                # Send thesis invalidation alert
+                _send_thesis_watch_alert(w, price)
+                watch_alerted[watch_key] = {"date": today, "price": price}
+                click.echo(f"  THESIS WATCH: {w.ticker} at ${price:.2f} — {w.direction} ${w.level:.2f}")
+
+        state["watch_alerted"] = watch_alerted
+    except Exception as e:
+        logger.debug("Thesis watch check failed: %s", e)
+
     _save_alert_state(state)
 
     return triggered
+
+
+def _send_thesis_watch_alert(watch, price: float) -> None:
+    """Send email for a triggered thesis price watch."""
+    topic_arn = os.environ.get("SNS_TOPIC_ARN")
+    if not topic_arn:
+        return
+
+    exchange = _exchange_label(watch.ticker)
+    exchange_str = f" [{exchange}]" if exchange else ""
+
+    subject = f"[PRAXIS THESIS] {watch.ticker}{exchange_str}: {watch.direction} ${watch.level:.2f}"
+    body = (
+        f"THESIS WATCH TRIGGERED — {watch.ticker}{exchange_str}\n\n"
+        f"Current price: ${price:.2f}\n"
+        f"Watch: {watch.direction} ${watch.level:.2f}\n"
+        f"Urgency: {watch.urgency.upper()}\n\n"
+        f"Condition: {watch.description}\n\n"
+        f"This was auto-extracted from the investment memo's invalidation conditions.\n"
+        f"Review whether this changes the thesis."
+    )
+
+    try:
+        import boto3
+        sns = boto3.client("sns", region_name="us-east-1")
+        sns.publish(TopicArn=topic_arn, Subject=subject[:100], Message=body)
+    except Exception as e:
+        logger.error("Thesis watch alert failed: %s", e)
 
 
 # ---------------------------------------------------------------------------

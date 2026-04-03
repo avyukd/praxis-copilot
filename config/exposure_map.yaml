@@ -1,0 +1,256 @@
+factors:
+- name: biotech_fda
+  tickers:
+  - ADAG
+  - AG
+  - ALLR
+  - ANRO
+  - APLS
+  - ATHE
+  - AXSM
+  - BCDA
+  - BCG
+  - BCHT
+  - BRTX
+  - BTAI
+  - CANF
+  - CBL
+  - COCP
+  - COGT
+  - CYAB
+  - DFSC
+  - ERNA
+  - GNS
+  - GPAC.V
+  - HMH
+  - HTBK
+  - IMMX
+  - IPSC
+  - JFB
+  - LFMD
+  - LHSW
+  - LPCN
+  - MAIA
+  - MDCX
+  - MDWD
+  - MIST
+  - MKC, MKC-V
+  - NKT.CO
+  - OGEN
+  - OPTX
+  - OSRH, OSRHW
+  - PYPD
+  - QNTM
+  - RVYL
+  - SAGT
+  - SCYX
+  - STGO
+  - TLRY
+  - TNXP
+  - TURB
+  - UNCY
+  - VCEL
+  - WW
+  keywords:
+  - FDA
+  - PDUFA
+  - NDA
+  - BLA
+  - Phase 2
+  - Phase 3
+  - clinical trial
+  - drug approval
+  - pivotal trial
+  - breakthrough therapy
+- name: china_trade
+  tickers:
+  - AXIL
+  - BOSC
+  - CXT
+  - HMR
+  - LGO
+  - LHSW
+  - MKC, MKC-V
+  - OPTX
+  - USEA
+  - VTIX
+  keywords:
+  - China
+  - Chinese
+  - CHIPS Act
+  - tariff
+  - trade war
+  - semiconductor
+  - supply chain
+  - reshoring
+  - onshoring
+- name: crypto_digital
+  tickers:
+  - SLNH, SLNHP
+  keywords:
+  - bitcoin
+  - crypto
+  - blockchain
+  - digital asset
+  - mining rig
+- name: gold_precious
+  tickers:
+  - AG
+  - DRY
+  - GOLD
+  - GPAC.V
+  - IZN.V
+  - NG
+  - SCZ
+  - SKE
+  - STGO
+  - XTG
+  keywords:
+  - gold
+  - silver
+  - precious metals
+  - mining
+  - ounce
+  - bullion
+  - exploration
+  - drill results
+- name: interest_rates
+  tickers:
+  - AFBI
+  - APLD
+  - BBBY, BBBY-WT
+  - CBL
+  - CLX
+  - CXT
+  - HTBK
+  - SHAZ
+  - SKE
+  - TH
+  keywords:
+  - interest rate
+  - Fed
+  - Federal Reserve
+  - yield curve
+  - NIM
+  - net interest margin
+  - rate cut
+  - rate hike
+  - FOMC
+  - monetary policy
+- name: oil_energy
+  tickers:
+  - AESI
+  - HMH
+  - KLNG
+  - LBRT
+  - MAIA
+  - PED
+  - TH
+  - XTG
+  keywords:
+  - oil
+  - crude
+  - WTI
+  - Brent
+  - natural gas
+  - LNG
+  - energy services
+  - oilfield
+  - frac
+  - drilling
+  - petroleum
+- name: real_estate
+  tickers:
+  - AAOI
+  - AESI
+  - AGIG
+  - ALLR
+  - ANRO
+  - APLD
+  - APRE
+  - BBBY, BBBY-WT
+  - BCDA
+  - BCG
+  - BFRG
+  - BMEA
+  - BTAI
+  - CBL
+  - COCP
+  - ENA.V
+  - GOLD
+  - HMH
+  - HMR
+  - HMR.V
+  - IPSC
+  - IVFH
+  - KLNG
+  - KPLUY
+  - MAIA
+  - MDCX
+  - NG
+  - OGEN
+  - PED
+  - PYPD
+  - REOP
+  - RIME
+  - SAGT
+  - SCYX
+  - SCZ
+  - SHAZ
+  - SOGP
+  - SPRC
+  - STGO
+  - TETEF, TETUF, TETWF
+  - TH
+  - TLRY
+  - USEA
+  - VCEL
+  - VTIX
+  keywords:
+  - real estate
+  - REIT
+  - mortgage
+  - housing
+  - property
+  - occupancy
+  - rent
+  - lease
+- name: rin_biofuel
+  tickers:
+  - AESI
+  - AGIG
+  - AXIL
+  - BBBY, BBBY-WT
+  - BCG
+  - BFRG
+  - CXT
+  - CYAB
+  - DRY
+  - HMR.V
+  - KLNG
+  - KPLUY
+  - LBRT
+  - LHSW
+  - MAIA
+  - MDCX
+  - MDWD
+  - OBIO
+  - OPTX
+  - RVYL
+  - RYM
+  - SCZ
+  - SOGP
+  - TLRY
+  - TURB
+  - UNCY
+  - VCEL
+  - WW
+  keywords:
+  - RIN
+  - RVO
+  - renewable fuel
+  - biofuel
+  - EPA
+  - ethanol
+  - biodiesel
+  - renewable diesel
