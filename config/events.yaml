@@ -1,0 +1,99 @@
+events:
+- ticker: CLMT
+  date: '2026-04-15'
+  type: regulatory
+  description: EPA RVO implementation begins
+  source: test
+  added_at: '2026-04-02'
+- ticker: CLMT
+  date: '2026-04-15'
+  type: regulatory
+  description: "EPA 2026-27 RVO implementation begins \u2014 sets binding renewable\
+    \ volume obligations that directly support RIN prices and Montana Renewables margins"
+  source: analyst_agent
+  added_at: '2026-04-02'
+- ticker: AAOI
+  date: '2026-04-30'
+  type: earnings
+  description: Q1 2026 earnings report (EPS breakeven already reported; watch for
+    Q2 guidance and data center order commentary)
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: OSRH
+  date: '2026-04-30'
+  type: regulatory
+  description: VXM01 licensing definitive agreement target date with BCM Europe AG
+    ($20M upfront milestone)
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: CBL
+  date: '2026-05-13'
+  type: earnings
+  description: "Q1 2026 earnings \u2014 first quarter under March 2026 refinanced\
+    \ structure; key reads are FCF improvement from $30M amortization restructuring,\
+    \ occupancy vs 90% threshold, and re-leasing spread direction"
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: MDWD
+  date: '2026-06-30'
+  type: clinical_data
+  description: "EscharEx Phase 3 VALUE trial interim analysis expected mid-2026 \u2014\
+    \ binary event for thesis"
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: CLMT
+  date: '2026-06-30'
+  type: other
+  description: Targeted Q2 2026 completion of MaxSAF 150 expansion, bringing Montana
+    Renewables to ~300M gallon annual SAF capacity
+  source: analyst_agent
+  added_at: '2026-04-02'
+- ticker: MDWD
+  date: '2026-08-14'
+  type: earnings
+  description: "Q2 2026 earnings \u2014 first quarter with BARDA revenue quantification;\
+    \ key read on royalty flow-through from Vericel"
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: OSRH
+  date: '2026-08-31'
+  type: regulatory
+  description: Nasdaq minimum bid price compliance deadline (second 180-day extension)
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: IMMX
+  date: '2026-09-30'
+  type: clinical_data
+  description: NEXICART-2 pivotal trial topline results
+  source: test
+  added_at: '2026-04-02'
+- ticker: MDWD
+  date: '2026-12-31'
+  type: clinical_data
+  description: EscharEx Phase 3 VALUE trial top-line results expected late 2026
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: VCEL
+  date: '2026-05-06'
+  type: earnings
+  description: "Q1 2026 earnings — key reads: SG&A % of revenue (flat at 60.5% for 3 years), BARDA revenue recognition timing, MACI biopsy volumes, Burlington validation update"
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: VCEL
+  date: '2026-04-01'
+  type: other
+  description: "BARDA $197M/10-year NexoBrid contract effective date — $35M base period, ~$10M year-1 flow"
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: VCEL
+  date: '2027-12-31'
+  type: regulatory
+  description: "MACI UK launch target (MHRA approval via IRP pathway) — first international expansion"
+  source: filing_research
+  added_at: '2026-04-02'
+- ticker: VCEL
+  date: '2028-12-13'
+  type: regulatory
+  description: "MACI 12-year biologic data exclusivity expiration — composition patents extend to 2039/2040"
+  source: filing_research
+  added_at: '2026-04-02'

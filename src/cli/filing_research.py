@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -21,9 +22,8 @@ import yaml
 from pydantic import BaseModel, Field
 
 from cli.config_utils import find_repo_root, get_config_dir, load_yaml
-from cli.models import TickerRegistry, UniverseConfig
+from cli.models import TickerRegistry
 from cli.pipeline_status import (
-    build_pipeline_trace,
     collect_pipeline_items,
     parse_day_window,
 )
@@ -33,11 +33,26 @@ from cli.research_run import (
     launch_sessions,
     write_prompt_file,
 )
-from cli.s3 import get_s3_client, list_prefix
+from cli.s3 import download_file, get_s3_client, list_prefix
 from cli.staging import stage_ticker, sync_research
 
 logger = logging.getLogger(__name__)
 ET = ZoneInfo("America/New_York")
+
+
+def _parse_time(value: str) -> float:
+    """Parse 'H:MM' or 'HH:MM' to fractional hours. Plain numbers pass through."""
+    if ":" in value:
+        h, m = value.split(":", 1)
+        return int(h) + int(m) / 60.0
+    return float(value)
+
+
+def _format_time(fractional_hour: float) -> str:
+    """Format fractional hours as 'H:MM'."""
+    h = int(fractional_hour)
+    m = int((fractional_hour - h) * 60)
+    return f"{h}:{m:02d}"
 
 # ---------------------------------------------------------------------------
 # Models
@@ -143,11 +158,14 @@ def _save_state(state: FilingResearchState) -> None:
 def _evaluate_filing(
     s3,
     item,
-    universe_tickers: set[str],
     magnitude_threshold: float,
     researched_tickers: set[str],
 ) -> TrackedFiling:
-    """Evaluate a single pipeline item and decide whether to research it."""
+    """Evaluate a single pipeline item and decide whether to research it.
+
+    Lambda-independent: reads analysis.json directly from S3 (written by CLI
+    scanner). Does not rely on Lambda pipeline stages or Haiku prescreen.
+    """
     now = datetime.now(ET)
 
     tracked = TrackedFiling(
@@ -160,30 +178,25 @@ def _evaluate_filing(
         discovered_at=now,
     )
 
-    # Early exit: screened out by Haiku prescreen
-    if item.stage == "screened_out":
-        tracked.decision = FilingDecision.SKIP_SCREENED
-        tracked.decision_reason = "Haiku prescreen rejected"
-        return tracked
-
-    # Stage gate: must be analyzed
-    if item.stage not in ("analyzed", "alerted"):
-        tracked.decision = FilingDecision.SKIP_NOT_ANALYZED
-        tracked.decision_reason = f"stage={item.stage}"
-        return tracked
-
-    # Ticker must be in universe
+    # Must have a ticker
     ticker = (item.ticker or "").upper()
-    if not ticker or ticker not in universe_tickers:
+    if not ticker:
         tracked.decision = FilingDecision.SKIP_NO_TICKER
-        tracked.decision_reason = f"{ticker or '(empty)'} not in universe"
+        tracked.decision_reason = "no ticker on filing"
         return tracked
 
-    # Fetch analysis details
-    trace = build_pipeline_trace(s3, source_type=item.source_type, key_prefix=item.key_prefix)
-    tracked.classification = trace.analysis_classification or ""
-    tracked.magnitude = trace.analysis_magnitude
-    tracked.summary = trace.analysis_summary or ""
+    # Read analysis.json directly — written by CLI scanner or Lambda
+    try:
+        analysis_raw = download_file(s3, f"{item.key_prefix}/analysis.json")
+        analysis = json.loads(analysis_raw)
+    except Exception:
+        tracked.decision = FilingDecision.SKIP_NOT_ANALYZED
+        tracked.decision_reason = "no analysis.json found"
+        return tracked
+
+    tracked.classification = analysis.get("classification", "")
+    tracked.magnitude = analysis.get("magnitude")
+    tracked.summary = analysis.get("new_information", "") or analysis.get("explanation", "")
 
     classification = tracked.classification.upper()
 
@@ -219,8 +232,8 @@ def _evaluate_filing(
 
 def _run_research_job(
     ticker: str,
-    state: FilingResearchState,
     key_prefix: str,
+    cik: str,
 ) -> tuple[bool, list[str], str]:
     """Run the full stage -> research -> sync pipeline for a ticker.
 
@@ -231,14 +244,56 @@ def _run_research_job(
     registry_cfg = TickerRegistry(**load_yaml(config_dir / "ticker_registry.yaml"))
     s3 = get_s3_client()
 
+    # Resolve CIK if missing (common for press release alerts)
+    if not cik:
+        try:
+            from cli.edgar import resolve_ticker
+            info = resolve_ticker(ticker)
+            if info:
+                cik = info.cik
+                logger.info("Resolved CIK for %s: %s", ticker, cik)
+        except Exception:
+            logger.debug("CIK resolution failed for %s", ticker, exc_info=True)
+
     # Fetch macro files
     macro_keys = list_prefix(s3, "data/context/macro/")
     macro_files = [k for k in macro_keys if k != "data/context/macro/"]
 
     # Stage
-    workspace = stage_ticker(ticker, config_dir, registry_cfg, s3, macro_files, quiet=True)
+    workspace = stage_ticker(ticker, config_dir, registry_cfg, s3, macro_files, quiet=True, cik=cik, tactical=True)
     if workspace is None:
-        return False, [], ""
+        # Staging failed (no CIK / no data) — create minimal workspace with tactical context only
+        from cli.config_utils import find_repo_root
+
+        logger.info("Staging failed for %s, creating minimal workspace for web-only research", ticker)
+        repo_root = find_repo_root()
+        workspace = repo_root / "workspace" / ticker
+        workspace.mkdir(parents=True, exist_ok=True)
+
+        # Detect exchange context from ticker format or source
+        exchange_hint = ""
+        is_newsfile = "newsfile" in key_prefix
+        if ".V" in ticker.upper():
+            exchange_hint = f"{ticker} trades on the TSX Venture Exchange (TSXV). This is a Canadian small-cap exchange. Use Canadian sources (SEDAR+, TMX Money, etc.) for filings and financials.\n"
+        elif ".TO" in ticker.upper():
+            exchange_hint = f"{ticker} trades on the Toronto Stock Exchange (TSX). This is a Canadian exchange. Use Canadian sources (SEDAR+, TMX Money, etc.) for filings and financials.\n"
+        elif ".CO" in ticker.upper():
+            exchange_hint = f"{ticker} trades on the Copenhagen Stock Exchange (Nasdaq Copenhagen). Use European sources for filings and financials.\n"
+        elif ".L" in ticker.upper():
+            exchange_hint = f"{ticker} trades on the London Stock Exchange. Use UK sources (Companies House, LSE) for filings and financials.\n"
+        elif is_newsfile:
+            exchange_hint = f"{ticker} was sourced from a Canadian newswire (Newsfile). This ticker likely trades on the TSX or TSXV. Use Canadian sources (SEDAR+, TMX Money, etc.) for filings and financials.\n"
+
+        claude_md = (
+            f"# Research Task: {ticker}\n\n"
+            f"{exchange_hint}"
+            f"No SEC filings or fundamental data were pre-ingested for this ticker.\n"
+            f"Use web search (WebSearch, WebFetch) to research this company thoroughly.\n"
+            f"Find recent news, financials, press releases, and any available filings.\n"
+            f"Produce memo.md and memo.yaml per standard format.\n"
+            f"Include scores.tactical and scores.fundamental in memo.yaml.\n"
+        )
+        (workspace / "CLAUDE.md").write_text(claude_md)
 
     # Build tactical prompt
     tactical_context = fetch_tactical_context(ticker)
@@ -252,7 +307,7 @@ def _run_research_job(
     results, session_map = launch_sessions(
         sessions,
         max_parallel=1,
-        max_retries=1,
+        max_retries=2,
         session_map=session_map,
     )
 
@@ -269,6 +324,74 @@ def _run_research_job(
     return success, artifacts, sid
 
 
+def _maybe_email_memo(ticker: str) -> None:
+    """Email the user if a completed research memo has a BUY decision."""
+    repo_root = find_repo_root()
+    memo_path = repo_root / "workspace" / ticker / "memo.yaml"
+    if not memo_path.exists():
+        return
+
+    try:
+        memo = yaml.safe_load(memo_path.read_text()) or {}
+    except Exception:
+        return
+
+    decision = (memo.get("decision") or "").upper().strip()
+    if decision not in ("BUY", "SPECULATIVE_BUY", "SPECULATIVE BUY"):
+        return
+
+    topic_arn = os.environ.get("SNS_TOPIC_ARN")
+    if not topic_arn:
+        return
+
+    thesis = memo.get("thesis_summary", "")
+    scores = memo.get("scores", {}) or {}
+    tac = scores.get("tactical", "?")
+    fun = scores.get("fundamental", "?")
+    valuation = memo.get("valuation", {}) or {}
+    fv = valuation.get("fair_value_estimate", "N/A")
+    entry = valuation.get("entry_range", [None, None])
+    tactical = memo.get("tactical", {}) or {}
+
+    _exch_map = {".AX": "ASX", ".TO": "TSX", ".V": "TSXV", ".L": "LSE",
+                 ".CO": "Copenhagen", ".SW": "SIX", ".HK": "HKEX"}
+    exch = next((v for k, v in _exch_map.items() if ticker.upper().endswith(k)), "")
+    exch_note = f" [{exch}]" if exch else ""
+
+    subject = f"[PRAXIS BUY] {ticker}{exch_note}: {thesis[:60]}"
+
+    body = (
+        f"BUY MEMO — {ticker}{exch_note}\n\n"
+        f"Decision: {decision}\n"
+        f"Tactical: {tac}/10 | Fundamental: {fun}/10\n"
+        f"Fair value: ${fv}\n"
+    )
+    if entry and entry[0] is not None:
+        body += f"Entry range: ${entry[0]} – ${entry[1]}\n"
+    body += f"\nThesis:\n{thesis}\n"
+
+    if tactical:
+        body += f"\nTactical Setup:\n"
+        if tactical.get("setup"):
+            body += f"  Setup: {tactical['setup']}\n"
+        if tactical.get("entry_trigger"):
+            body += f"  Entry: {tactical['entry_trigger']}\n"
+        if tactical.get("risk_reward"):
+            body += f"  R/R: {tactical['risk_reward']}\n"
+        if tactical.get("catalyst"):
+            body += f"  Catalyst: {tactical['catalyst']}\n"
+        if tactical.get("invalidation"):
+            body += f"  Stop: {tactical['invalidation']}\n"
+
+    try:
+        import boto3
+        sns = boto3.client("sns")
+        sns.publish(TopicArn=topic_arn, Subject=subject[:100], Message=body)
+        logger.info("Emailed BUY memo for %s", ticker)
+    except Exception as e:
+        logger.error("Failed to email memo for %s: %s", ticker, e)
+
+
 # ---------------------------------------------------------------------------
 # Daemon
 # ---------------------------------------------------------------------------
@@ -277,11 +400,11 @@ def _run_research_job(
 def run_daemon(
     *,
     date_str: str | None = None,
-    start_hour: int = 9,
-    end_hour: int = 10,
-    poll_interval: int = 120,
-    magnitude_threshold: float = 0.3,
-    max_parallel: int = 2,
+    start_hour: float = 6.0,
+    end_hour: float = 22.0,
+    poll_interval: int = 600,
+    magnitude_threshold: float = 0.5,
+    max_parallel: int = 4,
     dry_run: bool = False,
 ) -> None:
     """Main daemon loop: poll for filings, evaluate, launch research."""
@@ -297,14 +420,11 @@ def run_daemon(
 
     # Load config
     config_dir = get_config_dir()
-    universe_cfg = UniverseConfig(**load_yaml(config_dir / "universe.yaml"))
-    universe_tickers = {t.upper() for t in universe_cfg.tickers}
 
     click.echo(f"Filing research daemon started for {run_date}")
-    click.echo(f"  Window: {start_hour}:00 - {end_hour}:00 ET")
+    click.echo(f"  Window: {_format_time(start_hour)} - {_format_time(end_hour)} ET")
     click.echo(f"  Poll interval: {poll_interval}s | Magnitude threshold: {magnitude_threshold}")
     click.echo(f"  Max parallel research: {max_parallel} | Dry run: {dry_run}")
-    click.echo(f"  Universe: {len(universe_tickers)} tickers")
     click.echo()
 
     s3 = get_s3_client()
@@ -355,7 +475,7 @@ def run_daemon(
                         existing = state.filings[item.key_prefix]
                         if existing.decision == FilingDecision.SKIP_NOT_ANALYZED:
                             tracked = _evaluate_filing(
-                                s3, item, universe_tickers, magnitude_threshold, researched_tickers
+                                s3, item, magnitude_threshold, researched_tickers
                             )
                             state.filings[item.key_prefix] = tracked
                             if tracked.decision == FilingDecision.RESEARCH_QUEUED:
@@ -363,7 +483,7 @@ def run_daemon(
                         continue
 
                     tracked = _evaluate_filing(
-                        s3, item, universe_tickers, magnitude_threshold, researched_tickers
+                        s3, item, magnitude_threshold, researched_tickers
                     )
                     state.filings[item.key_prefix] = tracked
                     new_count += 1
@@ -412,10 +532,35 @@ def run_daemon(
 
             for ticker in completed_tickers:
                 del pending_futures[ticker]
+                # Email promising memos (BUY decisions)
+                _maybe_email_memo(ticker)
 
-            # Submit new research jobs
+            # Auto-regenerate HTML report when research completes
+            if completed_tickers:
+                try:
+                    from cli.filing_research_report import generate_and_write_report
+                    generate_and_write_report(date_str=run_date, skip_charts=False, open_browser=False, quiet=True)
+                except Exception as e:
+                    logger.debug("Report regeneration failed: %s", e)
+
+            # Submit new research jobs (only up to max_parallel, respecting capacity)
             if executor and not past_window:
+                # Check capacity before submitting new work
+                try:
+                    from cli.telemetry import get_capacity_estimate
+                    cap = get_capacity_estimate()
+                    if cap.get("at_target", False):
+                        if not pending_futures:  # Only log if we'd otherwise be idle
+                            click.echo(f"[{datetime.now(ET).strftime('%H:%M:%S')}] At 80% capacity, waiting...")
+                        _save_state(state)
+                        time.sleep(60)
+                        continue
+                except Exception:
+                    pass
+
                 for filing in state.filings.values():
+                    if len(pending_futures) >= max_parallel:
+                        break
                     if filing.decision != FilingDecision.RESEARCH_QUEUED:
                         continue
                     ticker = filing.ticker.upper()
@@ -443,7 +588,7 @@ def run_daemon(
                     )
 
                     future = executor.submit(
-                        _run_research_job, ticker, state, filing.key_prefix
+                        _run_research_job, ticker, filing.key_prefix, filing.cik
                     )
                     pending_futures[ticker] = future
 
@@ -596,16 +741,16 @@ def filing_research():
 
 @filing_research.command("run")
 @click.option("--date", "date_str", default=None, help="Run date YYYY-MM-DD (default: today ET)")
-@click.option("--start-hour", type=int, default=9, show_default=True, help="Start hour ET")
-@click.option("--end-hour", type=int, default=10, show_default=True, help="End hour ET (daemon polls until this, then drains)")
-@click.option("--poll-interval", type=int, default=120, show_default=True, help="Seconds between S3 polls")
-@click.option("--magnitude-threshold", type=float, default=0.3, show_default=True, help="Minimum magnitude to trigger research")
-@click.option("--max-parallel", type=int, default=2, show_default=True, help="Max concurrent research sessions")
+@click.option("--start-hour", "start_hour_str", default="6:00", show_default=True, help="Start time ET (H:MM or HH:MM)")
+@click.option("--end-hour", "end_hour_str", default="22:00", show_default=True, help="End time ET (H:MM or HH:MM, daemon drains after this)")
+@click.option("--poll-interval", type=int, default=600, show_default=True, help="Seconds between S3 polls")
+@click.option("--magnitude-threshold", type=float, default=0.5, show_default=True, help="Minimum magnitude to trigger research")
+@click.option("--max-parallel", type=int, default=4, show_default=True, help="Max concurrent research sessions")
 @click.option("--dry-run", is_flag=True, help="Evaluate filings but don't launch research")
 def filing_research_run(
     date_str: str | None,
-    start_hour: int,
-    end_hour: int,
+    start_hour_str: str,
+    end_hour_str: str,
     poll_interval: int,
     magnitude_threshold: float,
     max_parallel: int,
@@ -626,12 +771,12 @@ def filing_research_run(
       praxis filing-research run
       praxis filing-research run --dry-run
       praxis filing-research run --magnitude-threshold 0.5 --max-parallel 1
-      praxis filing-research run --start-hour 8 --end-hour 11
+      praxis filing-research run --start-hour 8:00 --end-hour 11:00
     """
     run_daemon(
         date_str=date_str,
-        start_hour=start_hour,
-        end_hour=end_hour,
+        start_hour=_parse_time(start_hour_str),
+        end_hour=_parse_time(end_hour_str),
         poll_interval=poll_interval,
         magnitude_threshold=magnitude_threshold,
         max_parallel=max_parallel,
@@ -700,3 +845,29 @@ def filing_research_unschedule():
     subprocess.run(["launchctl", "unload", str(dest)], capture_output=True, text=True)
     dest.unlink()
     click.echo("Unloaded and removed launchd plist.")
+
+
+@filing_research.command("report")
+@click.option("--date", "date_str", default=None, help="Run date YYYY-MM-DD (default: today ET)")
+@click.option("--output", "output_path", default=None, help="Output HTML path (default: data/filing_research_report_{date}.html)")
+@click.option("--no-charts", is_flag=True, help="Skip price chart fetching")
+def filing_research_report(date_str: str | None, output_path: str | None, no_charts: bool):
+    """Generate an HTML dashboard of the day's filing research results.
+
+    \b
+    Cards are ranked by tactical score (primary) and fundamental score
+    (tiebreaker) from memo.yaml. Fetches 30-day price charts per ticker.
+
+    \b
+    Examples:
+      praxis filing-research report
+      praxis filing-research report --date 2026-03-28
+      praxis filing-research report --no-charts
+    """
+    from cli.filing_research_report import generate_and_write_report
+
+    generate_and_write_report(
+        date_str=date_str,
+        output_path=output_path,
+        skip_charts=no_charts,
+    )

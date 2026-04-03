@@ -104,6 +104,7 @@ def generate_research_prompt(
     has_existing_artifacts: bool,
     research_priority: int = 5,
     has_fundamentals_mcp: bool = False,
+    tactical: bool = False,
 ) -> str:
     """Generate a CLAUDE.md research pipeline prompt for the workspace."""
     today = date.today().isoformat()
@@ -139,6 +140,51 @@ Only generate missing outputs. If the user explicitly requests a rerun, replace 
     agent_selection = _agent_policy_text(budget)
     if has_macro:
         agent_selection += "\n- **macro-analyst**: run if macro/ directory exists"
+    if tactical:
+        agent_selection += "\n- **tactical-analyst**: ALWAYS run when tactical mode is active"
+
+    tactical_agent_section = ""
+    if tactical:
+        tactical_agent_section = f"""
+### Tactical Analyst (Run With Specialists)
+
+7. **tactical-analyst** — Reads the `<tactical-context>` provided in the initial prompt (recent
+   filing analyses, monitor alerts, press release analyses). Synthesizes the event-driven signals
+   into a tactical trading assessment.
+   - Input: `<tactical-context>` from session prompt + price data (use `get_price(ticker)`)
+   - Output: `tactical-analyst.md`
+   - Word limit: {budget.specialist_words:,} words
+   - **CRITICAL: Focus on the DELTA** — what is genuinely NEW information vs what was already
+     known or previously disclosed. Many 8-Ks and press releases rehash known info. Your job is
+     to identify the 20% that's new and assess whether it changes anything. Ask:
+     - What did we know before this filing/PR? What changed?
+     - Is this new data confirming a known trend, or is it a genuine surprise?
+     - What is the market likely NOT pricing in from this disclosure?
+   - Focus on: what changed, expected price reaction, entry/exit timing, risk/reward
+   - NOT a fundamental opinion — that's for the decision-maker. This is pure tactical read.
+"""
+
+    tactical_memo_yaml = ""
+    if tactical:
+        tactical_memo_yaml = """tactical:
+    setup: "<1-2 sentence description of the tactical setup>"
+    entry_trigger: "<specific condition that triggers entry — e.g., 'gap down to $X on volume', 'confirmation above $X'>"
+    timeframe: "<expected holding period — e.g., '1-3 days', '1-2 weeks'>"
+    risk_reward: "<concise risk/reward — e.g., 'risk $2 to make $5, 2.5:1'>"
+    catalyst: "<what near-term event drives the trade>"
+    invalidation: "<specific price or condition that kills the trade>"
+  """
+
+    tactical_memo_md_instruction = ""
+    if tactical:
+        tactical_memo_md_instruction = """
+- The memo MUST include a **## Tactical Setup** section after the main thesis. This section should:
+  - **Lead with the delta**: what is genuinely NEW in this filing/PR vs what was already known
+  - Describe the near-term event/catalyst and expected market reaction
+  - Specify a concrete entry point, position size guidance, and stop-loss
+  - Distinguish the tactical trade from the fundamental view (they can disagree)
+  - Be actionable — a trader should be able to act on this section alone
+  - If the filing/PR is mostly rehashing known info, say so explicitly and score tactically low"""
 
     mcp_section = ""
     if has_fundamentals_mcp:
@@ -258,7 +304,7 @@ These agents analyze independent dimensions and should run concurrently:
 5. **geopolitical-risk-analyst** — Sovereign risk, sanctions, regulatory/policy exposure.
    - Output: `geopolitical-risk-analyst.md`
    - Word limit: {budget.specialist_words:,} words
-{macro_section}
+{macro_section}{tactical_agent_section}
 ### Decision Agent (Run After All Specialists Complete)
 
 **investment-decision-maker** — Synthesizes all specialist reports + raw data into a final
@@ -266,7 +312,7 @@ investment decision.
 
 Outputs:
 - `memo.md` — Narrative investment memo ({budget.memo_words:,} word limit). Must make a Buy/Sell/Neutral decision.
-  Emphasize variant perception. "Too hard" is a valid conclusion.
+  Emphasize variant perception. "Too hard" is a valid conclusion.{tactical_memo_md_instruction}
 - `memo.yaml` — Structured memo data for system consumption:
 
 ```yaml
@@ -284,9 +330,22 @@ valuation:
   invalidation:
     - "<what would prove us wrong 1>"
     - "<what would prove us wrong 2>"
+scores:
+  tactical: <1-10 integer, how compelling the tactical opportunity is — 10 = rare asymmetric setup, 1 = no tactical edge>
+  fundamental: <1-10 integer, how compelling the fundamental case is — 10 = clear mispricing with strong conviction, 1 = no edge>
 dependencies:
   data_vintage: "{today}"
-```
+{tactical_memo_yaml}```
+
+  **Scoring rubric for `scores`:**
+  - **tactical** (1-10): Rate the near-term trading opportunity. 8-10 = rare asymmetric setup with
+    clear catalyst and favorable risk/reward. 5-7 = decent setup but timing or risk uncertain.
+    1-4 = no tactical edge or wrong timing. If no tactical context was provided, score 1.
+  - **fundamental** (1-10): Rate the fundamental case. 8-10 = clear mispricing with strong variant
+    perception and high conviction. 5-7 = interesting but thesis has meaningful holes. 1-4 = fairly
+    valued or negative. "Too Hard" decisions should score 1-3.
+  - Be honest and discriminating. Most ideas should score 3-6. Reserve 8+ for genuinely compelling
+    setups. The scores are used to rank opportunities for the human trader's attention.
 
 - `draft_monitors.yaml` — Proposed monitoring signals for ongoing tracking. These are suggestions
   for the human to review and approve via `praxis monitor approve {ticker}`.
@@ -432,6 +491,25 @@ First-order: "Margins are expanding" → Bullish
 Second-order: "Margins are expanding because of favorable mix" → Is mix sustainable or one-time?
 
 **The edge is in the second layer.**
+
+---
+
+## Event Calendar
+
+If during your research you discover upcoming events (earnings dates, FDA decisions,
+clinical data readouts, investor days, conferences, contract deadlines, etc.), record
+them by appending to `../../config/events.yaml` in this format:
+
+```yaml
+  - ticker: {ticker}
+    date: "YYYY-MM-DD"
+    type: "earnings|clinical_data|fda_decision|investor_day|conference|regulatory|other"
+    description: "<what the event is>"
+    source: "filing_research"
+    added_at: "{today}"
+```
+
+This helps the analyst agent anticipate catalysts when monitoring price moves.
 
 ---
 

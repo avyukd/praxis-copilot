@@ -50,6 +50,14 @@ from cli.s3 import (
 )
 from cli.filing_research import filing_research
 from cli.options_flow import options
+from cli.analyst_agent import analyst
+from cli.earnings_research import earnings_cli
+from cli.entry_watchdog import watchdog
+from cli.morning_briefing import send_morning_briefing
+from cli.portfolio_sync import portfolio_cli
+from cli.event_calendar import events_cli
+from cli.local_scanner import scanner
+from cli.queue_cli import queue
 from cli.watch import alert, market, watch
 
 
@@ -65,6 +73,69 @@ cli.add_command(market)
 cli.add_command(watch)
 cli.add_command(alert)
 cli.add_command(options)
+cli.add_command(queue)
+cli.add_command(scanner)
+cli.add_command(analyst)
+cli.add_command(events_cli, "calendar")
+cli.add_command(earnings_cli, "earnings")
+cli.add_command(watchdog)
+cli.add_command(portfolio_cli, "portfolio")
+
+
+@cli.command("briefing")
+def cli_briefing():
+    """Send the morning briefing email now.
+
+    \b
+    Compiles overnight activity: entry/exit triggers, new BUY memos,
+    upcoming events, analyst findings, and daemon health.
+    """
+    send_morning_briefing()
+
+
+@cli.command("health")
+def cli_health():
+    """Check daemon health status."""
+    import subprocess as sp
+    daemons = {"scanner": False, "filing-research": False, "analyst": False, "queue": False}
+    try:
+        result = sp.run(["bash", "-c", "ps aux | grep '[p]raxis'"],
+                        capture_output=True, text=True, timeout=5)
+        for line in result.stdout.strip().splitlines():
+            for name in daemons:
+                if name in line:
+                    daemons[name] = True
+    except Exception:
+        pass
+
+    all_ok = all(daemons.values())
+    click.echo(f"{'All systems OK' if all_ok else '⚠ Issues detected'}:")
+    for name, running in daemons.items():
+        status = "✓ running" if running else "✗ DOWN"
+        click.echo(f"  {name:<20} {status}")
+
+
+@cli.command("usage")
+@click.option("--date", "date_str", default=None, help="Date YYYY-MM-DD (default: today)")
+@click.option("--json", "as_json", is_flag=True, help="Output raw JSON")
+@click.option("--live", is_flag=True, help="Live capacity monitor with heartbeat probes")
+def cli_usage(date_str: str | None, as_json: bool, live: bool):
+    """Show Claude CLI usage telemetry and capacity estimates.
+
+    \b
+    Tracks token usage, cost, timing, rate limits, and per-daemon
+    breakdowns. Estimates current window capacity via calibration
+    and heartbeat probes.
+
+    \b
+    Examples:
+      praxis usage              # Today's report
+      praxis usage --live       # Live capacity monitor
+      praxis usage --date 2026-04-01
+      praxis usage --json
+    """
+    from cli.telemetry import print_usage_report
+    print_usage_report(date_str=date_str, as_json=as_json, live=live)
 
 
 def _extract_tickers_from_monitor(monitor_data: dict) -> set[str]:
@@ -302,6 +373,34 @@ def universe_remove(ticker: str):
             )
         else:
             click.echo(f"Marked {ticker} as external in ticker_registry.yaml")
+
+    # Clean up portfolio/watchlist references
+    portfolio_path = config_dir / "portfolio.yaml"
+    if portfolio_path.exists():
+        from cli.models import PortfolioConfig
+        portfolio = PortfolioConfig(**load_yaml(portfolio_path))
+        in_portfolio = any(p.ticker.upper() == ticker for p in portfolio.positions)
+        in_watchlist = ticker in [t.upper() for t in portfolio.watchlist]
+        if in_portfolio:
+            click.echo(f"Note: {ticker} is still in portfolio.yaml (not auto-removed — you may still hold it)")
+        if in_watchlist:
+            portfolio.watchlist = [t for t in portfolio.watchlist if t.upper() != ticker]
+            save_yaml(portfolio_path, portfolio.model_dump())
+            click.echo(f"Removed {ticker} from watchlist in portfolio.yaml")
+
+    # Clean up event calendar
+    events_path = config_dir / "events.yaml"
+    if events_path.exists():
+        try:
+            events_data = load_yaml(events_path)
+            events_list = events_data.get("events", [])
+            before = len(events_list)
+            events_list = [e for e in events_list if e.get("ticker", "").upper() != ticker]
+            if len(events_list) < before:
+                save_yaml(events_path, {"events": events_list})
+                click.echo(f"Removed {before - len(events_list)} event(s) from calendar")
+        except Exception:
+            pass
 
     # Sync config
     click.echo()

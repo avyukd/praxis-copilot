@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.praxis.filing-research</string>
+    <string>com.praxis.research-queue</string>
     <key>ProgramArguments</key>
     <array>
         <string>/Users/avyukdixit/dev/praxis-copilot/.venv/bin/praxis</string>
-        <string>filing-research</string>
+        <string>queue</string>
         <string>run</string>
     </array>
     <key>KeepAlive</key>
@@ -15,9 +15,9 @@
     <key>WorkingDirectory</key>
     <string>/Users/avyukdixit/dev/praxis-copilot</string>
     <key>StandardOutPath</key>
-    <string>/Users/avyukdixit/dev/praxis-copilot/logs/filing-research.log</string>
+    <string>/Users/avyukdixit/dev/praxis-copilot/logs/research-queue.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/avyukdixit/dev/praxis-copilot/logs/filing-research.err</string>
+    <string>/Users/avyukdixit/dev/praxis-copilot/logs/research-queue.err</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -26,10 +26,6 @@
         <string></string>
         <key>CLAUDE_API_KEY</key>
         <string></string>
-        <key>SNS_TOPIC_ARN</key>
-        <string>arn:aws:sns:us-east-1:703222328817:8k-scanner-alerts</string>
-        <key>AWS_DEFAULT_REGION</key>
-        <string>us-east-1</string>
     </dict>
 </dict>
 </plist>

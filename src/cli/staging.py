@@ -41,10 +41,13 @@ def stage_ticker(
     macro_files: list[str],
     *,
     quiet: bool = False,
+    cik: str | None = None,
+    tactical: bool = False,
 ) -> Path | None:
     """Stage a single ticker workspace. Returns workspace path or None on failure.
 
     If *quiet* is True, uses logging instead of click.echo (for daemon usage).
+    If *cik* is provided, it is used as a fallback when the ticker is not in the registry.
     """
 
     def _echo(msg: str) -> None:
@@ -59,10 +62,11 @@ def stage_ticker(
     if not data_keys:
         _echo(f"  No ingested data found. Running ingestion...")
         entry = registry_cfg.tickers.get(ticker)
-        if entry:
+        ingestion_cik = entry.cik if entry else cik
+        if ingestion_cik:
             result = run_ingestion(
                 ticker,
-                entry.cik,
+                ingestion_cik,
                 s3,
                 **ingestion_options_for_registry_entry(entry),
             )
@@ -157,6 +161,7 @@ def stage_ticker(
         has_existing_artifacts=bool(artifact_keys),
         research_priority=priority,
         has_fundamentals_mcp=has_fundamentals_mcp,
+        tactical=tactical,
     )
     claude_md_path = workspace / "CLAUDE.md"
     claude_md_path.write_text(prompt)
