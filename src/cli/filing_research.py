@@ -1,7 +1,11 @@
 """Automated filing research daemon and status viewer.
 
-Polls S3 for new filing analyses, identifies research-worthy items via early-exit
-filters, and orchestrates full research sessions automatically.
+Polls S3 for items analyzed by the local CLI scanner (analysis.json).
+Filters by magnitude and classification, then orchestrates full opus
+research sessions via the coordinator pipeline.
+
+Note: Fully Lambda-independent. The scanner writes analysis.json to S3,
+this daemon reads it. No dependency on Lambda pipeline stages.
 """
 
 from __future__ import annotations
