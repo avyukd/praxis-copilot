@@ -55,6 +55,7 @@ from cli.earnings_research import earnings_cli
 from cli.entry_watchdog import watchdog
 from cli.morning_briefing import send_morning_briefing
 from cli.portfolio_sync import portfolio_cli
+from cli.research_queue import research_queue_cli
 from cli.thesis_monitors import watches_cli
 from cli.event_calendar import events_cli
 from cli.local_scanner import scanner
@@ -82,6 +83,7 @@ cli.add_command(earnings_cli, "earnings")
 cli.add_command(watchdog)
 cli.add_command(portfolio_cli, "portfolio")
 cli.add_command(watches_cli, "watches")
+cli.add_command(research_queue_cli, "research-queue")
 
 
 @cli.group("desktop")
