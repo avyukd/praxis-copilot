@@ -380,34 +380,74 @@ def _maybe_email_memo(ticker: str) -> None:
     exch = next((v for k, v in _exch_map.items() if ticker.upper().endswith(k)), "")
     exch_note = f" [{exch}]" if exch else ""
 
+    # Market cap lookup
+    mcap_str = ""
+    try:
+        import sys
+        repo_root_str = str(repo_root)
+        if repo_root_str not in sys.path:
+            sys.path.insert(0, repo_root_str)
+        from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+        mcap = lookup_market_cap(ticker)
+        if mcap:
+            mcap_str = f"${mcap / 1_000_000_000:.1f}B" if mcap >= 1_000_000_000 else f"${mcap / 1_000_000:.0f}M"
+    except Exception:
+        pass
+
     subject = f"[PRAXIS BUY] {ticker}{exch_note}: {thesis[:60]}"
 
+    # Header block
+    mcap_line = f" | Mcap: {mcap_str}" if mcap_str else ""
+    exit_range = valuation.get("exit_range", [None, None])
+
     body = (
-        f"BUY MEMO — {ticker}{exch_note}\n\n"
+        f"{'='*50}\n"
+        f"BUY MEMO — {ticker}{exch_note}{mcap_line}\n"
+        f"{'='*50}\n\n"
         f"Decision: {decision}\n"
         f"Tactical: {tac}/10 | Fundamental: {fun}/10\n"
         f"Fair value: ${fv}\n"
     )
     if entry and entry[0] is not None:
-        body += f"Entry range: ${entry[0]} – ${entry[1]}\n"
-    body += f"\nThesis:\n{thesis}\n"
+        body += f"Entry: ${entry[0]} – ${entry[1]}\n"
+    if exit_range and exit_range[0] is not None:
+        body += f"Exit: ${exit_range[0]} – ${exit_range[1]}\n"
+
+    body += f"\n{'─'*50}\nTHESIS\n{'─'*50}\n{thesis}\n"
 
     if tactical:
-        body += f"\nTactical Setup:\n"
-        if tactical.get("setup"):
-            body += f"  Setup: {tactical['setup']}\n"
-        if tactical.get("entry_trigger"):
-            body += f"  Entry: {tactical['entry_trigger']}\n"
-        if tactical.get("risk_reward"):
-            body += f"  R/R: {tactical['risk_reward']}\n"
-        if tactical.get("catalyst"):
-            body += f"  Catalyst: {tactical['catalyst']}\n"
-        if tactical.get("invalidation"):
-            body += f"  Stop: {tactical['invalidation']}\n"
+        body += f"\n{'─'*50}\nTACTICAL SETUP\n{'─'*50}\n"
+        for key in ("setup", "entry_trigger", "risk_reward", "catalyst", "timeframe", "invalidation"):
+            if tactical.get(key):
+                body += f"  {key.replace('_', ' ').title()}: {tactical[key]}\n"
+
+    key_assumptions = valuation.get("key_assumptions", [])
+    invalidation_list = valuation.get("invalidation", [])
+    if key_assumptions:
+        body += f"\n{'─'*50}\nKEY ASSUMPTIONS\n{'─'*50}\n"
+        for a in key_assumptions:
+            body += f"  • {a}\n"
+    if invalidation_list:
+        body += f"\n{'─'*50}\nINVALIDATION\n{'─'*50}\n"
+        for inv in invalidation_list:
+            body += f"  ⚠ {inv}\n"
+
+    # Include first 2000 chars of memo.md
+    memo_md_path = repo_root / "workspace" / ticker / "memo.md"
+    if memo_md_path.exists():
+        try:
+            full_memo = memo_md_path.read_text()
+            excerpt = full_memo[:2000]
+            body += f"\n{'─'*50}\nMEMO\n{'─'*50}\n{excerpt}"
+            if len(full_memo) > 2000:
+                body += "\n\n[... truncated — full memo in workspace]"
+            body += "\n"
+        except Exception:
+            pass
 
     try:
         import boto3
-        sns = boto3.client("sns")
+        sns = boto3.client("sns", region_name="us-east-1")
         sns.publish(TopicArn=topic_arn, Subject=subject[:100], Message=body)
         logger.info("Emailed BUY memo for %s", ticker)
     except Exception as e:
@@ -564,7 +604,8 @@ def run_daemon(
                 # Email promising memos (BUY decisions)
                 _maybe_email_memo(ticker)
                 # Auto-extract thesis watches from new memo
-                _maybe_extract_watches(ticker)
+                # Thesis watch extraction disabled — sunset per user request
+                # Code remains in thesis_monitors.py for manual use via `praxis watches refresh`
 
             # Auto-regenerate HTML report when research completes
             if completed_tickers:

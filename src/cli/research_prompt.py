@@ -61,39 +61,31 @@ class ResearchBudget:
 
 def _agent_policy_text(budget: ResearchBudget) -> str:
     """Generate agent selection instructions based on policy."""
-    if budget.agent_policy == "minimal":
-        return """Which agents to run:
-- **Required**: rigorous-financial-analyst, business-moat-analyst
-- **Skip all optional agents** — this is a quick screen, not a deep dive
-- Keep analysis focused on the 1-2 things that matter most"""
+    return f"""**Agent Selection — COORDINATOR DECIDES**
 
-    if budget.agent_policy == "conservative":
-        return """Which agents to run:
-- **Required**: rigorous-financial-analyst, business-moat-analyst
-- **Only if obviously relevant**: industry-structure-cycle-analyst, capital-allocation-analyst
-- **Skip**: geopolitical-risk-analyst unless it's the primary risk
-- Default to fewer, higher-quality outputs"""
+The only REQUIRED agent is **rigorous-financial-analyst** (always run first).
 
-    if budget.agent_policy == "standard":
-        return """Which agents to run:
-- **Always**: rigorous-financial-analyst, business-moat-analyst
-- **If relevant**: industry-structure-cycle-analyst, capital-allocation-analyst
-- **If material**: geopolitical-risk-analyst
-- When in doubt, skip optional agents. Two high-quality outputs beat four mediocre ones."""
+All other agents are OPTIONAL — you decide which to run based on the company:
 
-    if budget.agent_policy == "thorough":
-        return """Which agents to run:
-- **Always**: rigorous-financial-analyst, business-moat-analyst
-- **Run if any relevance**: industry-structure-cycle-analyst, capital-allocation-analyst
-- **Run if any exposure**: geopolitical-risk-analyst
-- Err on the side of running more agents — thoroughness over efficiency at this priority"""
+| Agent | Run when... |
+|-------|-------------|
+| rigorous-financial-analyst | **ALWAYS** — financials are non-negotiable |
+| business-moat-analyst | Company has a real business with competitive dynamics |
+| industry-structure-cycle-analyst | Cyclical industry, structural changes, or commodity exposure |
+| capital-allocation-analyst | Meaningful capital allocation decisions (M&A, buybacks, SBC) |
+| geopolitical-risk-analyst | International exposure, sanctions risk, regulatory/political risk |
+| macro-analyst | Macro-sensitive business (rates, commodities, trade policy) |
 
-    # maximum
-    return """Which agents to run:
-- **Run ALL agents**: rigorous-financial-analyst, business-moat-analyst,
-  industry-structure-cycle-analyst, capital-allocation-analyst, geopolitical-risk-analyst
-- No agent is optional at this priority level — run everything
-- Take as much space and depth as needed. Thoroughness is the priority."""
+**Guidelines based on research depth ({budget.agent_policy}):**
+{"- Quick screen: run 1-2 agents max. Financial analyst + maybe one other." if budget.agent_policy == "minimal" else ""}{"- Standard: run 2-3 agents. Skip what clearly doesn't apply." if budget.agent_policy in ("conservative", "standard") else ""}{"- Thorough: run 3-4 agents. Include anything with relevance." if budget.agent_policy == "thorough" else ""}{"- Maximum: run everything that could add insight." if budget.agent_policy == "maximum" else ""}
+
+**Examples of what to skip:**
+- Micro-cap bank → skip geopolitical, skip macro, skip industry (just financials + moat)
+- Biotech → skip capital allocation, skip geopolitical (just financials + moat + industry)
+- Gold miner → skip geopolitical, add macro + industry (commodity cycle matters)
+- Conglomerate → run more agents (complex, many dimensions)
+
+Log your agent selection decision to `coordinator_log.md` with reasoning."""
 
 
 def generate_research_prompt(
@@ -145,24 +137,9 @@ Only generate missing outputs. If the user explicitly requests a rerun, replace 
 
     tactical_agent_section = ""
     if tactical:
-        tactical_agent_section = f"""
-### Tactical Analyst (Run With Specialists)
-
-7. **tactical-analyst** — Reads the `<tactical-context>` provided in the initial prompt (recent
-   filing analyses, monitor alerts, press release analyses). Synthesizes the event-driven signals
-   into a tactical trading assessment.
-   - Input: `<tactical-context>` from session prompt + price data (use `get_price(ticker)`)
-   - Output: `tactical-analyst.md`
-   - Word limit: {budget.specialist_words:,} words
-   - **CRITICAL: Focus on the DELTA** — what is genuinely NEW information vs what was already
-     known or previously disclosed. Many 8-Ks and press releases rehash known info. Your job is
-     to identify the 20% that's new and assess whether it changes anything. Ask:
-     - What did we know before this filing/PR? What changed?
-     - Is this new data confirming a known trend, or is it a genuine surprise?
-     - What is the market likely NOT pricing in from this disclosure?
-   - Focus on: what changed, expected price reaction, entry/exit timing, risk/reward
-   - NOT a fundamental opinion — that's for the decision-maker. This is pure tactical read.
-"""
+        # Tactical analyst removed as separate agent — tactical analysis is now
+        # part of the coordinator's synthesis in the ## Tactical Setup section of memo.md
+        tactical_agent_section = ""
 
     tactical_memo_yaml = ""
     if tactical:

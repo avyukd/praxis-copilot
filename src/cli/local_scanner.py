@@ -208,6 +208,8 @@ def run_full_pipeline(
     GNW_FEED_URLS = [
         "https://www.globenewswire.com/RssFeed/exchange/NYSE",
         "https://www.globenewswire.com/RssFeed/exchange/NASDAQ",
+        "https://www.globenewswire.com/RssFeed/exchange/TSX",
+        "https://www.globenewswire.com/RssFeed/exchange/TSXV",
     ]
 
     s3 = get_s3_client()
@@ -328,6 +330,9 @@ def run_full_pipeline(
     click.echo(f"\n[4/4] Sending alerts...")
 
     for item, analysis in results:
+        classification = (analysis.get("classification") or "").upper()
+        if classification in ("SELL", "HOLD"):
+            continue
         if analysis["magnitude"] >= alert_threshold:
             _send_alert(item, analysis)
             stats["alerted"] += 1
@@ -491,8 +496,17 @@ def _store_press_release(s3, pr) -> dict | None:
         logger.debug("Failed to fetch PR text for %s: %s", pr.ticker, e)
         return None
 
+    # Build full ticker with exchange suffix for non-US exchanges
+    ticker = pr.ticker
+    exchange = (pr.exchange or "").upper()
+    _suffix_map = {"TSX": ".TO", "TSXV": ".V", "TSX-V": ".V", "ASX": ".AX",
+                   "LSE": ".L", "HKEX": ".HK"}
+    if exchange in _suffix_map and not any(ticker.endswith(s) for s in _suffix_map.values()):
+        ticker = f"{ticker}{_suffix_map[exchange]}"
+
     source = pr.source or "gnw"
     release_id = pr.release_id or pr.url.split("/")[-1]
+    # Use original pr.ticker for S3 path (backwards compatible), but full ticker for display
     key_prefix = f"data/raw/press_releases/{source}/{pr.ticker}/{release_id}"
 
     # Check if already processed
@@ -504,7 +518,7 @@ def _store_press_release(s3, pr) -> dict | None:
 
     # Store index
     index = {
-        "ticker": pr.ticker,
+        "ticker": ticker,
         "headline": pr.title,
         "url": pr.url,
         "published_at": pr.published_at if isinstance(pr.published_at, str) else str(pr.published_at or ""),
@@ -522,7 +536,7 @@ def _store_press_release(s3, pr) -> dict | None:
 
     # Store extracted
     extracted = {
-        "ticker": pr.ticker,
+        "ticker": ticker,
         "form_type": "PR",
         "text": text,
         "total_chars": len(text),
@@ -531,7 +545,7 @@ def _store_press_release(s3, pr) -> dict | None:
 
     return {
         "key_prefix": key_prefix,
-        "ticker": pr.ticker,
+        "ticker": ticker,
         "form_type": "PR",
         "text": text,
         "items": {},
@@ -603,14 +617,32 @@ def _send_alert(item: dict, analysis: dict) -> None:
         exch = next((v for k, v in _exch_map.items() if ticker.upper().endswith(k)), "")
         exch_note = f" [{exch}]" if exch else ""
 
+        # Look up market cap
+        mcap_str = ""
+        try:
+            import sys
+            repo_root = str(Path(__file__).resolve().parent.parent.parent)
+            if repo_root not in sys.path:
+                sys.path.insert(0, repo_root)
+            from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+            mcap = lookup_market_cap(ticker)
+            if mcap:
+                if mcap >= 1_000_000_000:
+                    mcap_str = f"${mcap / 1_000_000_000:.1f}B"
+                else:
+                    mcap_str = f"${mcap / 1_000_000:.0f}M"
+        except Exception:
+            pass
+
+        mcap_line = f" | Mcap: {mcap_str}" if mcap_str else ""
+
         subject = (
             f"{analysis['classification']} ALERT: {ticker}{exch_note} "
             f"(mag={analysis['magnitude']:.2f})"
         )
         message = (
             f"{analysis['classification']} — {ticker}{exch_note} ({item['form_type']})\n"
-            f"Magnitude: {analysis['magnitude']:.2f}\n"
-            f"Analyzer: CLI (local)\n\n"
+            f"Magnitude: {analysis['magnitude']:.2f}{mcap_line}\n\n"
             f"New information:\n{analysis.get('new_information', '')}\n\n"
             f"Materiality:\n{analysis.get('materiality', '')}\n\n"
             f"Analysis:\n{analysis.get('explanation', '')}"
@@ -908,6 +940,22 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
             if now.weekday() >= 5:
                 _time.sleep(600)
                 continue
+
+            # Hourly digest email (market hours: 9 AM - 4 PM ET)
+            try:
+                from zoneinfo import ZoneInfo
+                now_et = now.astimezone(ZoneInfo("America/New_York")) if now.tzinfo else now
+                et_hour = now_et.hour
+                if 9 <= et_hour < 16:
+                    hour_key = f"hourly_{today}_{et_hour}"
+                    if not hasattr(run_full_pipeline, '_hourly_sent'):
+                        run_full_pipeline._hourly_sent = set()
+                    if hour_key not in run_full_pipeline._hourly_sent:
+                        from cli.hourly_digest import send_hourly_digest
+                        send_hourly_digest()
+                        run_full_pipeline._hourly_sent.add(hour_key)
+            except Exception:
+                pass
 
             # Check capacity — back off if rate limited
             if not capacity.should_run():

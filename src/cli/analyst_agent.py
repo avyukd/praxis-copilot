@@ -877,12 +877,8 @@ def run_analyst(
                 time.sleep(poll_interval)
                 continue
 
-            # Check entry targets (no LLM cost — just price lookups)
-            try:
-                from cli.entry_watchdog import run_entry_check
-                run_entry_check()
-            except Exception as e:
-                logger.debug("Entry watchdog error: %s", e)
+            # Entry watchdog disabled — sunset per user request
+            # Code remains in entry_watchdog.py for manual use via `praxis watchdog check`
 
             # Check IPC inbox for Desktop findings
             try:
