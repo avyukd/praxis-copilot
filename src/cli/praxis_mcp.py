@@ -228,11 +228,9 @@ async def read_memo(ticker: str) -> str:
     Args:
         ticker: Ticker symbol (e.g., HCC, CLMT).
     """
-    from cli.config_utils import find_repo_root
-    memo_path = find_repo_root() / "workspace" / ticker.upper() / "memo.md"
-    if memo_path.exists():
-        return memo_path.read_text()
-    return f"No memo found for {ticker}. Check workspace/{ticker.upper()}/."
+    from cli.memo_reader import read_memo_md as _read_md
+    result = _read_md(ticker.upper())
+    return result or f"No memo found for {ticker}."
 
 
 @mcp.tool()
@@ -242,11 +240,11 @@ async def read_memo_yaml(ticker: str) -> str:
     Args:
         ticker: Ticker symbol.
     """
-    from cli.config_utils import find_repo_root
+    from cli.memo_reader import read_memo_yaml as _read_yaml
     import yaml
-    memo_path = find_repo_root() / "workspace" / ticker.upper() / "memo.yaml"
-    if memo_path.exists():
-        return memo_path.read_text()
+    result = _read_yaml(ticker.upper())
+    if result:
+        return yaml.dump(result, default_flow_style=False)
     return f"No memo.yaml found for {ticker}."
 
 

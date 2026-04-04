@@ -509,10 +509,10 @@ def _sonnet_investigate(ticker: str, alert_type: str, details: dict) -> dict:
 
     # Load existing thesis if available
     thesis_context = ""
-    memo_path = find_repo_root() / "workspace" / ticker / "memo.yaml"
-    if memo_path.exists():
-        try:
-            memo = yaml.safe_load(memo_path.read_text()) or {}
+    try:
+        from cli.memo_reader import read_memo_yaml
+        memo = read_memo_yaml(ticker)
+        if memo:
             thesis = memo.get("thesis_summary", "")
             decision = memo.get("decision", "")
             invalidation = memo.get("valuation", {}).get("invalidation", [])
@@ -521,7 +521,7 @@ def _sonnet_investigate(ticker: str, alert_type: str, details: dict) -> dict:
                 f"INVALIDATION CONDITIONS:\n" +
                 "\n".join(f"  - {inv}" for inv in (invalidation or []))
             )
-        except Exception:
+    except Exception:
             pass
 
     details_str = json.dumps(details, default=str)[:500]
@@ -626,17 +626,13 @@ def _queue_weekly_thesis_review() -> None:
 
     # Build a list of positions with existing theses
     reviews = []
-    repo_root = find_repo_root()
+    from cli.memo_reader import read_memo_yaml
     for ticker in tickers:
-        memo_path = repo_root / "workspace" / ticker / "memo.yaml"
-        if memo_path.exists():
-            try:
-                memo = yaml.safe_load(memo_path.read_text()) or {}
-                thesis = memo.get("thesis_summary", "")[:100]
-                decision = memo.get("decision", "?")
-                reviews.append(f"  - {ticker}: {decision} — {thesis}")
-            except Exception:
-                reviews.append(f"  - {ticker}: (memo exists but unreadable)")
+        memo = read_memo_yaml(ticker)
+        if memo:
+            thesis = memo.get("thesis_summary", "")[:100]
+            decision = memo.get("decision", "?")
+            reviews.append(f"  - {ticker}: {decision} — {thesis}")
         else:
             reviews.append(f"  - {ticker}: (no memo)")
 

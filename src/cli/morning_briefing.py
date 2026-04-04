@@ -141,17 +141,17 @@ def _get_new_buy_memos() -> str:
                 if f.get("decision") != "research_done":
                     continue
                 ticker = f.get("ticker", "")
-                memo_path = repo_root / "workspace" / ticker / "memo.yaml"
-                if memo_path.exists():
-                    try:
-                        memo = yaml.safe_load(memo_path.read_text()) or {}
+                try:
+                    from cli.memo_reader import read_memo_yaml
+                    memo = read_memo_yaml(ticker)
+                    if memo:
                         decision = (memo.get("decision") or "").upper().strip()
                         if decision in ("BUY", "SPECULATIVE_BUY", "SPECULATIVE BUY"):
                             thesis = memo.get("thesis_summary", "")[:100]
                             scores = memo.get("scores", {}) or {}
                             buys.append(f"  • {ticker} (T:{scores.get('tactical','?')} F:{scores.get('fundamental','?')}): {thesis}")
-                    except Exception:
-                        pass
+                except Exception:
+                    pass
         except Exception:
             pass
 

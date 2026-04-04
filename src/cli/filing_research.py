@@ -353,13 +353,10 @@ def _maybe_extract_watches(ticker: str) -> None:
 def _maybe_email_memo(ticker: str) -> None:
     """Email the user if a completed research memo has a BUY decision."""
     repo_root = find_repo_root()
-    memo_path = repo_root / "workspace" / ticker / "memo.yaml"
-    if not memo_path.exists():
-        return
 
-    try:
-        memo = yaml.safe_load(memo_path.read_text()) or {}
-    except Exception:
+    from cli.memo_reader import read_memo_yaml, read_memo_md
+    memo = read_memo_yaml(ticker)
+    if not memo:
         return
 
     decision = (memo.get("decision") or "").upper().strip()
@@ -437,14 +434,13 @@ def _maybe_email_memo(ticker: str) -> None:
             body += f"  ⚠ {inv}\n"
 
     # Include first 2000 chars of memo.md
-    memo_md_path = repo_root / "workspace" / ticker / "memo.md"
-    if memo_md_path.exists():
+    full_memo = read_memo_md(ticker)
+    if full_memo:
         try:
-            full_memo = memo_md_path.read_text()
             excerpt = full_memo[:2000]
             body += f"\n{'─'*50}\nMEMO\n{'─'*50}\n{excerpt}"
             if len(full_memo) > 2000:
-                body += "\n\n[... truncated — full memo in workspace]"
+                body += "\n\n[... truncated]"
             body += "\n"
         except Exception:
             pass

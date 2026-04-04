@@ -246,22 +246,13 @@ def _load_all_analyses(filings: list[TrackedFiling]) -> dict[str, dict | None]:
 
 
 def _load_memo_yaml(ticker: str) -> dict | None:
-    workspace = find_repo_root() / "workspace" / ticker / "memo.yaml"
-    if workspace.exists():
-        try:
-            return yaml.safe_load(workspace.read_text()) or {}
-        except Exception:
-            return None
-    return None
+    from cli.memo_reader import read_memo_yaml
+    return read_memo_yaml(ticker)
 
 
 def _load_memo_md(ticker: str) -> str | None:
-    workspace = find_repo_root() / "workspace" / ticker / "memo.md"
-    if workspace.exists():
-        try:
-            return workspace.read_text()
-        except Exception:
-            return None
+    from cli.memo_reader import read_memo_md
+    return read_memo_md(ticker)
     return None
 
 
