@@ -1,0 +1,60 @@
+positions:
+  - ticker: FOTB
+  - ticker: CCV.AX
+  - ticker: IEHC
+  - ticker: IFOS.V
+  - ticker: HY9H
+  - ticker: LSTA
+  - ticker: ASIX
+  - ticker: HYNE
+  - ticker: HAN.L
+  - ticker: MLP
+  - ticker: YNV.V
+  - ticker: OXBC
+  - ticker: ICE
+  - ticker: PMTR
+  - ticker: PFSB
+  - ticker: MRX
+  - ticker: KLXE
+  - ticker: JFN.SW
+  - ticker: ERII
+  - ticker: OPBK
+  - ticker: BCAR
+  - ticker: SNWV
+  - ticker: FFH.TO
+  - ticker: MIAX
+  - ticker: CME
+  - ticker: OPY
+  - ticker: OTCM
+  - ticker: MSV.AX
+  - ticker: SU
+  - ticker: DBO.TO
+  - ticker: MCEM
+  - ticker: WEBC
+  - ticker: LB
+  - ticker: WBI
+
+watchlist:
+  - CBNA
+  - ET
+  - ALOT
+  - HRTG
+  - RDVT
+  - FROG
+  - GTLB
+  - MCO
+  - SPGI
+  - DAVA
+  - ESTC
+  - ASIC
+  - MKL
+  - FICO
+  - IGIC
+  - ZM
+  - VOD
+  - SKM
+  - CLMT
+  - PESI
+  - FOA
+  - CGEH
+  - LRN

@@ -30,6 +30,7 @@ REQUIRED_ARTIFACTS = {"memo.md", "memo.yaml"}
 ALL_ARTIFACTS = {
     "memo.md",
     "memo.yaml",
+    "coordinator_log.md",
     "draft_monitors.yaml",
     "rigorous-financial-analyst.md",
     "business-moat-analyst.md",
@@ -316,17 +317,17 @@ def _run_session(
     env.pop("CLAUDE_API_KEY", None)
 
     try:
-        result = subprocess.run(
-            [claude_bin, "-p", prompt, "--allowedTools", "*", "--session-id", session_id],
-            cwd=workspace,
-            capture_output=True,
-            text=True,
-            env=env,
+        from cli.telemetry import track_claude_call
+
+        cmd = [claude_bin, "-p", prompt, "--dangerously-skip-permissions", "--session-id", session_id]
+        result_json = track_claude_call(
+            cmd, cwd=workspace, env=env, timeout=3600,
+            daemon="filing_research", task_id=ticker, ticker=ticker,
         )
-        output = result.stdout + result.stderr
+
+        output = result_json.get("result", "")
         found, missing_required = check_artifacts(workspace)
-        # Success = exit code 0 AND required artifacts exist
-        success = result.returncode == 0 and not missing_required
+        success = not result_json.get("is_error", False) and not missing_required
         return (ticker, session_id, success, output, found, missing_required)
     except Exception as e:
         return (ticker, session_id, False, str(e), set(), REQUIRED_ARTIFACTS.copy())

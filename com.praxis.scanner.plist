@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.praxis.scanner</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/avyukdixit/dev/praxis-copilot/.venv/bin/praxis</string>
+        <string>scanner</string>
+        <string>daemon</string>
+        <string>--poll-interval</string>
+        <string>600</string>
+        <string>--alert-threshold</string>
+        <string>0.5</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>WorkingDirectory</key>
+    <string>/Users/avyukdixit/dev/praxis-copilot</string>
+    <key>StandardOutPath</key>
+    <string>/Users/avyukdixit/dev/praxis-copilot/logs/scanner.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/avyukdixit/dev/praxis-copilot/logs/scanner.err</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/Users/avyukdixit/.local/bin</string>
+        <key>ANTHROPIC_API_KEY</key>
+        <string></string>
+        <key>CLAUDE_API_KEY</key>
+        <string></string>
+        <key>SNS_TOPIC_ARN</key>
+        <string>arn:aws:sns:us-east-1:703222328817:8k-scanner-alerts</string>
+        <key>AWS_DEFAULT_REGION</key>
+        <string>us-east-1</string>
+    </dict>
+</dict>
+</plist>

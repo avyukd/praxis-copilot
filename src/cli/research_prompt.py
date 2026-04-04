@@ -61,39 +61,31 @@ class ResearchBudget:
 
 def _agent_policy_text(budget: ResearchBudget) -> str:
     """Generate agent selection instructions based on policy."""
-    if budget.agent_policy == "minimal":
-        return """Which agents to run:
-- **Required**: rigorous-financial-analyst, business-moat-analyst
-- **Skip all optional agents** — this is a quick screen, not a deep dive
-- Keep analysis focused on the 1-2 things that matter most"""
+    return f"""**Agent Selection — COORDINATOR DECIDES**
 
-    if budget.agent_policy == "conservative":
-        return """Which agents to run:
-- **Required**: rigorous-financial-analyst, business-moat-analyst
-- **Only if obviously relevant**: industry-structure-cycle-analyst, capital-allocation-analyst
-- **Skip**: geopolitical-risk-analyst unless it's the primary risk
-- Default to fewer, higher-quality outputs"""
+The only REQUIRED agent is **rigorous-financial-analyst** (always run first).
 
-    if budget.agent_policy == "standard":
-        return """Which agents to run:
-- **Always**: rigorous-financial-analyst, business-moat-analyst
-- **If relevant**: industry-structure-cycle-analyst, capital-allocation-analyst
-- **If material**: geopolitical-risk-analyst
-- When in doubt, skip optional agents. Two high-quality outputs beat four mediocre ones."""
+All other agents are OPTIONAL — you decide which to run based on the company:
 
-    if budget.agent_policy == "thorough":
-        return """Which agents to run:
-- **Always**: rigorous-financial-analyst, business-moat-analyst
-- **Run if any relevance**: industry-structure-cycle-analyst, capital-allocation-analyst
-- **Run if any exposure**: geopolitical-risk-analyst
-- Err on the side of running more agents — thoroughness over efficiency at this priority"""
+| Agent | Run when... |
+|-------|-------------|
+| rigorous-financial-analyst | **ALWAYS** — financials are non-negotiable |
+| business-moat-analyst | Company has a real business with competitive dynamics |
+| industry-structure-cycle-analyst | Cyclical industry, structural changes, or commodity exposure |
+| capital-allocation-analyst | Meaningful capital allocation decisions (M&A, buybacks, SBC) |
+| geopolitical-risk-analyst | International exposure, sanctions risk, regulatory/political risk |
+| macro-analyst | Macro-sensitive business (rates, commodities, trade policy) |
 
-    # maximum
-    return """Which agents to run:
-- **Run ALL agents**: rigorous-financial-analyst, business-moat-analyst,
-  industry-structure-cycle-analyst, capital-allocation-analyst, geopolitical-risk-analyst
-- No agent is optional at this priority level — run everything
-- Take as much space and depth as needed. Thoroughness is the priority."""
+**Guidelines based on research depth ({budget.agent_policy}):**
+{"- Quick screen: run 1-2 agents max. Financial analyst + maybe one other." if budget.agent_policy == "minimal" else ""}{"- Standard: run 2-3 agents. Skip what clearly doesn't apply." if budget.agent_policy in ("conservative", "standard") else ""}{"- Thorough: run 3-4 agents. Include anything with relevance." if budget.agent_policy == "thorough" else ""}{"- Maximum: run everything that could add insight." if budget.agent_policy == "maximum" else ""}
+
+**Examples of what to skip:**
+- Micro-cap bank → skip geopolitical, skip macro, skip industry (just financials + moat)
+- Biotech → skip capital allocation, skip geopolitical (just financials + moat + industry)
+- Gold miner → skip geopolitical, add macro + industry (commodity cycle matters)
+- Conglomerate → run more agents (complex, many dimensions)
+
+Log your agent selection decision to `coordinator_log.md` with reasoning."""
 
 
 def generate_research_prompt(
@@ -104,6 +96,7 @@ def generate_research_prompt(
     has_existing_artifacts: bool,
     research_priority: int = 5,
     has_fundamentals_mcp: bool = False,
+    tactical: bool = False,
 ) -> str:
     """Generate a CLAUDE.md research pipeline prompt for the workspace."""
     today = date.today().isoformat()
@@ -139,6 +132,36 @@ Only generate missing outputs. If the user explicitly requests a rerun, replace 
     agent_selection = _agent_policy_text(budget)
     if has_macro:
         agent_selection += "\n- **macro-analyst**: run if macro/ directory exists"
+    if tactical:
+        agent_selection += "\n- **tactical-analyst**: ALWAYS run when tactical mode is active"
+
+    tactical_agent_section = ""
+    if tactical:
+        # Tactical analyst removed as separate agent — tactical analysis is now
+        # part of the coordinator's synthesis in the ## Tactical Setup section of memo.md
+        tactical_agent_section = ""
+
+    tactical_memo_yaml = ""
+    if tactical:
+        tactical_memo_yaml = """tactical:
+    setup: "<1-2 sentence description of the tactical setup>"
+    entry_trigger: "<specific condition that triggers entry — e.g., 'gap down to $X on volume', 'confirmation above $X'>"
+    timeframe: "<expected holding period — e.g., '1-3 days', '1-2 weeks'>"
+    risk_reward: "<concise risk/reward — e.g., 'risk $2 to make $5, 2.5:1'>"
+    catalyst: "<what near-term event drives the trade>"
+    invalidation: "<specific price or condition that kills the trade>"
+  """
+
+    tactical_memo_md_instruction = ""
+    if tactical:
+        tactical_memo_md_instruction = """
+- The memo MUST include a **## Tactical Setup** section after the main thesis. This section should:
+  - **Lead with the delta**: what is genuinely NEW in this filing/PR vs what was already known
+  - Describe the near-term event/catalyst and expected market reaction
+  - Specify a concrete entry point, position size guidance, and stop-loss
+  - Distinguish the tactical trade from the fundamental view (they can disagree)
+  - Be actionable — a trader should be able to act on this section alone
+  - If the filing/PR is mostly rehashing known info, say so explicitly and score tactically low"""
 
     mcp_section = ""
     if has_fundamentals_mcp:
@@ -258,7 +281,7 @@ These agents analyze independent dimensions and should run concurrently:
 5. **geopolitical-risk-analyst** — Sovereign risk, sanctions, regulatory/policy exposure.
    - Output: `geopolitical-risk-analyst.md`
    - Word limit: {budget.specialist_words:,} words
-{macro_section}
+{macro_section}{tactical_agent_section}
 ### Decision Agent (Run After All Specialists Complete)
 
 **investment-decision-maker** — Synthesizes all specialist reports + raw data into a final
@@ -266,7 +289,7 @@ investment decision.
 
 Outputs:
 - `memo.md` — Narrative investment memo ({budget.memo_words:,} word limit). Must make a Buy/Sell/Neutral decision.
-  Emphasize variant perception. "Too hard" is a valid conclusion.
+  Emphasize variant perception. "Too hard" is a valid conclusion.{tactical_memo_md_instruction}
 - `memo.yaml` — Structured memo data for system consumption:
 
 ```yaml
@@ -284,9 +307,22 @@ valuation:
   invalidation:
     - "<what would prove us wrong 1>"
     - "<what would prove us wrong 2>"
+scores:
+  tactical: <1-10 integer, how compelling the tactical opportunity is — 10 = rare asymmetric setup, 1 = no tactical edge>
+  fundamental: <1-10 integer, how compelling the fundamental case is — 10 = clear mispricing with strong conviction, 1 = no edge>
 dependencies:
   data_vintage: "{today}"
-```
+{tactical_memo_yaml}```
+
+  **Scoring rubric for `scores`:**
+  - **tactical** (1-10): Rate the near-term trading opportunity. 8-10 = rare asymmetric setup with
+    clear catalyst and favorable risk/reward. 5-7 = decent setup but timing or risk uncertain.
+    1-4 = no tactical edge or wrong timing. If no tactical context was provided, score 1.
+  - **fundamental** (1-10): Rate the fundamental case. 8-10 = clear mispricing with strong variant
+    perception and high conviction. 5-7 = interesting but thesis has meaningful holes. 1-4 = fairly
+    valued or negative. "Too Hard" decisions should score 1-3.
+  - Be honest and discriminating. Most ideas should score 3-6. Reserve 8+ for genuinely compelling
+    setups. The scores are used to rank opportunities for the human trader's attention.
 
 - `draft_monitors.yaml` — Proposed monitoring signals for ongoing tracking. These are suggestions
   for the human to review and approve via `praxis monitor approve {ticker}`.
@@ -341,10 +377,17 @@ monitors:
 
 ## Execution Flow
 
-### Step 1 — Read Data First
+You are the **COORDINATOR**. You manage the research pipeline, decide what to run,
+and can early-exit if something is clearly uninvestable. You also serve as the
+investment decision maker at the end.
 
-Before running any agent, read the ingested data to understand what's available. At minimum:
-- `data/fundamentals/summary.md` — key financial metrics overview (use MCP tools for drill-down)
+**All decisions must be logged to `coordinator_log.md`** — this file is auditable by the
+human. Write one line per decision: timestamp, what you decided, and why.
+
+### Step 1 — Read Data & Quick Screen
+
+Read the ingested data to understand what's available:
+- `data/fundamentals/summary.md` — key financial metrics overview
 - Latest `data/filings/10-K/*/item7_mda.txt` — management's own narrative
 - Latest `data/filings/10-K/*/item1_business.txt` — business description
 - Any `data/transcripts/` files if they exist
@@ -352,26 +395,68 @@ Before running any agent, read the ingested data to understand what's available.
 **IMPORTANT:** Do NOT read `data/fundamentals/fundamentals.json` directly — it's 700KB+ raw JSON.
 Use `summary.md` + the fundamentals MCP tools instead.
 
-### Step 2 — Run Specialist Agents (In Parallel)
+**Quick screen** — After reading the data, ask yourself: is this **100% clearly uninvestable?**
 
-Launch applicable agents concurrently. When launching each agent, include these constraints
-verbatim in the prompt:
+This is a VERY high bar. Early exit ONLY if ALL of these are true:
+- No real business (shell company, blank check, no operations)
+- No data to analyze (no filings, no financials, no meaningful information)
+- No conceivable investment thesis exists
+
+If you early exit, write `coordinator_log.md` explaining why, then produce a minimal
+`memo.md` and `memo.yaml` with decision "Too Hard" and move to Step 5.
+
+**Most companies should NOT be early-exited.** Small revenue, penny stock price, high
+burn rate — these are NOT reasons to exit. Many great investments start as "uninvestable"
+looking companies. When in doubt, continue.
+
+### Step 2 — Run Financial Analyst First
+
+Run **rigorous-financial-analyst** first (not in parallel with others). This agent is most
+likely to surface fundamental dealbreakers.
+
+Include in its prompt:
+- "Your output MUST be under {budget.specialist_words:,} words."
+- "Read the local data files first. {web_constraint}"
+- "Lead with findings, not setup. No preambles. Tables over prose for comparable data."
+- "At the end of your analysis, add a line: INVESTABILITY: [CONTINUE|STOP] with a one-sentence reason."
+
+### Step 3 — Coordinator Checkpoint
+
+Read `rigorous-financial-analyst.md`. Check the INVESTABILITY line.
+
+If STOP and the reason is a clear fundamental dealbreaker (going concern with <1 month
+cash, proven fraud, delisted with no path back), you MAY skip remaining agents.
+Log your decision to `coordinator_log.md`.
+
+**Again, this is a high bar.** Negative earnings, dilution risk, competitive pressure —
+these are NOT reasons to stop. Most companies should CONTINUE.
+
+If CONTINUE (or if in doubt): proceed to Step 4.
+
+### Step 4 — Run Remaining Specialists
+
+Launch the remaining applicable agents. These CAN run in parallel since the coordinator
+already approved continuation.
+
+{agent_selection}
+
+Include in each agent's prompt:
 - "Your output MUST be under {budget.specialist_words:,} words."
 - "Read the local data files first. {web_constraint}"
 - "Lead with findings, not setup. No preambles. Tables over prose for comparable data."
 
-{agent_selection}
+### Step 5 — Coordinator Synthesizes (Investment Decision)
 
-### Step 3 — Run Investment Decision Maker
+Once all specialist files exist (or after early exit), you ARE the investment decision maker.
+Read all specialist reports and produce memo.md, memo.yaml, and draft_monitors.yaml.
 
-Once all specialist files exist, run investment-decision-maker. It reads all specialist reports
-and produces memo.md, memo.yaml, and draft_monitors.yaml.
+Include: "Your memo MUST be under {budget.memo_words:,} words."
 
-Include in its prompt: "Your memo MUST be under {budget.memo_words:,} words."
+Log your final decision to `coordinator_log.md`.
 
-### Step 4 — Summary
+### Step 6 — Summary
 
-After all agents complete, print a brief summary of what was produced and any gaps.
+Print a brief summary: what was produced, any early exits, and any gaps.
 
 ---
 
@@ -432,6 +517,25 @@ First-order: "Margins are expanding" → Bullish
 Second-order: "Margins are expanding because of favorable mix" → Is mix sustainable or one-time?
 
 **The edge is in the second layer.**
+
+---
+
+## Event Calendar
+
+If during your research you discover upcoming events (earnings dates, FDA decisions,
+clinical data readouts, investor days, conferences, contract deadlines, etc.), record
+them by appending to `../../config/events.yaml` in this format:
+
+```yaml
+  - ticker: {ticker}
+    date: "YYYY-MM-DD"
+    type: "earnings|clinical_data|fda_decision|investor_day|conference|regulatory|other"
+    description: "<what the event is>"
+    source: "filing_research"
+    added_at: "{today}"
+```
+
+This helps the analyst agent anticipate catalysts when monitoring price moves.
 
 ---
 

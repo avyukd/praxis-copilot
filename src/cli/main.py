@@ -38,6 +38,7 @@ from cli.pipeline_status import (
 )
 from cli.research_prompt import ResearchBudget, generate_research_prompt
 from cli.research_run import build_run_prompt, fetch_tactical_context, launch_sessions, write_prompt_file
+from cli.staging import ingestion_options_for_registry_entry, stage_ticker, sync_research
 from cli.s3 import (
     BUCKET,
     download_file,
@@ -47,7 +48,18 @@ from cli.s3 import (
     upload_directory,
     upload_file,
 )
+from cli.filing_research import filing_research
 from cli.options_flow import options
+from cli.analyst_agent import analyst
+from cli.earnings_research import earnings_cli
+from cli.entry_watchdog import watchdog
+from cli.morning_briefing import send_morning_briefing
+from cli.portfolio_sync import portfolio_cli
+from cli.research_queue import research_queue_cli
+from cli.thesis_monitors import watches_cli
+from cli.event_calendar import events_cli
+from cli.local_scanner import scanner
+from cli.queue_cli import queue
 from cli.watch import alert, market, watch
 
 
@@ -57,11 +69,194 @@ def cli():
     pass
 
 
+cli.add_command(filing_research)
 cli.add_command(monitor)
 cli.add_command(market)
 cli.add_command(watch)
 cli.add_command(alert)
 cli.add_command(options)
+cli.add_command(queue)
+cli.add_command(scanner)
+cli.add_command(analyst)
+cli.add_command(events_cli, "calendar")
+cli.add_command(earnings_cli, "earnings")
+cli.add_command(watchdog)
+cli.add_command(portfolio_cli, "portfolio")
+cli.add_command(watches_cli, "watches")
+cli.add_command(research_queue_cli, "research-queue")
+
+
+@cli.group("desktop")
+def desktop():
+    """IPC with Claude Desktop — create tasks, check findings."""
+    pass
+
+
+@desktop.command("browse")
+@click.argument("url")
+@click.option("--ticker", "-t", default="", help="Ticker symbol")
+@click.option("--desc", "-d", default="", help="What to look for")
+def desktop_browse(url: str, ticker: str, desc: str):
+    """Create a browse task for Claude Desktop.
+
+    \b
+    Examples:
+      praxis desktop browse "https://x.com/search?q=%24CLMT" -t CLMT -d "Check sentiment"
+    """
+    from cli.ipc import create_task
+    task = create_task("browse", desc or f"Browse and report findings from: {url}", ticker=ticker, url=url, created_by="user")
+    click.echo(f"Browse task created: {task.id}. Desktop will pick it up.")
+
+
+@desktop.command("search")
+@click.argument("query")
+@click.option("--ticker", "-t", default="", help="Ticker symbol")
+@click.option("--sources", "-s", default="twitter,stocktwits", help="Comma-separated sources")
+def desktop_search(query: str, ticker: str, sources: str):
+    """Create a search task for Claude Desktop.
+
+    \b
+    Examples:
+      praxis desktop search "$CLMT RVO" -t CLMT -s twitter,microcapclub
+    """
+    from cli.ipc import create_task
+    source_list = [s.strip() for s in sources.split(",")]
+    task = create_task("search", f"Search for: {query}", ticker=ticker, search_query=query, sources=source_list, created_by="user")
+    click.echo(f"Search task created: {task.id}. Sources: {', '.join(source_list)}")
+
+
+@desktop.command("tasks")
+def desktop_tasks():
+    """Show pending IPC tasks for Desktop."""
+    from cli.ipc import get_pending_tasks
+    tasks = get_pending_tasks()
+    if not tasks:
+        click.echo("No pending tasks.")
+        return
+    for t in tasks:
+        click.echo(f"  {t.id} [{t.priority}] {t.type}: {t.description[:60]}")
+
+
+@desktop.command("inbox")
+@click.option("--limit", "-n", type=int, default=10, help="Max findings")
+def desktop_inbox(limit: int):
+    """Show recent findings from Desktop."""
+    from cli.ipc import read_inbox
+    findings = read_inbox(limit)
+    if not findings:
+        click.echo("No findings in inbox.")
+        return
+    for f in findings:
+        ticker = f"[{f.ticker}] " if f.ticker else ""
+        click.echo(f"  {ticker}{f.content[:80]}")
+        click.echo(f"    {f.actionability} | {f.urgency} | {f.source}")
+
+
+@cli.command("briefing")
+def cli_briefing():
+    """Send the morning briefing email now.
+
+    \b
+    Compiles overnight activity: entry/exit triggers, new BUY memos,
+    upcoming events, analyst findings, and daemon health.
+    """
+    send_morning_briefing()
+
+
+@cli.command("health")
+def cli_health():
+    """Check daemon health status."""
+    import subprocess as sp
+    daemons = {"scanner": False, "filing-research": False, "analyst": False, "queue": False}
+    try:
+        result = sp.run(["bash", "-c", "ps aux | grep '[p]raxis'"],
+                        capture_output=True, text=True, timeout=5)
+        for line in result.stdout.strip().splitlines():
+            for name in daemons:
+                if name in line:
+                    daemons[name] = True
+    except Exception:
+        pass
+
+    all_ok = all(daemons.values())
+    click.echo(f"{'All systems OK' if all_ok else '⚠ Issues detected'}:")
+    for name, running in daemons.items():
+        status = "✓ running" if running else "✗ DOWN"
+        click.echo(f"  {name:<20} {status}")
+
+
+@cli.command("audit")
+@click.argument("ticker", required=False)
+def cli_audit(ticker: str | None):
+    """View coordinator decisions for research sessions.
+
+    \b
+    Shows early exits, checkpoint decisions, and final outcomes.
+    Use this to review what the coordinator decided and override if needed.
+
+    \b
+    Examples:
+      praxis audit           # Show all recent coordinator logs
+      praxis audit IMMX      # Show coordinator log for a specific ticker
+    """
+    repo_root = find_repo_root()
+    workspace = repo_root / "workspace"
+
+    if ticker:
+        ticker = ticker.strip("/").upper()
+        log_path = workspace / ticker / "coordinator_log.md"
+        if log_path.exists():
+            click.echo(f"Coordinator log for {ticker}:\n")
+            click.echo(log_path.read_text())
+        else:
+            click.echo(f"No coordinator log for {ticker}.")
+            memo_path = workspace / ticker / "memo.yaml"
+            if memo_path.exists():
+                click.echo("(Research ran before coordinator was added)")
+        return
+
+    # Show all coordinator logs
+    logs_found = 0
+    for ticker_dir in sorted(workspace.iterdir()):
+        if not ticker_dir.is_dir() or ticker_dir.name in ("queue", "analyst", "macro"):
+            continue
+        log_path = ticker_dir / "coordinator_log.md"
+        if log_path.exists():
+            content = log_path.read_text().strip()
+            first_line = content.split("\n")[0] if content else "(empty)"
+            early_exit = "EARLY EXIT" in content.upper()
+            marker = " ⚠ EARLY EXIT" if early_exit else ""
+            click.echo(f"  {ticker_dir.name:<12} {first_line[:70]}{marker}")
+            logs_found += 1
+
+    if logs_found == 0:
+        click.echo("No coordinator logs found yet. They'll appear after research runs with the new flow.")
+    else:
+        click.echo(f"\n{logs_found} coordinator log(s). Use 'praxis audit TICKER' for details.")
+        click.echo("To force re-research: praxis research run TICKER --tactical")
+
+
+@cli.command("usage")
+@click.option("--date", "date_str", default=None, help="Date YYYY-MM-DD (default: today)")
+@click.option("--json", "as_json", is_flag=True, help="Output raw JSON")
+@click.option("--live", is_flag=True, help="Live capacity monitor with heartbeat probes")
+def cli_usage(date_str: str | None, as_json: bool, live: bool):
+    """Show Claude CLI usage telemetry and capacity estimates.
+
+    \b
+    Tracks token usage, cost, timing, rate limits, and per-daemon
+    breakdowns. Estimates current window capacity via calibration
+    and heartbeat probes.
+
+    \b
+    Examples:
+      praxis usage              # Today's report
+      praxis usage --live       # Live capacity monitor
+      praxis usage --date 2026-04-01
+      praxis usage --json
+    """
+    from cli.telemetry import print_usage_report
+    print_usage_report(date_str=date_str, as_json=as_json, live=live)
 
 
 def _extract_tickers_from_monitor(monitor_data: dict) -> set[str]:
@@ -233,7 +428,7 @@ def universe_add(tickers: tuple[str, ...], priority: int):
             ticker,
             entry.cik,
             s3,
-            **_ingestion_options_for_registry_entry(entry),
+            **ingestion_options_for_registry_entry(entry),
         )
         click.echo(f"  Filings: {result.filings_count} | Fundamentals: {result.fundamentals_source or 'N/A'} | Transcripts: {result.transcripts_count}")
         if result.warnings:
@@ -300,6 +495,34 @@ def universe_remove(ticker: str):
         else:
             click.echo(f"Marked {ticker} as external in ticker_registry.yaml")
 
+    # Clean up portfolio/watchlist references
+    portfolio_path = config_dir / "portfolio.yaml"
+    if portfolio_path.exists():
+        from cli.models import PortfolioConfig
+        portfolio = PortfolioConfig(**load_yaml(portfolio_path))
+        in_portfolio = any(p.ticker.upper() == ticker for p in portfolio.positions)
+        in_watchlist = ticker in [t.upper() for t in portfolio.watchlist]
+        if in_portfolio:
+            click.echo(f"Note: {ticker} is still in portfolio.yaml (not auto-removed — you may still hold it)")
+        if in_watchlist:
+            portfolio.watchlist = [t for t in portfolio.watchlist if t.upper() != ticker]
+            save_yaml(portfolio_path, portfolio.model_dump())
+            click.echo(f"Removed {ticker} from watchlist in portfolio.yaml")
+
+    # Clean up event calendar
+    events_path = config_dir / "events.yaml"
+    if events_path.exists():
+        try:
+            events_data = load_yaml(events_path)
+            events_list = events_data.get("events", [])
+            before = len(events_list)
+            events_list = [e for e in events_list if e.get("ticker", "").upper() != ticker]
+            if len(events_list) < before:
+                save_yaml(events_path, {"events": events_list})
+                click.echo(f"Removed {before - len(events_list)} event(s) from calendar")
+        except Exception:
+            pass
+
     # Sync config
     click.echo()
     s3 = get_s3_client()
@@ -343,7 +566,7 @@ def stage(tickers: tuple[str, ...]):
             click.echo(f"  {ticker} is not in the universe. Skipping.")
             continue
 
-        workspace = _stage_ticker(ticker, config_dir, registry_cfg, s3, macro_files)
+        workspace = stage_ticker(ticker, config_dir, registry_cfg, s3, macro_files)
         if workspace:
             staged.append((ticker, workspace))
 
@@ -354,146 +577,9 @@ def stage(tickers: tuple[str, ...]):
             click.echo(f"  cd {ws} && claude")
 
 
-def _stage_ticker(ticker: str, config_dir: Path, registry_cfg, s3, macro_files: list[str]) -> Path | None:
-    """Stage a single ticker workspace. Returns workspace path or None on failure."""
-    # Ensure data is ingested
-    data_prefix = f"data/research/{ticker}/data/"
-    data_keys = list_prefix(s3, data_prefix)
-    if not data_keys:
-        click.echo(f"  No ingested data found. Running ingestion...")
-        entry = registry_cfg.tickers.get(ticker)
-        if entry:
-            result = run_ingestion(
-                ticker,
-                entry.cik,
-                s3,
-                **_ingestion_options_for_registry_entry(entry),
-            )
-            click.echo(f"  Filings: {result.filings_count}, Fundamentals: {result.fundamentals_source or 'N/A'}, Transcripts: {result.transcripts_count}")
-            data_keys = list_prefix(s3, data_prefix)
-        else:
-            click.echo(f"  No CIK found for {ticker}. Re-add with 'praxis universe add {ticker}'.")
-            return None
 
-    # Set up workspace
-    repo_root = find_repo_root()
-    workspace = repo_root / "workspace" / ticker
-    workspace.mkdir(parents=True, exist_ok=True)
-
-    # Pull ingested data into workspace/data/
-    click.echo(f"  Pulling ingested data...")
-    data_dir = workspace / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    for key in data_keys:
-        relative = key[len(data_prefix):]
-        if not relative:
-            continue
-        local_path = data_dir / relative
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        content = download_file(s3, key)
-        local_path.write_bytes(content)
-    click.echo(f"  {len(data_keys)} file(s) pulled")
-
-    # Pull macro context if it exists
-    if macro_files:
-        macro_dir = workspace / "macro"
-        macro_dir.mkdir(parents=True, exist_ok=True)
-        for key in macro_files:
-            relative = key[len("data/context/macro/"):]
-            local_path = macro_dir / relative
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            content = download_file(s3, key)
-            local_path.write_bytes(content)
-        click.echo(f"  {len(macro_files)} macro file(s) pulled")
-
-    # Pull existing research artifacts (for re-analysis idempotency)
-    research_prefix = f"data/research/{ticker}/"
-    all_research = list_prefix(s3, research_prefix)
-    artifact_keys = [k for k in all_research if not k[len(research_prefix):].startswith("data/")]
-    if artifact_keys:
-        for key in artifact_keys:
-            relative = key[len(research_prefix):]
-            local_path = workspace / relative
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            content = download_file(s3, key)
-            local_path.write_bytes(content)
-        click.echo(f"  {len(artifact_keys)} existing artifact(s) pulled")
-
-    # Build file manifest for the prompt
-    data_manifest = _build_manifest(data_dir)
-
-    # Load ticker info
-    entry = registry_cfg.tickers.get(ticker)
-
-    # Configure MCP server for fundamentals querying
-    fundamentals_path = data_dir / "fundamentals" / "fundamentals.json"
-    has_fundamentals_mcp = fundamentals_path.exists()
-    if has_fundamentals_mcp:
-        server_script = str(Path(__file__).parent / "fundamentals_server.py")
-        server_env = {}
-        eodhd_key = os.environ.get("EODHD_API_KEY", "")
-        if eodhd_key:
-            server_env["EODHD_API_KEY"] = eodhd_key
-        mcp_server_def: dict = {
-            "command": sys.executable,
-            "args": [server_script, str(fundamentals_path)],
-        }
-        if server_env:
-            mcp_server_def["env"] = server_env
-        mcp_config = {"mcpServers": {"fundamentals": mcp_server_def}}
-        mcp_path = workspace / ".mcp.json"
-        mcp_path.write_text(json.dumps(mcp_config, indent=2))
-        click.echo(f"  Configured fundamentals MCP server")
-
-    # Generate CLAUDE.md with priority-scaled budgets
-    priority = entry.research_priority if entry else 5
-    budget = ResearchBudget.from_priority(priority)
-    prompt = generate_research_prompt(
-        ticker=ticker,
-        company_name=entry.name if entry else ticker,
-        data_manifest=data_manifest,
-        has_macro=bool(macro_files),
-        has_existing_artifacts=bool(artifact_keys),
-        research_priority=priority,
-        has_fundamentals_mcp=has_fundamentals_mcp,
-    )
-    claude_md_path = workspace / "CLAUDE.md"
-    claude_md_path.write_text(prompt)
-    click.echo(f"  CLAUDE.md generated (depth: {budget.depth_label})")
-
-    return workspace
-
-
-def _build_manifest(data_dir: Path) -> str:
-    """Build a file listing for the research prompt.
-
-    Excludes fundamentals.json (too large for context — use MCP tools instead).
-    """
-    lines = []
-    for path in sorted(data_dir.rglob("*")):
-        if path.is_file():
-            # Skip raw fundamentals JSON — Claude uses MCP tools for that
-            if path.name == "fundamentals.json":
-                continue
-            relative = path.relative_to(data_dir)
-            size = path.stat().st_size
-            if size > 1024:
-                size_str = f"{size // 1024}KB"
-            else:
-                size_str = f"{size}B"
-            lines.append(f"  - data/{relative} ({size_str})")
-    return "\n".join(lines)
-
-
-def _ingestion_options_for_registry_entry(entry: TickerRegistryEntry | None) -> dict[str, bool]:
-    if not entry:
-        return {}
-    if entry.edgar_supported:
-        return {}
-    return {
-        "skip_sec_filings": True,
-        "skip_fundamentals": True,
-    }
+# _stage_ticker, _build_manifest, and ingestion_options_for_registry_entry
+# have been extracted to cli.staging and are imported at the top of this file.
 
 
 # ---------------------------------------------------------------------------
@@ -1004,55 +1090,7 @@ def research_sync(tickers: tuple[str, ...]):
 
     for ticker in tickers:
         ticker = ticker.strip("/").upper()
-        local_dir = repo_root / "workspace" / ticker
-
-        if not local_dir.exists():
-            click.echo(f"No workspace found at {local_dir}")
-            click.echo(f"Run 'praxis stage {ticker}' first to set up the workspace.")
-            continue
-
-        # Only sync research artifacts — skip ingested data, CLAUDE.md, and MCP config
-        skip_prefixes = ("data/", "macro/")
-        skip_names = {"CLAUDE.md", ".mcp.json"}
-        found = []
-        for path in local_dir.rglob("*"):
-            if path.is_file():
-                rel = path.relative_to(local_dir)
-                rel_str = str(rel)
-                if any(rel_str.startswith(p) for p in skip_prefixes):
-                    continue
-                if rel.name in skip_names:
-                    continue
-                found.append(rel)
-
-        if not found:
-            click.echo(f"No artifacts found in {local_dir}/")
-            continue
-
-        click.echo(f"Found artifacts in {local_dir}/:")
-        for name in sorted(str(f) for f in found):
-            click.echo(f"  {name}")
-
-        s3_prefix = f"data/research/{ticker}"
-        click.echo(f"\nUploading to s3://{BUCKET}/{s3_prefix}/ ...")
-
-        uploaded = []
-        for rel in found:
-            s3_key = f"{s3_prefix}/{rel}"
-            upload_file(s3, local_dir / rel, s3_key)
-            uploaded.append(s3_key)
-        click.echo(f"Synced {len(uploaded)} file(s):")
-        for key in uploaded:
-            click.echo(f"  {key}")
-
-        if len(uploaded) == len(found):
-            shutil.rmtree(local_dir)
-            click.echo(f"\nCleaned up workspace at {local_dir}")
-        else:
-            click.echo(
-                f"\nWarning: uploaded {len(uploaded)}/{len(found)} files. "
-                f"Workspace preserved at {local_dir}"
-            )
+        sync_research(ticker, s3, cleanup=True)
 
 
 @research.command("run")
