@@ -1010,6 +1010,14 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                     logger.error("After-hours sweep failed: %s", e)
                     click.echo(f"  ERROR: {e}")
                 after_hours_done_today = True
+                # Sync telemetry to S3 at end of day
+                try:
+                    from cli.telemetry import sync_telemetry_to_s3
+                    uploaded = sync_telemetry_to_s3()
+                    if uploaded:
+                        click.echo(f"  Synced {uploaded} telemetry file(s) to S3")
+                except Exception:
+                    pass
                 click.echo(f"[{datetime.now().strftime('%H:%M:%S')}] After-hours sweep complete.")
                 _time.sleep(poll_interval)
                 continue

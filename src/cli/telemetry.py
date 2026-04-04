@@ -259,10 +259,39 @@ def get_capacity_estimate() -> dict:
     records = _load_daily_records()
 
     # Default budget estimates (conservative, pre-calibration)
-    # Based on Claude Max typical limits: ~300K output tokens per 4h window
     window_budget_tokens = cal.get("estimated_window_budget_tokens", 300_000)
     window_budget_cost = cal.get("estimated_window_budget_cost", 30.0)
     calibrated = "estimated_window_budget_tokens" in cal
+
+    # Adaptive budget expansion: if no rate limits in last 8h, bump by 10%
+    last_rl = cal.get("last_rate_limit")
+    if last_rl:
+        try:
+            last_rl_dt = datetime.fromisoformat(last_rl)
+            hours_since = (datetime.now(ET) - last_rl_dt).total_seconds() / 3600
+            if hours_since > 8:
+                # No rate limits in 8h — we can afford more
+                max_budget = 600_000  # Cap at 600K (2x default)
+                new_budget = min(int(window_budget_tokens * 1.1), max_budget)
+                if new_budget > window_budget_tokens:
+                    cal["estimated_window_budget_tokens"] = new_budget
+                    cal["estimated_window_budget_cost"] = round(window_budget_cost * 1.1, 2)
+                    window_budget_tokens = new_budget
+                    window_budget_cost = cal["estimated_window_budget_cost"]
+                    _save_calibration(cal)
+        except Exception:
+            pass
+    elif not calibrated:
+        # Never hit a rate limit — gradually expand from default
+        expansion_count = cal.get("expansion_count", 0)
+        if expansion_count < 6:  # Max 6 expansions (300K → ~530K)
+            max_budget = 600_000
+            new_budget = min(int(window_budget_tokens * 1.1), max_budget)
+            cal["estimated_window_budget_tokens"] = new_budget
+            cal["expansion_count"] = expansion_count + 1
+            cal["last_expansion"] = datetime.now(ET).isoformat()
+            window_budget_tokens = new_budget
+            _save_calibration(cal)
 
     # Current window usage
     now = datetime.now(ET)
@@ -480,6 +509,43 @@ def get_usage_report(date_str: str | None = None) -> dict:
 # ---------------------------------------------------------------------------
 # CLI display
 # ---------------------------------------------------------------------------
+
+
+def sync_telemetry_to_s3(date_str: str | None = None) -> int:
+    """Sync telemetry files to S3. Returns number of files uploaded."""
+    from cli.s3 import get_s3_client, upload_file
+
+    s3 = get_s3_client()
+    tel_dir = _telemetry_dir()
+    uploaded = 0
+
+    for path in tel_dir.glob("*.jsonl"):
+        s3_key = f"data/telemetry/{path.name}"
+        try:
+            upload_file(s3, path, s3_key)
+            uploaded += 1
+        except Exception:
+            pass
+
+    # Also sync calibration
+    cal_path = _calibration_path()
+    if cal_path.exists():
+        try:
+            upload_file(s3, cal_path, f"data/telemetry/{cal_path.name}")
+            uploaded += 1
+        except Exception:
+            pass
+
+    # Sync heartbeats
+    hb_path = tel_dir / "heartbeats.jsonl"
+    if hb_path.exists():
+        try:
+            upload_file(s3, hb_path, "data/telemetry/heartbeats.jsonl")
+            uploaded += 1
+        except Exception:
+            pass
+
+    return uploaded
 
 
 def print_usage_report(date_str: str | None = None, as_json: bool = False, live: bool = False) -> None:
