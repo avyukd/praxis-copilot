@@ -195,11 +195,14 @@ def run_full_pipeline(
     alert_threshold: float = 0.5,
     dry_run: bool = False,
     model: str = "sonnet",
+    enable_10q: bool = False,
 ) -> dict:
     """Run the full local pipeline: poll EDGAR + newswires, extract, analyze, alert.
 
     Uses the Lambda module code directly for polling and extraction,
     and Claude CLI for analysis.
+
+    If *enable_10q* is True, also polls for 10-Q and 10-K filings.
     """
     _ensure_src_path()
     from src.modules.events.eight_k_scanner.edgar.poller import poll_new_8k_filings
@@ -223,14 +226,28 @@ def run_full_pipeline(
     # --- Stage 1: Poll ---
     click.echo("[1/4] Polling for new filings and press releases...")
 
-    # Poll EDGAR
+    # Poll EDGAR — 8-K/8-K/A (always)
     try:
         filings = poll_new_8k_filings(lookback_minutes=lookback_minutes)
-        click.echo(f"  EDGAR: {len(filings)} new filing(s)")
+        click.echo(f"  EDGAR 8-K: {len(filings)} new filing(s)")
         stats["polled"] += len(filings)
     except Exception as e:
-        logger.error("EDGAR poll failed: %s", e)
+        logger.error("EDGAR 8-K poll failed: %s", e)
         filings = []
+
+    # Poll EDGAR — 10-Q/10-K (only if enabled)
+    if enable_10q:
+        try:
+            annual_filings = poll_new_8k_filings(
+                lookback_minutes=max(lookback_minutes, 1440),  # 24h lookback for periodic filings
+                forms=["10-Q", "10-K"],
+            )
+            click.echo(f"  EDGAR 10-Q/10-K: {len(annual_filings)} new filing(s)")
+            filings.extend(annual_filings)
+            stats["polled"] += len(annual_filings)
+        except Exception as e:
+            logger.error("EDGAR 10-Q/10-K poll failed: %s", e)
+
 
     # Poll GNW press releases
     try:
@@ -781,7 +798,8 @@ def scanner():
 @click.option("--alert-threshold", type=float, default=0.5, show_default=True, help="Min magnitude for SNS alert")
 @click.option("--model", type=click.Choice(["sonnet", "haiku", "opus"]), default="sonnet", show_default=True, help="Claude model for analysis")
 @click.option("--dry-run", is_flag=True, help="Poll only, don't analyze")
-def scanner_run(lookback: int, max_parallel: int, no_prescreen: bool, alert_threshold: float, model: str, dry_run: bool):
+@click.option("--enable-10q", is_flag=True, help="Also poll for 10-Q/10-K filings (higher capacity usage)")
+def scanner_run(lookback: int, max_parallel: int, no_prescreen: bool, alert_threshold: float, model: str, dry_run: bool, enable_10q: bool):
     """Run the full local pipeline: poll → extract → analyze → alert.
 
     \b
@@ -793,7 +811,7 @@ def scanner_run(lookback: int, max_parallel: int, no_prescreen: bool, alert_thre
     Examples:
       praxis scanner run
       praxis scanner run --lookback 60 --dry-run
-      praxis scanner run --max-parallel 8 --alert-threshold 0.3
+      praxis scanner run --enable-10q  # also scan 10-Q/10-K
     """
     run_full_pipeline(
         lookback_minutes=lookback,
@@ -802,6 +820,7 @@ def scanner_run(lookback: int, max_parallel: int, no_prescreen: bool, alert_thre
         alert_threshold=alert_threshold,
         dry_run=dry_run,
         model=model,
+        enable_10q=enable_10q,
     )
 
 
@@ -872,7 +891,8 @@ def scanner_analyze(s3_path: str):
 @click.option("--max-parallel", type=int, default=4, show_default=True, help="Max concurrent analyses")
 @click.option("--alert-threshold", type=float, default=0.5, show_default=True, help="Min magnitude for SNS alert")
 @click.option("--model", type=click.Choice(["sonnet", "haiku", "opus"]), default="sonnet", show_default=True, help="Claude model for analysis")
-def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hours_sweep: int, max_parallel: int, alert_threshold: float, model: str):
+@click.option("--enable-10q", is_flag=True, help="Also poll for 10-Q/10-K filings")
+def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hours_sweep: int, max_parallel: int, alert_threshold: float, model: str, enable_10q: bool = False):
     """Run the scanner as a continuous daemon.
 
     \b
@@ -999,6 +1019,7 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                         prescreen=True,
                         alert_threshold=alert_threshold,
                         model=model,
+                        enable_10q=enable_10q,
                     )
                     scan_unanalyzed(
                         lookback_hours=12,
@@ -1032,6 +1053,7 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                     prescreen=True,
                     alert_threshold=alert_threshold,
                     model=model,
+                    enable_10q=enable_10q,
                 )
                 scan_unanalyzed(
                     lookback_hours=4,
