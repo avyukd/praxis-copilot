@@ -645,15 +645,14 @@ def run_daemon(
             # Submit new research jobs (only up to max_parallel, respecting capacity)
             if executor and not past_window:
                 # Check capacity before submitting new work
+                # Capacity gate removed — 80% cap was never calibrated against
+                # real rate limits. Log usage for observability but don't block.
                 try:
                     from cli.telemetry import get_capacity_estimate
                     cap = get_capacity_estimate()
-                    if cap.get("at_target", False):
-                        if not pending_futures:  # Only log if we'd otherwise be idle
-                            click.echo(f"[{datetime.now(ET).strftime('%H:%M:%S')}] At 80% capacity, waiting...")
-                        _save_state(state)
-                        time.sleep(60)
-                        continue
+                    pct = cap.get("estimated_pct", 0)
+                    if pct >= 80 and not pending_futures:
+                        click.echo(f"[{datetime.now(ET).strftime('%H:%M:%S')}] Capacity at {pct}% (not gating)")
                 except Exception:
                     pass
 
