@@ -490,6 +490,17 @@ def run_daemon(
     state = _load_state(run_date)
     state.started_at = state.started_at or now_et
     state.daemon_pid = os.getpid()
+
+    # Recover stuck research_running entries from previous daemon instance
+    stuck_count = 0
+    for filing in state.filings.values():
+        if filing.decision == FilingDecision.RESEARCH_RUNNING and filing.research_finished_at is None:
+            filing.decision = FilingDecision.RESEARCH_QUEUED
+            filing.research_started_at = None
+            stuck_count += 1
+    if stuck_count:
+        logger.info("Recovered %d stuck research_running entries from previous daemon", stuck_count)
+
     _save_state(state)
 
     # Load config
