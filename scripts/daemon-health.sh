@@ -13,6 +13,7 @@ DAEMONS=(
     "com.praxis.filing-research"
     "com.praxis.analyst"
     "com.praxis.research-queue"
+    "com.praxis.manage"
 )
 
 for daemon in "${DAEMONS[@]}"; do
