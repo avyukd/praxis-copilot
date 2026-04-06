@@ -50,24 +50,35 @@ def check_move_from_close(
     direction = "up" if price_data.change_pct > 0 else "down"
     alert_type = AlertType.PRICE_BREACH_UP if direction == "up" else AlertType.PRICE_BREACH_DOWN
 
-    for b in range(1, band + 1):
-        if b in ticker_state.close_bands_fired:
-            continue
-        ticker_state.close_bands_fired.append(b)
-        threshold_pct = b * step
-        severity = Severity.HIGH if threshold_pct >= step * 2 else Severity.MEDIUM
-        alerts.append(Alert(
-            ticker=price_data.ticker,
-            timestamp=now,
-            alert_type=alert_type,
-            severity=severity,
-            details={
-                "change_pct": price_data.change_pct,
-                "threshold_pct": threshold_pct,
-                "price": price_data.price,
-                "previous_close": price_data.previous_close,
-            },
-        ))
+    # Only fire the highest unfired band — no stacking
+    highest_unfired = None
+    for b in range(band, 0, -1):
+        if b not in ticker_state.close_bands_fired:
+            highest_unfired = b
+            break
+
+    if highest_unfired is None:
+        return alerts
+
+    # Mark all bands up to the highest as fired
+    for b in range(1, highest_unfired + 1):
+        if b not in ticker_state.close_bands_fired:
+            ticker_state.close_bands_fired.append(b)
+
+    threshold_pct = highest_unfired * step
+    severity = Severity.HIGH if threshold_pct >= step * 2 else Severity.MEDIUM
+    alerts.append(Alert(
+        ticker=price_data.ticker,
+        timestamp=now,
+        alert_type=alert_type,
+        severity=severity,
+        details={
+            "change_pct": price_data.change_pct,
+            "threshold_pct": threshold_pct,
+            "price": price_data.price,
+            "previous_close": price_data.previous_close,
+        },
+    ))
 
     return alerts
 
