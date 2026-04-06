@@ -11,6 +11,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import click
+import pandas as pd
 import requests
 import yaml
 
@@ -84,6 +85,9 @@ def _fetch_ohlc_yfinance(ticker: str, days: int = 30) -> list[dict] | None:
         df = yf.download(ticker, start=start.isoformat(), end=end.isoformat(), progress=False)
         if df is None or df.empty:
             return None
+        # Flatten multi-level columns from newer yfinance versions
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
         results = []
         for idx, row in df.iterrows():
             results.append(
@@ -137,16 +141,15 @@ def fetch_all_ohlc(tickers: list[str], days: int = 30) -> dict[str, list[dict]]:
             tickers_to_fetch.append(t)
 
     if tickers_to_fetch:
-        with ThreadPoolExecutor(max_workers=5) as pool:
-            futures = {pool.submit(fetch_ohlc, t, days): t for t in tickers_to_fetch}
-            for future in as_completed(futures):
-                ticker = futures[future]
-                try:
-                    data = future.result()
-                    results[ticker] = data
-                    cache[ticker] = {"date": today, "data": data}
-                except Exception:
-                    results[ticker] = []
+        # Serialize fetches — yfinance is not thread-safe and returns
+        # corrupted data when multiple downloads run in parallel.
+        for ticker in tickers_to_fetch:
+            try:
+                data = fetch_ohlc(ticker, days)
+                results[ticker] = data
+                cache[ticker] = {"date": today, "data": data}
+            except Exception:
+                results[ticker] = []
 
         # Save cache
         try:
@@ -515,22 +518,50 @@ def _render_filing_card(
 </div>"""
 
 
+def _source_label(filing: TrackedFiling) -> str:
+    """Human-readable source label from key_prefix and form_type."""
+    kp = filing.key_prefix or ""
+    if filing.form_type:
+        return filing.form_type
+    if "newsfile" in kp:
+        return "Canadian PR"
+    if "/gnw/" in kp:
+        return "US PR"
+    if "press_releases" in kp:
+        return "PR"
+    return "—"
+
+
 def _render_skipped_table(skipped: list[TrackedFiling]) -> str:
     if not skipped:
         return ""
     rows = []
-    for f in sorted(skipped, key=lambda x: x.discovered_at):
+    for f in sorted(skipped, key=lambda x: x.discovered_at, reverse=True):
         ticker = html.escape(f.ticker or "—")
-        form = html.escape(f.form_type or "—")
+        source = html.escape(_source_label(f))
         cls = html.escape(f.classification[:10] if f.classification else "—")
         mag = f"{f.magnitude:.2f}" if f.magnitude is not None else "—"
-        reason = html.escape(f.decision_reason)
-        rows.append(f"<tr><td>{ticker}</td><td>{form}</td><td>{cls}</td><td>{mag}</td><td>{reason}</td></tr>")
+        time_str = f.discovered_at.strftime("%H:%M") if f.discovered_at else "—"
+        reason = html.escape(f.decision_reason or "")
+
+        # Distinguish prescreen rejections
+        if f.decision == FilingDecision.SKIP_SCREENED:
+            reason_cls = "skip-screened"
+        elif f.decision == FilingDecision.SKIP_NOT_ANALYZED:
+            reason_cls = "skip-pending"
+        else:
+            reason_cls = ""
+
+        rows.append(
+            f'<tr class="{reason_cls}">'
+            f"<td>{time_str}</td><td>{ticker}</td><td>{source}</td>"
+            f"<td>{cls}</td><td>{mag}</td><td>{reason}</td></tr>"
+        )
     return f"""\
 <details class="skipped-section">
   <summary>Skipped Filings ({len(skipped)})</summary>
   <table class="skipped-table">
-    <thead><tr><th>Ticker</th><th>Form</th><th>Class</th><th>Mag</th><th>Reason</th></tr></thead>
+    <thead><tr><th>Time</th><th>Ticker</th><th>Source</th><th>Class</th><th>Mag</th><th>Reason</th></tr></thead>
     <tbody>{"".join(rows)}</tbody>
   </table>
 </details>"""
@@ -667,6 +698,8 @@ h1.title { font-size: 22px; margin-bottom: 4px; }
   border-bottom: 1px solid #334155;
 }
 .skipped-table td { padding: 4px 10px; color: #cbd5e1; border-bottom: 1px solid #1e293b; }
+.skip-screened td { color: #64748b; }
+.skip-pending td { color: #fbbf24; }
 .briefing {
   background: #172554; border: 1px solid #1e40af; border-radius: 10px;
   padding: 16px 20px; margin-bottom: 24px;
