@@ -100,7 +100,7 @@ def _run_queue_job(task: QueueTask, workspace: Path) -> tuple[bool, str, list[st
                     found.append(rel)
 
     missing_required = REQUIRED_ARTIFACTS - {f for f in found}
-    success = result.returncode == 0 and not missing_required
+    success = not result_json.get("is_error", False) and not missing_required
 
     # Read summary if it exists
     summary_text = ""
