@@ -17,6 +17,26 @@ from cli.s3 import download_file, get_s3_client, list_prefix, upload_file
 
 logger = logging.getLogger(__name__)
 
+CODEX_BIN = "/opt/homebrew/bin/codex"
+
+
+def _ensure_codex_mcp(workspace: Path) -> None:
+    """Add codex-cli MCP server to the workspace .mcp.json."""
+    mcp_path = workspace / ".mcp.json"
+    if mcp_path.exists():
+        try:
+            config = json.loads(mcp_path.read_text())
+        except Exception:
+            config = {"mcpServers": {}}
+    else:
+        config = {"mcpServers": {}}
+
+    config.setdefault("mcpServers", {})["codex-cli"] = {
+        "command": CODEX_BIN,
+        "args": ["--mcp"],
+    }
+    mcp_path.write_text(json.dumps(config, indent=2))
+
 
 def setup_workspace(task: QueueTask) -> Path:
     """Create and populate a workspace for a queue task.
@@ -51,6 +71,9 @@ def setup_workspace(task: QueueTask) -> Path:
         QueueTaskType.COMPARATIVE,
     ):
         has_mcp, data_manifest = _stage_ticker_data(task, workspace)
+
+    # Ensure codex-cli MCP is configured in workspace
+    _ensure_codex_mcp(workspace)
 
     # Generate CLAUDE.md
     prompt = generate_queue_prompt(
