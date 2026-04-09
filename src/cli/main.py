@@ -59,6 +59,7 @@ from cli.research_queue import research_queue_cli
 from cli.thesis_monitors import watches_cli
 from cli.event_calendar import events_cli
 from cli.local_scanner import scanner
+from cli.manage_cli import manage
 from cli.queue_cli import queue
 from cli.watch import alert, market, watch
 
@@ -84,6 +85,7 @@ cli.add_command(watchdog)
 cli.add_command(portfolio_cli, "portfolio")
 cli.add_command(watches_cli, "watches")
 cli.add_command(research_queue_cli, "research-queue")
+cli.add_command(manage)
 
 
 @cli.group("desktop")

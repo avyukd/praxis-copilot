@@ -194,6 +194,16 @@ def _evaluate_filing(
         analysis_raw = download_file(s3, f"{item.key_prefix}/analysis.json")
         analysis = json.loads(analysis_raw)
     except Exception:
+        # Check if prescreen rejected it (screening.json with NEGATIVE result)
+        try:
+            screening_raw = download_file(s3, f"{item.key_prefix}/screening.json")
+            screening = json.loads(screening_raw)
+            if screening.get("result") == "NEGATIVE":
+                tracked.decision = FilingDecision.SKIP_SCREENED
+                tracked.decision_reason = "prescreened NEGATIVE by Haiku"
+                return tracked
+        except Exception:
+            pass
         tracked.decision = FilingDecision.SKIP_NOT_ANALYZED
         tracked.decision_reason = "no analysis.json found"
         return tracked
@@ -480,6 +490,17 @@ def run_daemon(
     state = _load_state(run_date)
     state.started_at = state.started_at or now_et
     state.daemon_pid = os.getpid()
+
+    # Recover stuck research_running entries from previous daemon instance
+    stuck_count = 0
+    for filing in state.filings.values():
+        if filing.decision == FilingDecision.RESEARCH_RUNNING and filing.research_finished_at is None:
+            filing.decision = FilingDecision.RESEARCH_QUEUED
+            filing.research_started_at = None
+            stuck_count += 1
+    if stuck_count:
+        logger.info("Recovered %d stuck research_running entries from previous daemon", stuck_count)
+
     _save_state(state)
 
     # Load config
@@ -613,20 +634,34 @@ def run_daemon(
                     from cli.filing_research_report import generate_and_write_report
                     generate_and_write_report(date_str=run_date, skip_charts=False, open_browser=False, quiet=True)
                 except Exception as e:
-                    logger.debug("Report regeneration failed: %s", e)
+                    logger.error("Report regeneration failed: %s", e, exc_info=True)
+                    # Retry without charts — price fetch is the most fragile part
+                    try:
+                        generate_and_write_report(date_str=run_date, skip_charts=True, open_browser=False, quiet=True)
+                        logger.info("Report regenerated without charts (fallback)")
+                    except Exception as e2:
+                        logger.error("Report regeneration fallback also failed: %s", e2)
 
             # Submit new research jobs (only up to max_parallel, respecting capacity)
             if executor and not past_window:
                 # Check capacity before submitting new work
+                # Adaptive capacity gate: only throttle if we've actually hit a
+                # rate limit before (calibrated). Pre-calibration we run uncapped
+                # to discover the real limit, then respect 80% going forward.
                 try:
                     from cli.telemetry import get_capacity_estimate
                     cap = get_capacity_estimate()
-                    if cap.get("at_target", False):
-                        if not pending_futures:  # Only log if we'd otherwise be idle
-                            click.echo(f"[{datetime.now(ET).strftime('%H:%M:%S')}] At 80% capacity, waiting...")
+                    pct = cap.get("estimated_pct", 0)
+                    calibrated = cap.get("calibrated", False)
+                    if calibrated and cap.get("at_target", False):
+                        if not pending_futures:
+                            click.echo(f"[{datetime.now(ET).strftime('%H:%M:%S')}] At {pct}% capacity (calibrated), waiting...")
                         _save_state(state)
                         time.sleep(60)
                         continue
+                    elif pct >= 80 and not pending_futures:
+                        label = "calibrated" if calibrated else "uncalibrated, not gating"
+                        click.echo(f"[{datetime.now(ET).strftime('%H:%M:%S')}] Capacity at {pct}% ({label})")
                 except Exception:
                     pass
 

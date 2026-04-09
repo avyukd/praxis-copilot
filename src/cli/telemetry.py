@@ -261,7 +261,7 @@ def get_capacity_estimate() -> dict:
     # Default budget estimates (conservative, pre-calibration)
     window_budget_tokens = cal.get("estimated_window_budget_tokens", 300_000)
     window_budget_cost = cal.get("estimated_window_budget_cost", 30.0)
-    calibrated = "estimated_window_budget_tokens" in cal
+    calibrated = "last_rate_limit" in cal
 
     # Adaptive budget expansion: if no rate limits in last 8h, bump by 10%
     last_rl = cal.get("last_rate_limit")

@@ -348,7 +348,7 @@ def run_full_pipeline(
 
     for item, analysis in results:
         classification = (analysis.get("classification") or "").upper()
-        if classification in ("SELL", "HOLD"):
+        if classification in ("SELL", "HOLD", "NEUTRAL"):
             continue
         if analysis["magnitude"] >= alert_threshold:
             _send_alert(item, analysis)
@@ -691,6 +691,7 @@ def scan_unanalyzed(
     prescreen: bool = True,
     dry_run: bool = False,
     model: str = "sonnet",
+    alert_threshold: float = 0.5,
 ) -> dict:
     """Find items in S3 with extracted.json but no analysis.json and analyze them."""
     from cli.s3 import list_prefix_objects
@@ -763,6 +764,7 @@ def scan_unanalyzed(
             future = executor.submit(_analyze_pipeline_item, s3, item, prescreen, model)
             futures[future] = item
 
+        alert_results = []
         for future in as_completed(futures):
             item = futures[future]
             try:
@@ -773,11 +775,22 @@ def scan_unanalyzed(
                         f"  {result['classification']} (mag={result['magnitude']:.2f}): "
                         f"{item['ticker']}"
                     )
+                    alert_results.append((item, result))
             except Exception as e:
                 logger.error("Error: %s", e)
 
-    click.echo(f"\nDone: {analyzed} analyzed")
-    return {"found": len(items), "analyzed": analyzed}
+    # Send alerts for high-magnitude BUY items (matching run_full_pipeline behavior)
+    alerted = 0
+    for item, analysis in alert_results:
+        classification = (analysis.get("classification") or "").upper()
+        if classification in ("SELL", "HOLD", "NEUTRAL"):
+            continue
+        if analysis["magnitude"] >= alert_threshold:
+            _send_alert(item, analysis)
+            alerted += 1
+
+    click.echo(f"\nDone: {analyzed} analyzed, {alerted} alerted")
+    return {"found": len(items), "analyzed": analyzed, "alerted": alerted}
 
 
 # ---------------------------------------------------------------------------
@@ -881,6 +894,93 @@ def scanner_analyze(s3_path: str):
         click.echo(json.dumps(result, indent=2, default=str))
     else:
         click.echo("Analysis failed.")
+
+
+@scanner.command("show")
+@click.argument("ticker")
+def scanner_show(ticker: str):
+    """Show the latest scanner analysis for a ticker.
+
+    \b
+    Searches S3 for the most recent analysis.json for the given ticker
+    across both filings and press releases.
+
+    Examples:
+      praxis scanner show PFSA
+      praxis scanner show HASH.V
+    """
+    s3 = get_s3_client()
+    from cli.s3 import list_prefix_objects
+
+    ticker_upper = ticker.upper()
+    # Normalize: HASH.V -> search for HASH in press_releases, HASH.V in filings
+    ticker_bare = ticker_upper.split(".")[0] if "." in ticker_upper else ticker_upper
+
+    candidates = []
+
+    # Search press releases (stored without exchange suffix)
+    for source in ["gnw", "newsfile"]:
+        prefix = f"data/raw/press_releases/{source}/{ticker_bare}/"
+        objects = list_prefix_objects(s3, prefix)
+        dirs: dict[str, datetime | None] = {}
+        for obj in objects:
+            key = obj["Key"]
+            parts = key.rsplit("/", 1)
+            if len(parts) == 2 and parts[1] == "analysis.json":
+                dirs[parts[0]] = obj.get("LastModified")
+        for parent, ts in dirs.items():
+            candidates.append((parent, ts))
+
+    # Search filings by CIK if we can resolve it
+    try:
+        from cli.edgar import resolve_ticker
+        info = resolve_ticker(ticker_upper)
+        if info:
+            prefix = f"data/raw/filings/{info.cik}/"
+            objects = list_prefix_objects(s3, prefix)
+            for obj in objects:
+                key = obj["Key"]
+                parts = key.rsplit("/", 1)
+                if len(parts) == 2 and parts[1] == "analysis.json":
+                    candidates.append((parts[0], obj.get("LastModified")))
+    except Exception:
+        pass
+
+    if not candidates:
+        # Also check screening.json for prescreened items
+        screened = False
+        for source in ["gnw", "newsfile"]:
+            prefix = f"data/raw/press_releases/{source}/{ticker_bare}/"
+            objects = list_prefix_objects(s3, prefix)
+            for obj in objects:
+                if obj["Key"].endswith("screening.json"):
+                    raw = download_file(s3, obj["Key"])
+                    screening = json.loads(raw)
+                    click.echo(f"No analysis found for {ticker_upper}.")
+                    click.echo(f"Prescreen result: {screening.get('result', 'unknown')}")
+                    click.echo(f"Screened at: {screening.get('screened_at', 'unknown')}")
+                    screened = True
+                    break
+            if screened:
+                break
+        if not screened:
+            click.echo(f"No analysis or screening found for {ticker_upper} on S3.")
+        return
+
+    # Sort by timestamp, most recent first
+    candidates.sort(key=lambda x: x[1] or datetime.min.replace(tzinfo=ET), reverse=True)
+
+    for parent, ts in candidates:
+        try:
+            raw = download_file(s3, f"{parent}/analysis.json")
+            analysis = json.loads(raw)
+            ts_str = ts.strftime("%Y-%m-%d %H:%M ET") if ts else "unknown"
+            click.echo(f"=== {ticker_upper} — {parent} ===")
+            click.echo(f"Analyzed: {ts_str}")
+            click.echo(json.dumps(analysis, indent=2, default=str))
+            click.echo()
+        except Exception:
+            continue
 
 
 @scanner.command("daemon")
@@ -993,6 +1093,7 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                         max_parallel=max_parallel,
                         prescreen=True,
                         model=model,
+                        alert_threshold=alert_threshold,
                     )
                 except Exception as e:
                     logger.error("Post-throttle backfill failed: %s", e)
@@ -1026,6 +1127,7 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                         max_parallel=max_parallel,
                         prescreen=True,
                         model=model,
+                        alert_threshold=alert_threshold,
                     )
                 except Exception as e:
                     logger.error("After-hours sweep failed: %s", e)
@@ -1060,6 +1162,7 @@ def scanner_daemon(poll_interval: int, start_hour: int, end_hour: int, after_hou
                     max_parallel=max_parallel,
                     prescreen=True,
                     model=model,
+                    alert_threshold=alert_threshold,
                 )
             except Exception as e:
                 logger.error("Scan cycle failed: %s", e)
