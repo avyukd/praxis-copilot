@@ -225,9 +225,20 @@ def _evaluate_filing(
         return tracked
 
     if tracked.magnitude is not None and tracked.magnitude < magnitude_threshold:
-        tracked.decision = FilingDecision.SKIP_LOW_MAG
-        tracked.decision_reason = f"magnitude {tracked.magnitude:.2f} < {magnitude_threshold}"
-        return tracked
+        # Nano-cap pass-through: <$5M mcap, any BUY/NEUTRAL gets researched
+        is_nanocap = False
+        if classification in ("BUY", "NEUTRAL"):
+            try:
+                from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+                mcap = lookup_market_cap(ticker)
+                if mcap and mcap < 5_000_000:
+                    is_nanocap = True
+            except Exception:
+                pass
+        if not is_nanocap:
+            tracked.decision = FilingDecision.SKIP_LOW_MAG
+            tracked.decision_reason = f"magnitude {tracked.magnitude:.2f} < {magnitude_threshold}"
+            return tracked
 
     # Duplicate ticker check
     if ticker in researched_tickers:

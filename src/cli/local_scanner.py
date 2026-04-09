@@ -348,9 +348,21 @@ def run_full_pipeline(
 
     for item, analysis in results:
         classification = (analysis.get("classification") or "").upper()
-        if classification in ("SELL", "HOLD", "NEUTRAL"):
+        if classification in ("SELL", "HOLD"):
             continue
-        if analysis["magnitude"] >= alert_threshold:
+        # Nano-cap pass-through: <$5M mcap, any BUY/NEUTRAL gets alerted
+        is_nanocap = False
+        try:
+            _ensure_src_path()
+            from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+            mcap = lookup_market_cap(item["ticker"])
+            if mcap and mcap < 5_000_000:
+                is_nanocap = True
+        except Exception:
+            pass
+        if classification == "NEUTRAL" and not is_nanocap:
+            continue
+        if analysis["magnitude"] >= alert_threshold or is_nanocap:
             _send_alert(item, analysis)
             stats["alerted"] += 1
 
@@ -783,9 +795,20 @@ def scan_unanalyzed(
     alerted = 0
     for item, analysis in alert_results:
         classification = (analysis.get("classification") or "").upper()
-        if classification in ("SELL", "HOLD", "NEUTRAL"):
+        if classification in ("SELL", "HOLD"):
             continue
-        if analysis["magnitude"] >= alert_threshold:
+        is_nanocap = False
+        try:
+            _ensure_src_path()
+            from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+            mcap = lookup_market_cap(item["ticker"])
+            if mcap and mcap < 5_000_000:
+                is_nanocap = True
+        except Exception:
+            pass
+        if classification == "NEUTRAL" and not is_nanocap:
+            continue
+        if analysis["magnitude"] >= alert_threshold or is_nanocap:
             _send_alert(item, analysis)
             alerted += 1
 
