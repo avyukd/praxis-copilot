@@ -72,6 +72,7 @@ class FilingDecision(str, Enum):
     SKIP_NO_TICKER = "skip_no_ticker"
     SKIP_NOT_ANALYZED = "skip_not_analyzed"
     SKIP_DUPLICATE = "skip_duplicate"
+    SKIP_LARGE_CAP = "skip_large_cap"
     RESEARCH_QUEUED = "research_queued"
     RESEARCH_STAGING = "research_staging"
     RESEARCH_RUNNING = "research_running"
@@ -88,6 +89,7 @@ SKIP_DECISIONS = {
     FilingDecision.SKIP_NO_TICKER,
     FilingDecision.SKIP_NOT_ANALYZED,
     FilingDecision.SKIP_DUPLICATE,
+    FilingDecision.SKIP_LARGE_CAP,
 }
 
 RESEARCH_DECISIONS = {
@@ -213,6 +215,17 @@ def _evaluate_filing(
         tracked.decision = FilingDecision.SKIP_HOLD
         tracked.decision_reason = "HOLD classification"
         return tracked
+
+    # Large-cap filter: skip companies over $2B market cap
+    try:
+        from src.modules.events.eight_k_scanner.financials import lookup_market_cap
+        mcap = lookup_market_cap(ticker)
+        if mcap and mcap > 2_000_000_000:
+            tracked.decision = FilingDecision.SKIP_LARGE_CAP
+            tracked.decision_reason = f"market cap ${mcap / 1_000_000_000:.1f}B > $2B"
+            return tracked
+    except Exception:
+        pass
 
     if tracked.magnitude is not None and tracked.magnitude < magnitude_threshold:
         tracked.decision = FilingDecision.SKIP_LOW_MAG
@@ -507,17 +520,36 @@ def run_daemon(
         while True:
             now_et = datetime.now(ET)
             current_hour = now_et.hour + now_et.minute / 60.0
+            today_str = now_et.strftime("%Y-%m-%d")
 
             # No work on weekends
             if now_et.weekday() >= 5:
                 time.sleep(600)
                 continue
 
+            # Date rollover: reset state for the new day
+            if today_str != run_date:
+                click.echo(f"\nDate rolled over from {run_date} to {today_str}. Starting new day.")
+                state.finished_at = datetime.now(ET)
+                _save_state(state)
+                run_date = today_str
+                state = _load_state(run_date)
+                state.started_at = datetime.now(ET)
+                state.daemon_pid = os.getpid()
+                _save_state(state)
+                researched_tickers = set()
+                for filing in state.filings.values():
+                    if filing.decision in RESEARCH_DECISIONS:
+                        researched_tickers.add(filing.ticker.upper())
+                click.echo(f"Filing research daemon started for {run_date}")
+                continue
+
             # Check if we're past the window and have no pending research
             past_window = current_hour >= end_hour
             if past_window and not pending_futures:
-                click.echo(f"\nWindow closed and all research complete. Shutting down.")
-                break
+                click.echo(f"\nWindow closed for {run_date}. Sleeping until midnight roll...")
+                time.sleep(600)
+                continue
 
             if past_window:
                 click.echo(f"\nWindow closed. Draining {len(pending_futures)} in-progress research job(s)...")
