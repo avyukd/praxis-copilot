@@ -53,6 +53,49 @@ def _save_state(state: QueueState) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Memo persistence
+# ---------------------------------------------------------------------------
+
+
+def _persist_to_ticker_memo(task: QueueTask, workspace: Path) -> None:
+    """Copy queue research results to the ticker's workspace and sync to S3.
+
+    Maps summary.md → memo.md, summary.yaml → memo.yaml so that queue
+    research updates the canonical ticker memo.
+    """
+    import shutil
+
+    from cli.s3 import get_s3_client, upload_file
+
+    repo_root = find_repo_root()
+    s3 = get_s3_client()
+
+    for ticker in task.tickers:
+        ticker_dir = repo_root / "workspace" / ticker
+        ticker_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy summary → memo (and any other research artifacts)
+        copied = 0
+        mapping = {"summary.md": "memo.md", "summary.yaml": "memo.yaml"}
+        for src_name, dst_name in mapping.items():
+            src = workspace / src_name
+            if src.exists():
+                shutil.copy2(src, ticker_dir / dst_name)
+                upload_file(s3, ticker_dir / dst_name, f"data/research/{ticker}/{dst_name}")
+                copied += 1
+
+        # Also copy any analyst .md files
+        for f in workspace.iterdir():
+            if f.is_file() and f.suffix == ".md" and f.name not in ("summary.md", "CLAUDE.md"):
+                shutil.copy2(f, ticker_dir / f.name)
+                upload_file(s3, ticker_dir / f.name, f"data/research/{ticker}/{f.name}")
+                copied += 1
+
+        if copied:
+            logger.info("Persisted %d file(s) to workspace/%s and S3", copied, ticker)
+
+
+# ---------------------------------------------------------------------------
 # Job execution
 # ---------------------------------------------------------------------------
 
@@ -100,7 +143,7 @@ def _run_queue_job(task: QueueTask, workspace: Path) -> tuple[bool, str, list[st
                     found.append(rel)
 
     missing_required = REQUIRED_ARTIFACTS - {f for f in found}
-    success = result.returncode == 0 and not missing_required
+    success = not result_json.get("is_error", False) and not missing_required
 
     # Read summary if it exists
     summary_text = ""
@@ -222,6 +265,13 @@ def run_daemon(
                                 click.echo(f"  Synced {uploaded} artifact(s) to S3")
                         except Exception as e:
                             logger.error("S3 sync failed for #%d: %s", issue_num, e)
+
+                        # Persist results to ticker memo if this is ticker research
+                        if success and task.tickers:
+                            try:
+                                _persist_to_ticker_memo(task, workspace)
+                            except Exception as e:
+                                logger.error("Memo persist failed for #%d: %s", issue_num, e)
 
                     # Send notification
                     try:

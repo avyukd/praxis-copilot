@@ -162,12 +162,14 @@ class CapacityTracker:
         if not check_analyst_capacity():
             return False
 
-        # Telemetry-based capacity check (80% target)
+        # Telemetry-based capacity check — only gate if calibrated (have
+        # hit a real rate limit before). Pre-calibration, run uncapped to
+        # discover the true limit.
         try:
             from cli.telemetry import get_capacity_estimate
             cap = get_capacity_estimate()
-            if cap.get("at_target", False):
-                return False  # At or above 80% — stop
+            if cap.get("calibrated", False) and cap.get("at_target", False):
+                return False  # Calibrated and at/above 80% — stop
         except Exception:
             pass  # Telemetry not available, fall back to other checks
 
